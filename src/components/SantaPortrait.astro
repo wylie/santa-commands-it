@@ -8,28 +8,30 @@ const altText =
 ---
 
 <figure class="portrait-frame">
-  {
-    hasSantaImage ? (
-      <img
-        class="portrait-frame__image"
-        src="/images/santa.png"
-        alt={altText}
-        width="960"
-        height="1200"
-        loading="eager"
-        decoding="async"
-      />
-    ) : (
-      <div
-        class="portrait-frame__placeholder"
-        aria-labelledby="santa-artwork-status"
-      >
-        <div class="portrait-frame__markings" aria-hidden="true" />
-        <p id="santa-artwork-status">
-          Place the supplied Santa artwork at{' '}
-          <code>public/images/santa.png</code>.
-        </p>
-      </div>
-    )
-  }
+  <div class="portrait-frame__mount">
+    {
+      hasSantaImage ? (
+        <img
+          class="portrait-frame__image"
+          src="/images/santa.png"
+          alt={altText}
+          width="960"
+          height="1200"
+          loading="eager"
+          decoding="async"
+        />
+      ) : (
+        <div
+          class="portrait-frame__placeholder"
+          aria-labelledby="santa-artwork-status"
+        >
+          <div class="portrait-frame__markings" aria-hidden="true" />
+          <p id="santa-artwork-status">
+            Place the supplied Santa artwork at{' '}
+            <code>public/images/santa.png</code>.
+          </p>
+        </div>
+      )
+    }
+  </div>
 </figure>
