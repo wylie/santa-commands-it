@@ -28,9 +28,9 @@ Otherwise acceptable requests are planned to have a configurable chance of recei
 
 ## Local setup
 
-1. Use Node.js `22.22.1` or another compatible Node 22 release.
+1. Use Node.js `22.22.3` or another compatible Node 22 release.
 2. Install dependencies with `npm install`.
-3. Place the supplied Santa artwork at `public/images/santa.jpeg`.
+3. Place the supplied Santa artwork at `public/images/santa.png`.
 4. Start the development server with `npm run dev`.
 
 If the Santa image is missing, the homepage will render a styled placeholder instead of a broken image.
@@ -79,9 +79,18 @@ If the Santa image is missing, the homepage will render a styled placeholder ins
 
 The supplied vintage-style Santa illustration is expected at:
 
-`public/images/santa.jpeg`
+`public/images/santa.png`
 
 Do not replace it with generated or downloaded artwork in this repository. Add the provided file locally before final visual review.
+
+## Design and typography
+
+- The homepage uses `Germania One` from Google Fonts as the display typeface.
+- The shared document head loads it from `https://fonts.googleapis.com/css2?family=Germania+One&display=swap`.
+- The display-font token is `--font-display: "Germania One", system-ui, sans-serif;`.
+- Germania One is used for high-impact display text only, including the site title, major headings, and Santa's speech-bubble proclamation.
+- Body copy, form labels, helper text, inputs, textareas, counters, metadata, and disclaimers continue to use the readable body and UI font stacks.
+- The visual system uses a softer winter palette built around warm cream, parchment, snowy blue-gray, muted evergreen, charcoal, and restrained Santa-red accents.
 
 ## Accessibility goals
 
