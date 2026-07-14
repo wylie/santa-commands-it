@@ -1,0 +1,31 @@
+---
+import RequestForm from '@/components/RequestForm.astro';
+import RecentRulings from '@/components/RecentRulings.astro';
+import SantaPortrait from '@/components/SantaPortrait.astro';
+import SantaSpeechBubble from '@/components/SantaSpeechBubble.astro';
+import SiteFooter from '@/components/SiteFooter.astro';
+import SiteHeader from '@/components/SiteHeader.astro';
+import BaseLayout from '@/layouts/BaseLayout.astro';
+---
+
+<BaseLayout
+  title="Santa Commands It! | Holiday rulings from Santa Claus"
+  description="The visual foundation for a theatrical Santa request app, with an accessible request form shell and vintage holiday styling."
+  canonicalPath="/"
+>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <SiteHeader />
+  <main id="main-content" class="page-shell">
+    <section class="hero" aria-labelledby="request-panel-title">
+      <div class="hero__portrait">
+        <SantaPortrait />
+      </div>
+      <div class="hero__content">
+        <SantaSpeechBubble />
+        <RequestForm />
+      </div>
+    </section>
+    <RecentRulings />
+  </main>
+  <SiteFooter />
+</BaseLayout>

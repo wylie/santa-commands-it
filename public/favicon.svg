@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Santa Commands It favicon">
+  <rect width="64" height="64" rx="8" fill="#f4ecd8" />
+  <path d="M10 50V14h44v36H10Z" fill="#a61d24" stroke="#171311" stroke-width="4" />
+  <path d="M18 26c6-8 22-8 28 0" fill="none" stroke="#f4ecd8" stroke-width="4" stroke-linecap="round" />
+  <path d="M20 38c8 6 16 6 24 0" fill="none" stroke="#f4ecd8" stroke-width="4" stroke-linecap="round" />
+</svg>

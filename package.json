@@ -1,0 +1,42 @@
+{
+  "name": "santa-commands-it",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The theatrical Astro foundation for Santa Commands It!",
+  "engines": {
+    "node": ">=22.22.3"
+  },
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "astro check",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "check": "npm run format:check && npm run lint && npm run typecheck && npm run test && npm run build"
+  },
+  "dependencies": {
+    "astro": "7.0.9"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@astrojs/check": "0.9.9",
+    "@types/node": "26.1.1",
+    "@playwright/test": "1.61.1",
+    "astro-eslint-parser": "3.0.0",
+    "eslint": "10.7.0",
+    "eslint-plugin-astro": "3.0.0",
+    "globals": "17.7.0",
+    "playwright": "1.61.1",
+    "prettier": "3.9.5",
+    "prettier-plugin-astro": "0.14.1",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.64.0",
+    "vitest": "4.1.10"
+  }
+}

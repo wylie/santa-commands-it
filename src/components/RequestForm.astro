@@ -1,0 +1,118 @@
+---
+import { REQUEST_LIMITS } from '@/config/request';
+import { formatCharacterCount } from '@/utils/characterCount';
+
+const { nameMaxLength, requestMaxLength } = REQUEST_LIMITS;
+const initialCount = formatCharacterCount(0, requestMaxLength);
+---
+
+<section class="request-panel" aria-labelledby="request-panel-title">
+  <div class="request-panel__copy">
+    <h2 id="request-panel-title">Petition Santa, if you dare.</h2>
+    <p>
+      Ask Santa for whatever you want. If Santa approves, his ruling is final.
+      If Santa disapproves, you may be advised to reconsider your choices.
+    </p>
+  </div>
+
+  <form class="request-form" data-request-form novalidate>
+    <div class="request-form__field">
+      <label for="visitor-name">What should Santa call you?</label>
+      <input
+        id="visitor-name"
+        name="visitorName"
+        type="text"
+        maxlength={nameMaxLength}
+        autocomplete="nickname"
+        aria-describedby="visitor-name-hint"
+      />
+      <p id="visitor-name-hint" class="request-form__hint">
+        A first name or nickname is enough.
+      </p>
+    </div>
+
+    <div class="request-form__field">
+      <div class="request-form__label-row">
+        <label for="visitor-request">What do you want from Santa?</label>
+        <p
+          id="request-counter"
+          class="request-form__counter"
+          aria-live="polite"
+        >
+          {initialCount}
+        </p>
+      </div>
+      <textarea
+        id="visitor-request"
+        name="visitorRequest"
+        maxlength={requestMaxLength}
+        rows="7"
+        aria-describedby="visitor-request-hint request-counter"></textarea>
+      <p id="visitor-request-hint" class="request-form__hint">
+        Requests should not be cruel, harmful, or aimed at another person.
+      </p>
+    </div>
+
+    <div class="request-form__actions">
+      <button type="button" class="button-command" data-request-trigger>
+        ASK SANTA
+      </button>
+      <p
+        id="request-status"
+        class="request-form__status"
+        role="status"
+        aria-live="polite"
+        data-request-status
+      >
+      </p>
+    </div>
+  </form>
+</section>
+
+<script is:inline>
+  (() => {
+    const form = document.querySelector('[data-request-form]');
+    if (!(form instanceof HTMLFormElement)) return;
+
+    const textarea = form.querySelector('#visitor-request');
+    const counter = form.querySelector('#request-counter');
+    const trigger = form.querySelector('[data-request-trigger]');
+    const status = form.querySelector('[data-request-status]');
+
+    const maxLength = Number(textarea?.getAttribute('maxlength') ?? 0);
+    const formatCount = (count, maximum) => `${count} / ${maximum}`;
+
+    const updateCounter = () => {
+      if (
+        !(textarea instanceof HTMLTextAreaElement) ||
+        !(counter instanceof HTMLElement)
+      )
+        return;
+      counter.textContent = formatCount(textarea.value.length, maxLength);
+    };
+
+    const showStatus = () => {
+      if (!(status instanceof HTMLElement)) return;
+      status.textContent =
+        "Santa's workshop is not ready to receive requests yet.";
+      status.hidden = false;
+      status.tabIndex = -1;
+      status.focus({ preventScroll: true });
+      window.setTimeout(() => {
+        status.removeAttribute('tabindex');
+      }, 0);
+    };
+
+    updateCounter();
+
+    if (textarea instanceof HTMLTextAreaElement) {
+      textarea.addEventListener('input', updateCounter);
+    }
+
+    if (trigger instanceof HTMLButtonElement) {
+      trigger.addEventListener('click', () => {
+        showStatus();
+      });
+    }
+  })();
+</script>
