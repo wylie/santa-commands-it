@@ -1,10 +1,20 @@
-<section class="speech-panel" aria-labelledby="opening-panel-title">
+---
+import { santaResponses } from '@/config/responses';
+---
+
+<section
+  class="speech-panel"
+  aria-labelledby="opening-panel-title"
+  data-response-panel
+  data-mode="opening"
+>
   <div class="speech-bubble">
-    <h2 id="opening-panel-title">
-      HELLO THERE! WHAT WOULD YOU LIKE FROM SANTA?
+    <p class="speech-bubble__request" data-response-request hidden></p>
+    <h2 id="opening-panel-title" data-response-title>
+      {santaResponses.opening.title}
     </h2>
-    <p class="speech-bubble__supporting">
-      TELL SANTA WHAT YOU WANT. HE MAY APPROVE IT WITH GREAT CEREMONY!
+    <p class="speech-bubble__supporting" data-response-supporting>
+      {santaResponses.opening.supporting}
     </p>
   </div>
 </section>

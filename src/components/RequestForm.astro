@@ -16,10 +16,18 @@ const initialCount = formatCharacterCount(0, requestMaxLength);
         type="text"
         maxlength={nameMaxLength}
         autocomplete="nickname"
-        aria-describedby="visitor-name-hint"
+        aria-describedby="visitor-name-hint visitor-name-error"
+        data-request-name
       />
       <p id="visitor-name-hint" class="request-form__hint">
         A first name or nickname is perfect.
+      </p>
+      <p
+        id="visitor-name-error"
+        class="request-form__error"
+        data-field-error="name"
+        hidden
+      >
       </p>
     </div>
 
@@ -31,7 +39,8 @@ const initialCount = formatCharacterCount(0, requestMaxLength);
         <p
           id="request-counter"
           class="request-form__counter"
-          aria-live="polite"
+          data-request-counter
+          data-state="normal"
         >
           {initialCount}
         </p>
@@ -41,14 +50,22 @@ const initialCount = formatCharacterCount(0, requestMaxLength);
         name="visitorRequest"
         maxlength={requestMaxLength}
         rows="6"
-        aria-describedby="visitor-request-hint request-counter"></textarea>
+        aria-describedby="visitor-request-hint request-counter visitor-request-error"
+        data-request-input></textarea>
       <p id="visitor-request-hint" class="request-form__hint">
         Keep it kind, playful, and suitable for Santa&apos;s workshop.
+      </p>
+      <p
+        id="visitor-request-error"
+        class="request-form__error"
+        data-field-error="request"
+        hidden
+      >
       </p>
     </div>
 
     <div class="request-form__actions">
-      <button type="button" class="button-command" data-request-trigger>
+      <button type="submit" class="button-command" data-request-submit>
         ASK SANTA
       </button>
       <p
@@ -63,50 +80,8 @@ const initialCount = formatCharacterCount(0, requestMaxLength);
   </form>
 </section>
 
-<script is:inline>
-  (() => {
-    const form = document.querySelector('[data-request-form]');
-    if (!(form instanceof HTMLFormElement)) return;
+<script>
+  import { initSantaRequestFlow } from '@/scripts/santa-request-flow';
 
-    const textarea = form.querySelector('#visitor-request');
-    const counter = form.querySelector('#request-counter');
-    const trigger = form.querySelector('[data-request-trigger]');
-    const status = form.querySelector('[data-request-status]');
-
-    const maxLength = Number(textarea?.getAttribute('maxlength') ?? 0);
-    const formatCount = (count, maximum) => `${count} / ${maximum}`;
-
-    const updateCounter = () => {
-      if (
-        !(textarea instanceof HTMLTextAreaElement) ||
-        !(counter instanceof HTMLElement)
-      )
-        return;
-      counter.textContent = formatCount(textarea.value.length, maxLength);
-    };
-
-    const showStatus = () => {
-      if (!(status instanceof HTMLElement)) return;
-      status.textContent =
-        "Santa's workshop is not ready to receive requests yet.";
-      status.hidden = false;
-      status.tabIndex = -1;
-      status.focus({ preventScroll: true });
-      window.setTimeout(() => {
-        status.removeAttribute('tabindex');
-      }, 0);
-    };
-
-    updateCounter();
-
-    if (textarea instanceof HTMLTextAreaElement) {
-      textarea.addEventListener('input', updateCounter);
-    }
-
-    if (trigger instanceof HTMLButtonElement) {
-      trigger.addEventListener('click', () => {
-        showStatus();
-      });
-    }
-  })();
+  initSantaRequestFlow();
 </script>

@@ -1,6 +1,6 @@
 {
   "name": "santa-commands-it",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "private": true,
   "type": "module",
   "description": "A bright theatrical holiday web app from Argon Collective LLC.",

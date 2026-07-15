@@ -13,6 +13,9 @@
   --color-evergreen-deep: #355043;
   --color-cranberry: #b96767;
   --color-cranberry-deep: #a65355;
+  --color-approved-surface: #f7fbf8;
+  --color-coal-surface: #f4f7fa;
+  --color-blocked-surface: #fff8f6;
   --color-field-border: #bfd0d5;
   --color-focus: #4f7262;
   --color-shadow: rgb(96 112 124 / 0.12);
@@ -252,6 +255,18 @@ a {
   gap: 1rem;
 }
 
+.speech-bubble__request {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-evergreen);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
 h1,
 h2 {
   margin: 0;
@@ -276,6 +291,40 @@ h2 {
   color: var(--color-text-primary);
 }
 
+.speech-panel[data-mode='considering'] {
+  background: linear-gradient(180deg, #fbfdff, #f3f8fc);
+}
+
+.speech-panel[data-mode='approved'] {
+  background: linear-gradient(
+    180deg,
+    var(--color-surface-primary),
+    var(--color-approved-surface)
+  );
+}
+
+.speech-panel[data-mode='random-coal'] {
+  background: linear-gradient(
+    180deg,
+    var(--color-surface-primary),
+    var(--color-coal-surface)
+  );
+}
+
+.speech-panel[data-mode='blocked'],
+.speech-panel[data-mode='error'] {
+  background: linear-gradient(
+    180deg,
+    var(--color-surface-primary),
+    var(--color-blocked-surface)
+  );
+}
+
+.speech-panel[data-mode='blocked'] .speech-bubble h2,
+.speech-panel[data-mode='error'] .speech-bubble h2 {
+  color: var(--color-cranberry-deep);
+}
+
 .request-panel {
   padding: 1.85rem 1.85rem 1.75rem;
 }
@@ -295,6 +344,7 @@ h2 {
   align-items: baseline;
   justify-content: space-between;
   gap: var(--space-md);
+  flex-wrap: wrap;
 }
 
 .request-form label {
@@ -319,9 +369,22 @@ h2 {
   border-color: var(--color-evergreen);
 }
 
+.request-form input:disabled,
+.request-form textarea:disabled {
+  cursor: not-allowed;
+  background: #f8fbfd;
+  color: var(--color-text-secondary);
+}
+
 .request-form input:focus-visible,
 .request-form textarea:focus-visible {
   border-color: var(--color-focus);
+}
+
+.request-form input[aria-invalid='true'],
+.request-form textarea[aria-invalid='true'] {
+  border-color: var(--color-cranberry);
+  background: #fffafb;
 }
 
 .request-form textarea {
@@ -331,6 +394,7 @@ h2 {
 
 .request-form__counter,
 .request-form__hint,
+.request-form__error,
 .request-form__status,
 .recent-rulings__note,
 .site-footer {
@@ -343,6 +407,22 @@ h2 {
   font-size: var(--font-size-xs);
   letter-spacing: 0.12em;
   text-transform: uppercase;
+}
+
+.request-form__counter[data-state='warning'] {
+  color: var(--color-evergreen-deep);
+}
+
+.request-form__counter[data-state='limit'] {
+  color: var(--color-cranberry-deep);
+}
+
+.request-form__error {
+  margin: -0.15rem 0 0;
+  font-family: var(--font-ui);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.02em;
 }
 
 .request-form__actions {
@@ -379,6 +459,12 @@ h2 {
 .button-command:active {
   transform: translateY(2px);
   box-shadow: 0 2px 0 rgb(166 83 85 / 0.26);
+}
+
+.button-command:disabled {
+  cursor: wait;
+  transform: none;
+  box-shadow: 0 6px 14px rgb(166 83 85 / 0.14);
 }
 
 .request-form__status {
