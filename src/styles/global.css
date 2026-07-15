@@ -58,7 +58,6 @@
   --content-width: 78rem;
   --left-column-width: minmax(17rem, 0.38fr);
   --right-column-width: minmax(0, 0.62fr);
-  --portrait-max-width: 23.75rem;
   --portrait-mobile-width: clamp(13.75rem, 64vw, 18.75rem);
   --sticky-top: 2rem;
   --desktop-gap: clamp(4.5rem, 7vw, 6rem);
@@ -182,10 +181,11 @@ a {
 .hero__portrait {
   display: flex;
   justify-content: center;
+  width: 100%;
 }
 
 .portrait-frame {
-  width: min(100%, var(--portrait-max-width));
+  width: 100%;
   margin: 0;
 }
 
@@ -264,7 +264,6 @@ h2 {
 .speech-bubble h2 {
   font-size: clamp(2rem, 1.45rem + 1.8vw, 3.15rem);
   line-height: 0.98;
-  /* max-width: 11.5ch; */
 }
 
 .speech-bubble__supporting {
@@ -274,7 +273,6 @@ h2 {
   line-height: 1.04;
   text-transform: uppercase;
   letter-spacing: 0.01em;
-  /* max-width: 18ch; */
   color: var(--color-text-primary);
 }
 
@@ -401,7 +399,6 @@ h2 {
 .recent-rulings h2 {
   font-size: clamp(1.95rem, 1.5rem + 1.25vw, 2.95rem);
   line-height: 0.98;
-  /* max-width: 9ch; */
 }
 
 .section-heading p {
@@ -458,6 +455,19 @@ h2 {
   .hero__left-rail {
     position: sticky;
     top: var(--sticky-top);
+    min-height: calc(100vh - (var(--sticky-top) * 2));
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-lg);
+  }
+
+  .hero__portrait {
+    align-self: stretch;
+  }
+
+  .site-footer {
+    margin-top: auto;
+    width: 100%;
   }
 }
 
@@ -472,10 +482,12 @@ h2 {
 
   .hero__left-rail {
     gap: 1.2rem;
+    display: grid;
   }
 
   .site-footer {
     order: 4;
+    margin-top: 0;
   }
 }
 
