@@ -4,7 +4,6 @@ import RecentRulings from '@/components/RecentRulings.astro';
 import SantaPortrait from '@/components/SantaPortrait.astro';
 import SantaSpeechBubble from '@/components/SantaSpeechBubble.astro';
 import SiteFooter from '@/components/SiteFooter.astro';
-import SiteHeader from '@/components/SiteHeader.astro';
 import BaseLayout from '@/layouts/BaseLayout.astro';
 ---
 
@@ -14,18 +13,20 @@ import BaseLayout from '@/layouts/BaseLayout.astro';
   canonicalPath="/"
 >
   <a class="skip-link" href="#main-content">Skip to content</a>
-  <SiteHeader />
   <main id="main-content" class="page-shell">
-    <section class="hero" aria-labelledby="request-panel-title">
-      <div class="hero__portrait">
-        <SantaPortrait />
+    <section class="hero" aria-labelledby="opening-panel-title">
+      <div class="hero__left-rail">
+        <h1 class="sr-only">Santa Commands It!</h1>
+        <div class="hero__portrait">
+          <SantaPortrait />
+        </div>
+        <SiteFooter />
       </div>
       <div class="hero__content">
         <SantaSpeechBubble />
         <RequestForm />
+        <RecentRulings />
       </div>
     </section>
-    <RecentRulings />
   </main>
-  <SiteFooter />
 </BaseLayout>

@@ -6,15 +6,7 @@ const { nameMaxLength, requestMaxLength } = REQUEST_LIMITS;
 const initialCount = formatCharacterCount(0, requestMaxLength);
 ---
 
-<section class="request-panel" aria-labelledby="request-panel-title">
-  <div class="request-panel__copy">
-    <h2 id="request-panel-title">What shall Santa command?</h2>
-    <p>
-      Tell Santa what you want. He may approve it with great ceremony, or decide
-      that today feels more like a coal kind of day.
-    </p>
-  </div>
-
+<section class="request-panel" aria-label="Santa request form">
   <form class="request-form" data-request-form novalidate>
     <div class="request-form__field">
       <label for="visitor-name">What should Santa call you?</label>

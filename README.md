@@ -92,11 +92,13 @@ Do not replace it with generated or downloaded artwork in this repository. Add t
 - Body copy, form labels, helper text, inputs, textareas, counters, metadata, and disclaimers continue to use the readable body and UI font stacks.
 - The visual system uses a lighter winter palette built around snowy blue-white, soft ivory, cool blue-gray, muted evergreen, charcoal, and restrained cranberry accents.
 - Most grouping relies on spacing, soft surface shifts, and low-contrast shadows instead of obvious section outlines.
+- Desktop uses a sticky two-column layout with Santa and the compact footer in the left rail, while the speech panel, form, and latest-commands section stack in the right column.
+- Mobile and tablet collapse to a single-column flow with Santa first, then the speech panel, form, latest commands, and footer content.
 
 ## Ownership and credits
 
 - `Santa Commands It!` is a project from Argon Collective LLC.
-- The site footer includes restrained Argon Collective LLC attribution without making ownership part of the Santa joke.
+- The site footer includes restrained Argon Collective LLC attribution in the left rail on desktop without making ownership part of the Santa joke.
 
 ## Accessibility goals
 

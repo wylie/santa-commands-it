@@ -16,10 +16,17 @@ test.describe('homepage smoke test', () => {
 
       await expect(
         page.getByRole('heading', { name: 'Santa Commands It!', level: 1 }),
+      ).toHaveCount(1);
+      await expect(
+        page.getByText('HELLO THERE! WHAT WOULD YOU LIKE FROM SANTA?'),
       ).toBeVisible();
       await expect(
-        page.getByText('HELLO THERE! WHAT WOULD YOU LIKE SANTA TO COMMAND?'),
+        page.getByText(
+          'TELL SANTA WHAT YOU WANT. HE MAY APPROVE IT WITH GREAT CEREMONY!',
+        ),
       ).toBeVisible();
+      await expect(page.getByText('A WORD WITH SANTA')).toHaveCount(0);
+      await expect(page.getByText('WHAT SHALL SANTA COMMAND?')).toHaveCount(0);
 
       const nameField = page.getByLabel('What should Santa call you?');
       const requestField = page.getByRole('textbox', {
@@ -30,6 +37,12 @@ test.describe('homepage smoke test', () => {
       await expect(nameField).toBeVisible();
       await expect(requestField).toBeVisible();
       await expect(requestField).toHaveAttribute('maxlength', '500');
+      await expect(
+        page.getByRole('heading', { name: /Santa.*Latest Commands/i }),
+      ).toBeVisible();
+      await expect(
+        page.getByText('A project from Argon Collective LLC'),
+      ).toBeVisible();
 
       await submitButton.focus();
       await expect(submitButton).toBeFocused();
