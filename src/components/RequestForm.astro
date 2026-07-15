@@ -8,10 +8,10 @@ const initialCount = formatCharacterCount(0, requestMaxLength);
 
 <section class="request-panel" aria-labelledby="request-panel-title">
   <div class="request-panel__copy">
-    <h2 id="request-panel-title">Petition Santa, if you dare.</h2>
+    <h2 id="request-panel-title">What shall Santa command?</h2>
     <p>
-      Ask Santa for whatever you want. If Santa approves, his ruling is final.
-      If Santa disapproves, you may be advised to reconsider your choices.
+      Tell Santa what you want. He may approve it with great ceremony, or decide
+      that today feels more like a coal kind of day.
     </p>
   </div>
 
@@ -27,13 +27,15 @@ const initialCount = formatCharacterCount(0, requestMaxLength);
         aria-describedby="visitor-name-hint"
       />
       <p id="visitor-name-hint" class="request-form__hint">
-        A first name or nickname is enough.
+        A first name or nickname is perfect.
       </p>
     </div>
 
     <div class="request-form__field">
       <div class="request-form__label-row">
-        <label for="visitor-request">What do you want from Santa?</label>
+        <label for="visitor-request"
+          >What would you like Santa to command?</label
+        >
         <p
           id="request-counter"
           class="request-form__counter"
@@ -46,10 +48,10 @@ const initialCount = formatCharacterCount(0, requestMaxLength);
         id="visitor-request"
         name="visitorRequest"
         maxlength={requestMaxLength}
-        rows="7"
+        rows="6"
         aria-describedby="visitor-request-hint request-counter"></textarea>
       <p id="visitor-request-hint" class="request-form__hint">
-        Requests should not be cruel, harmful, or aimed at another person.
+        Keep it kind, playful, and suitable for Santa&apos;s workshop.
       </p>
     </div>
 

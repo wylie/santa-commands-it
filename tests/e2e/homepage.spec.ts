@@ -18,12 +18,12 @@ test.describe('homepage smoke test', () => {
         page.getByRole('heading', { name: 'Santa Commands It!', level: 1 }),
       ).toBeVisible();
       await expect(
-        page.getByText('WELL? WHO ARE YOU, AND WHAT DO YOU WANT FROM SANTA?'),
+        page.getByText('HELLO THERE! WHAT WOULD YOU LIKE SANTA TO COMMAND?'),
       ).toBeVisible();
 
       const nameField = page.getByLabel('What should Santa call you?');
       const requestField = page.getByRole('textbox', {
-        name: 'What do you want from Santa?',
+        name: 'What would you like Santa to command?',
       });
       const submitButton = page.getByRole('button', { name: 'ASK SANTA' });
 
