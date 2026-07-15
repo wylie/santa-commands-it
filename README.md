@@ -90,7 +90,13 @@ Do not replace it with generated or downloaded artwork in this repository. Add t
 - The display-font token is `--font-display: "Germania One", system-ui, sans-serif;`.
 - Germania One is used for high-impact display text only, including the site title, major headings, and Santa's speech-bubble proclamation.
 - Body copy, form labels, helper text, inputs, textareas, counters, metadata, and disclaimers continue to use the readable body and UI font stacks.
-- The visual system uses a softer winter palette built around warm cream, parchment, snowy blue-gray, muted evergreen, charcoal, and restrained Santa-red accents.
+- The visual system uses a lighter winter palette built around snowy blue-white, soft ivory, cool blue-gray, muted evergreen, charcoal, and restrained cranberry accents.
+- Most grouping relies on spacing, soft surface shifts, and low-contrast shadows instead of obvious section outlines.
+
+## Ownership and credits
+
+- `Santa Commands It!` is a project from Argon Collective LLC.
+- The site footer includes restrained Argon Collective LLC attribution without making ownership part of the Santa joke.
 
 ## Accessibility goals
 

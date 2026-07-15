@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "The theatrical Astro foundation for Santa Commands It!",
+  "description": "A bright theatrical holiday web app from Argon Collective LLC.",
   "engines": {
     "node": ">=22.22.3"
   },

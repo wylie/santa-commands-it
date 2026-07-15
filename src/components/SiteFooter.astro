@@ -1,13 +1,25 @@
 ---
-import { SITE_TITLE } from '@/config/site';
+import { SITE_OWNER, SITE_TITLE } from '@/config/site';
 
 const year = new Date().getFullYear();
 ---
 
 <footer class="site-footer">
-  <p>{SITE_TITLE}</p>
-  <p>&copy; {year}</p>
-  <p>
+  <p class="site-footer__primary">
+    <span>{SITE_TITLE}</span>
+    <span>&copy; {year}</span>
+  </p>
+  <p class="site-footer__secondary">
     A humorous fictional experience. Santa remains theatrically unreasonable.
+  </p>
+  <p class="site-footer__tertiary">
+    A project from{' '}
+    {
+      SITE_OWNER.url ? (
+        <a href={SITE_OWNER.url}>{SITE_OWNER.name}</a>
+      ) : (
+        <span>{SITE_OWNER.name}</span>
+      )
+    }
   </p>
 </footer>
