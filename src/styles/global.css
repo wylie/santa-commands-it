@@ -264,7 +264,7 @@ h2 {
 .speech-bubble h2 {
   font-size: clamp(2rem, 1.45rem + 1.8vw, 3.15rem);
   line-height: 0.98;
-  max-width: 11.5ch;
+  /* max-width: 11.5ch; */
 }
 
 .speech-bubble__supporting {
@@ -274,7 +274,7 @@ h2 {
   line-height: 1.04;
   text-transform: uppercase;
   letter-spacing: 0.01em;
-  max-width: 18ch;
+  /* max-width: 18ch; */
   color: var(--color-text-primary);
 }
 
@@ -401,7 +401,7 @@ h2 {
 .recent-rulings h2 {
   font-size: clamp(1.95rem, 1.5rem + 1.25vw, 2.95rem);
   line-height: 0.98;
-  max-width: 9ch;
+  /* max-width: 9ch; */
 }
 
 .section-heading p {
