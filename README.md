@@ -1,13 +1,13 @@
 # Santa Commands It!
 
-`Santa Commands It!` is a theatrical holiday web application from Argon Collective LLC. Visitors ask Santa for something, the server makes the authoritative decision, completed rulings are stored in Neon Postgres, and the latest public commands render directly on the homepage.
+`Santa Commands It!` is a theatrical holiday web application from Argon Collective LLC. Visitors ask Santa for something, the server makes the authoritative decision, completed rulings are stored in Neon Postgres, and approved or coal outcomes receive permanent public pages that can be shared directly.
 
 ## Release
 
-- Current version: `v0.1.3`
-- Current scope: server-rendered homepage, authoritative submission endpoint, Neon persistence, Drizzle schema and migrations, moderation-first ruling decisions, and automated test coverage
+- Current version: `v0.1.4`
+- Current scope: server-rendered homepage, authoritative submission endpoint, Neon persistence, moderation-first ruling decisions, permanent public ruling pages, share actions, and automated test coverage
 
-Completed rulings now persist across refreshes. Blocked submissions are still rejected before any database write.
+Completed rulings now persist across refreshes and can be revisited at permanent public URLs. Blocked submissions are still rejected before any database write and never receive public pages.
 
 ## Product concept
 
@@ -17,7 +17,7 @@ Santa is warm, theatrical, self-important, and certain that his declarations set
 - reject unacceptable content before any ruling is stored
 - award coal to an otherwise acceptable request
 
-Completed approvals and coal rulings are public on the homepage. No account is required, but successful local submissions may appear in Santa's latest public commands.
+Completed approvals and coal rulings are public on the homepage and on their own individual pages. No account is required, and successful submissions can be shared with a permanent public link.
 
 ## Technology stack
 
@@ -40,14 +40,15 @@ Completed approvals and coal rulings are public on the homepage. No account is r
 3. Create or select a Neon project.
 4. Copy the Neon pooled connection string recommended for serverless HTTP access.
 5. Add it to a local `.env` file as `DATABASE_URL=...`.
-6. Place the supplied Santa artwork at `public/images/santa.png`.
-7. Generate and apply the schema migration:
+6. Optionally add `SITE_URL=https://your-production-domain.example` to the same `.env` file for canonical URLs and production metadata.
+7. Place the supplied Santa artwork at `public/images/santa.png`.
+8. Generate and apply the schema migration:
    - `npm run db:generate`
    - `npm run db:migrate`
-8. Start the development server with `npm run dev`.
-9. Submit a request and confirm it appears in Santa's Latest Commands.
+9. Start the development server with `npm run dev`.
+10. Submit a request, confirm it appears in Santa's Latest Commands, and open its permanent ruling page.
 
-If `DATABASE_URL` is missing, the form remains usable but the server cannot persist rulings and the latest-commands section will show an unavailable message instead of crashing the page.
+If `DATABASE_URL` is missing, the form remains usable but the server cannot persist rulings, recent public commands will be unavailable, and no permanent ruling pages can be created.
 
 ## Environment variables
 
@@ -55,6 +56,10 @@ If `DATABASE_URL` is missing, the form remains usable but the server cannot pers
   - Required for persisted rulings and database migrations
   - Must never use a `PUBLIC_` prefix
   - Must never be committed
+- `SITE_URL`
+  - Recommended for production canonical URLs, Open Graph metadata, and share links
+  - Should be the full origin only, such as `https://example.com`
+  - Falls back to the current request origin for local development when omitted
 
 Use `.env.example` as the local template.
 
@@ -115,7 +120,7 @@ Do not replace it with generated or downloaded artwork in this repository.
 
 ## Server-side submission flow
 
-In `v0.1.3`, the browser performs basic validation and then submits to `POST /api/rulings`.
+In `v0.1.4`, the browser performs basic validation and then submits to `POST /api/rulings`.
 
 The server then:
 
@@ -126,9 +131,9 @@ The server then:
 5. Runs the random-coal decision only for acceptable requests.
 6. Selects and formats Santa's response on the server.
 7. Persists approved or coal rulings in Neon through Drizzle.
-8. Returns safe ruling data to the browser.
+8. Returns safe ruling data to the browser, including the public identifier for permanent linking.
 
-The browser updates the response panel and inserts the new ruling at the top of Santa's Latest Commands without a full page reload.
+The browser updates the response panel, inserts the new ruling at the top of Santa's Latest Commands, and exposes a `VIEW & SHARE` action without a full page reload.
 
 ## What gets stored
 
@@ -146,6 +151,8 @@ Only these final decision values are stored:
 
 - `approved`
 - `random-coal`
+
+Blocked submissions are never stored and never receive a public identifier.
 
 ## What is never stored
 
@@ -177,15 +184,29 @@ The initial coal percentage remains `5%`.
 
 - The homepage fetches the newest public rulings on the server during rendering.
 - The latest-commands section shows a real semantic list when rulings exist.
+- Each latest-command item links to its permanent public ruling page.
 - The empty state still works for a brand-new database.
 - If recent-ruling loading fails, the homepage stays usable and shows a quiet unavailable message.
 - After a successful submission, the browser inserts the new ruling at the top of the visible list and keeps only the latest ten items.
+
+## Permanent ruling pages and sharing
+
+- Final approved and coal outcomes live at `/rulings/[publicId]`.
+- The route uses the stored public identifier rather than the internal database key.
+- Each ruling page shows the visitor name, request, decision, stored Santa response, timestamp, and share actions.
+- Copy-link uses the canonical absolute ruling URL.
+- Native sharing uses the Web Share API when the browser supports it.
+- Unknown or invalid public identifiers return a friendly 404 experience.
+- Blocked submissions never receive URLs, never become public pages, and never appear in metadata.
+
+Completed approved and coal rulings are public and accessible to anyone with the URL.
 
 ## Astro rendering and deployment
 
 - The project now uses Astro server rendering with the official Vercel adapter.
 - Database access exists only in server-side modules under `src/server/`.
 - `DATABASE_URL` is never exposed to client-side code.
+- `SITE_URL` should be configured in production so ruling pages emit stable canonical metadata.
 - Production builds output Vercel-compatible server artifacts rather than a static site.
 
 ## Migrations
@@ -225,9 +246,9 @@ The committed initial migration lives under `drizzle/`. Ordinary application sta
 
 ## Testing
 
-- `npm run test` covers validation, moderation normalization, coal decisions, server submission flow, and public-ruling mapping without requiring a live database.
+- `npm run test` covers validation, moderation normalization, coal decisions, repository-safe public-ruling mapping, canonical URL helpers, and share payload utilities without requiring a live database.
 - `npm run test:e2e` uses a dedicated test-mode server strategy instead of a real Neon database.
-- `npm run build` verifies the server-rendered production output.
+- `npm run build` verifies the server-rendered production output and public ruling route.
 
 Test precautions:
 
@@ -237,8 +258,8 @@ Test precautions:
 
 ## Current limitations
 
-- No shareable individual ruling pages exist yet.
-- No social metadata exists for individual rulings yet.
+- No dynamic social image generation exists yet.
+- No downloadable share cards or QR codes exist yet.
 - No rate limiting exists yet.
 - No reporting tools or admin deletion tools exist yet.
 - No authentication or user accounts exist yet.
@@ -252,6 +273,5 @@ Test precautions:
 
 ## Roadmap
 
-- `v0.1.4`: Individual shareable ruling pages and social metadata
 - `v0.1.5`: Abuse protection, rate limiting, reporting, and security hardening
 - `v0.1.6`: Accessibility, performance, deployment, and stabilization

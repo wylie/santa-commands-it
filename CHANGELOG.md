@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 The format is inspired by Keep a Changelog, and this project adheres to Semantic Versioning.
 
+## [0.1.4] - 2026-07-15
+
+### Added
+
+- Permanent public ruling pages at `/rulings/[publicId]` for approved and coal outcomes
+- Public-ID lookup support in the rulings repository and server service layer
+- Post-submission `VIEW & SHARE` actions plus recent-feed links to permanent ruling pages
+- Copy-link behavior, native Web Share support, and ruling-specific canonical metadata
+- Friendly ruling-page 404 handling and expanded automated coverage for links, metadata, and sharing
+
+### Changed
+
+- Homepage-created rulings now expose their stable public URLs without leaving the page automatically
+- Recent public rulings now act as entry points to shareable standalone ruling pages
+- Layout and metadata utilities now build canonical URLs from configured site settings or safe local fallbacks
+- Project documentation now covers public ruling URLs, `SITE_URL`, and the public nature of completed rulings
+
 ## [0.1.3] - 2026-07-15
 
 ### Added

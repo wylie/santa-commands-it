@@ -1,21 +1,27 @@
 ---
 import { SITE_METADATA, SITE_TITLE } from '@/config/site';
+import { buildCanonicalUrl } from '@/utils/rulingPages';
 
 interface Props {
   title?: string;
   description?: string;
   canonicalPath?: string;
+  canonicalUrl?: string | null;
+  ogType?: 'website' | 'article';
+  robots?: string;
 }
 
 const {
   title = SITE_TITLE,
   description = SITE_METADATA.description,
   canonicalPath = '/',
+  canonicalUrl = buildCanonicalUrl(canonicalPath, {
+    siteUrl: import.meta.env.SITE_URL ?? process.env.SITE_URL,
+    requestUrl: Astro.url,
+  }),
+  ogType = 'website',
+  robots,
 } = Astro.props;
-
-const canonicalUrl = Astro.site
-  ? new URL(canonicalPath, Astro.site).toString()
-  : undefined;
 ---
 
 <!doctype html>
@@ -32,8 +38,9 @@ const canonicalUrl = Astro.site
     <title>{title}</title>
     <meta name="description" content={description} />
     <meta name="theme-color" content={SITE_METADATA.themeColor} />
+    {robots && <meta name="robots" content={robots} />}
     {canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
-    <meta property="og:type" content="website" />
+    <meta property="og:type" content={ogType} />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     {canonicalUrl && <meta property="og:url" content={canonicalUrl} />}

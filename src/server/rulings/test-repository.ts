@@ -42,6 +42,11 @@ export function createTestRulingsRepository(runId: string): RulingsRepository {
     async listRecentRulings(limit = santaSettings.recentRulings.visibleLimit) {
       return getStore(runId).slice(0, limit);
     },
+    async getRulingByPublicId(publicId: string) {
+      return (
+        getStore(runId).find((ruling) => ruling.publicId === publicId) ?? null
+      );
+    },
   };
 }
 

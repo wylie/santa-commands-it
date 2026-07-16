@@ -15,6 +15,7 @@ import {
   type PublicRuling,
   type SubmitRulingResponse,
 } from '@/utils/rulings';
+import { buildRulingPath } from '@/utils/rulingPages';
 import { validateName, validateRequest } from '@/utils/validation';
 
 type PanelMode =
@@ -84,8 +85,21 @@ function createRecentRulingItem(ruling: PublicRuling): HTMLLIElement {
   response.className = 'recent-rulings__response';
   response.textContent = ruling.santaResponse;
 
+  const action = document.createElement('p');
+  action.className = 'recent-rulings__action';
+
+  const link = document.createElement('a');
+  link.className = 'recent-rulings__link';
+  link.href = buildRulingPath(ruling.publicId);
+  link.textContent = 'VIEW & SHARE';
+  link.setAttribute(
+    'aria-label',
+    `View and share Santa's ruling for ${ruling.displayName}`,
+  );
+
   meta.append(decision, time);
-  item.append(meta, name, request, response);
+  action.append(link);
+  item.append(meta, name, request, response, action);
 
   return item;
 }
@@ -115,6 +129,7 @@ export function initSantaRequestFlow(): void {
   const requestInput = form.querySelector('[data-request-input]');
   const requestCounter = form.querySelector('[data-request-counter]');
   const submitButton = form.querySelector('[data-request-submit]');
+  const permalink = form.querySelector('[data-request-permalink]');
   const status = form.querySelector('[data-request-status]');
   const nameError = form.querySelector('[data-field-error="name"]');
   const requestError = form.querySelector('[data-field-error="request"]');
@@ -134,6 +149,7 @@ export function initSantaRequestFlow(): void {
     !(requestInput instanceof HTMLTextAreaElement) ||
     !(requestCounter instanceof HTMLElement) ||
     !(submitButton instanceof HTMLButtonElement) ||
+    !(permalink instanceof HTMLAnchorElement) ||
     !(status instanceof HTMLElement) ||
     !(nameError instanceof HTMLElement) ||
     !(requestError instanceof HTMLElement) ||
@@ -276,6 +292,8 @@ export function initSantaRequestFlow(): void {
     setDisabledState(controls, false);
     submitButton.textContent = SUBMIT_LABEL;
     form.removeAttribute('aria-busy');
+    permalink.hidden = true;
+    permalink.removeAttribute('href');
     resetPanel();
     updateCounter();
     focusElement(requestInput);
@@ -294,6 +312,8 @@ export function initSantaRequestFlow(): void {
     submitButton.disabled = false;
     submitButton.textContent = RESET_LABEL;
     form.removeAttribute('aria-busy');
+    permalink.href = buildRulingPath(ruling.publicId);
+    permalink.hidden = false;
     announce(
       `${getDecisionPanelTitle(ruling.decision)} ${ruling.santaResponse}`,
     );

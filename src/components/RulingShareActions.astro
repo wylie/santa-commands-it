@@ -1,0 +1,54 @@
+---
+import type { PublicRuling } from '@/utils/rulings';
+import { buildRulingSharePayload } from '@/utils/rulingPages';
+
+interface Props {
+  ruling: PublicRuling;
+  canonicalUrl: string;
+}
+
+const { ruling, canonicalUrl } = Astro.props;
+const sharePayload = buildRulingSharePayload(ruling, canonicalUrl);
+---
+
+<div
+  class="ruling-share"
+  data-ruling-share
+  data-url={canonicalUrl}
+  data-title={sharePayload.title}
+  data-text={sharePayload.text}
+>
+  <div class="ruling-share__actions">
+    <button
+      type="button"
+      class="button-secondary"
+      data-copy-link
+      data-success-label="LINK COPIED"
+      aria-label="Copy a link to this Santa ruling"
+    >
+      COPY LINK
+    </button>
+    <button
+      type="button"
+      class="button-secondary"
+      data-native-share
+      hidden
+      aria-label="Share this Santa ruling"
+    >
+      SHARE
+    </button>
+  </div>
+  <p
+    class="ruling-share__status"
+    role="status"
+    aria-live="polite"
+    data-share-status
+  >
+  </p>
+</div>
+
+<script>
+  import { initRulingShareActions } from '@/scripts/ruling-share-actions';
+
+  initRulingShareActions();
+</script>

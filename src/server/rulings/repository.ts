@@ -1,4 +1,4 @@
-import { desc, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray } from 'drizzle-orm';
 
 import { santaSettings } from '@/config/santa-settings';
 import {
@@ -21,6 +21,7 @@ export type CreateRulingInput = {
 export type RulingsRepository = {
   createRuling(input: CreateRulingInput): Promise<PublicRuling>;
   listRecentRulings(limit?: number): Promise<PublicRuling[]>;
+  getRulingByPublicId(publicId: string): Promise<PublicRuling | null>;
 };
 
 type RulingRow = typeof rulings.$inferSelect;
@@ -67,6 +68,21 @@ export function createDatabaseRulingsRepository(): RulingsRepository {
         .limit(limit);
 
       return rows.map(mapRulingRowToPublicRuling);
+    },
+    async getRulingByPublicId(publicId: string) {
+      const database = getDatabase();
+      const [row] = await database
+        .select()
+        .from(rulings)
+        .where(
+          and(
+            eq(rulings.publicId, publicId),
+            inArray(rulings.decision, ['approved', 'random-coal']),
+          ),
+        )
+        .limit(1);
+
+      return row ? mapRulingRowToPublicRuling(row) : null;
     },
   };
 }

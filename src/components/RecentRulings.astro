@@ -1,5 +1,6 @@
 ---
 import { santaSettings } from '@/config/santa-settings';
+import { buildRulingPath } from '@/utils/rulingPages';
 import {
   formatRulingTimestamp,
   getDecisionLabel,
@@ -48,6 +49,15 @@ const hasRulings = rulings.length > 0;
             <p class="recent-rulings__name">{ruling.displayName}</p>
             <p class="recent-rulings__request">{ruling.requestText}</p>
             <p class="recent-rulings__response">{ruling.santaResponse}</p>
+            <p class="recent-rulings__action">
+              <a
+                class="recent-rulings__link"
+                href={buildRulingPath(ruling.publicId)}
+                aria-label={`View and share Santa's ruling for ${ruling.displayName}`}
+              >
+                VIEW &amp; SHARE
+              </a>
+            </p>
           </li>
         ))}
       </ol>

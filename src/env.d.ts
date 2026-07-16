@@ -3,6 +3,7 @@
 
 interface ImportMetaEnv {
   readonly DATABASE_URL?: string;
+  readonly SITE_URL?: string;
   readonly SANTA_TEST_MODE?: 'e2e';
 }
 

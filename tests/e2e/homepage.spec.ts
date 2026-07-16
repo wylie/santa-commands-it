@@ -1,50 +1,10 @@
-import { randomUUID } from 'node:crypto';
+import { expect, test } from '@playwright/test';
 
-import { expect, test, type Page } from '@playwright/test';
-
-async function configureSantaTestPage(
-  page: Page,
-  options: {
-    consideringDelayMs?: number;
-    randomValue?: number;
-    scenario?: 'submit-error' | 'recent-unavailable';
-  } = {},
-) {
-  const runId = randomUUID();
-  const headers: Record<string, string> = {
-    'x-santa-test-run-id': runId,
-  };
-
-  if (typeof options.randomValue === 'number') {
-    headers['x-santa-test-random'] = String(options.randomValue);
-  }
-
-  if (options.scenario) {
-    headers['x-santa-test-scenario'] = options.scenario;
-  }
-
-  await page.setExtraHTTPHeaders(headers);
-  await page.addInitScript((config) => {
-    window.__SANTA_TEST__ = {
-      consideringDelayMs: config.consideringDelayMs ?? 0,
-    };
-  }, options);
-
-  return { runId, headers };
-}
-
-async function fillRequestForm(
-  page: Page,
-  requestText: string,
-  name = 'Holly',
-) {
-  await page.getByLabel('What should Santa call you?').fill(name);
-  await page
-    .getByRole('textbox', {
-      name: 'What would you like from Santa?',
-    })
-    .fill(requestText);
-}
+import {
+  configureSantaTestPage,
+  createRulingViaApi,
+  fillRequestForm,
+} from './support/santaTest';
 
 test.describe('Santa Commands It homepage', () => {
   test('shows the empty state when no persisted rulings exist', async ({
@@ -73,6 +33,7 @@ test.describe('Santa Commands It homepage', () => {
     await expect(
       page.locator('[data-response-panel][data-mode="approved"]'),
     ).toBeVisible();
+    await expect(page.locator('[data-request-permalink]')).toBeVisible();
     await expect(page.locator('[data-recent-list] >> nth=0')).toContainText(
       'Holly',
     );
@@ -82,6 +43,9 @@ test.describe('Santa Commands It homepage', () => {
     await expect(page.locator('[data-recent-list] >> nth=0')).toContainText(
       'SANTA COMMANDS IT',
     );
+    await expect(
+      page.locator('[data-recent-list] > li').first().getByRole('link'),
+    ).toHaveAttribute('href', /\/rulings\/[0-9a-f-]+$/);
 
     await page.reload();
 
@@ -108,6 +72,7 @@ test.describe('Santa Commands It homepage', () => {
     await expect(page.locator('[data-recent-list] >> nth=0')).toContainText(
       'COAL',
     );
+    await expect(page.locator('[data-request-permalink]')).toBeVisible();
 
     await page.reload();
 
@@ -131,6 +96,7 @@ test.describe('Santa Commands It homepage', () => {
       page.locator('[data-response-panel][data-mode="blocked"]'),
     ).toBeVisible();
     await expect(page.locator('[data-recent-list]')).toHaveCount(0);
+    await expect(page.locator('[data-request-permalink]')).toBeHidden();
 
     await page.reload();
 
@@ -244,18 +210,10 @@ test.describe('Santa Commands It homepage', () => {
     });
 
     for (let index = 0; index < 11; index += 1) {
-      const response = await page.request.post('/api/rulings', {
-        headers: {
-          ...headers,
-          'content-type': 'application/json',
-        },
-        data: {
-          name: `Holly ${index}`,
-          request: `Request number ${index}`,
-        },
+      await createRulingViaApi(page, headers, {
+        name: `Holly ${index}`,
+        request: `Request number ${index}`,
       });
-
-      expect(response.ok()).toBe(true);
     }
 
     await page.goto('/');
@@ -289,15 +247,9 @@ test.describe('Santa Commands It homepage', () => {
       randomValue: 0.5,
       consideringDelayMs: 0,
     });
-    await page.request.post('/api/rulings', {
-      headers: {
-        ...headers,
-        'content-type': 'application/json',
-      },
-      data: {
-        name: 'Holly',
-        request: `https://example.com/${'verylongword'.repeat(30)}`,
-      },
+    await createRulingViaApi(page, headers, {
+      name: 'Holly',
+      request: `https://example.com/${'verylongword'.repeat(30)}`,
     });
 
     await page.setViewportSize({ width: 320, height: 900 });

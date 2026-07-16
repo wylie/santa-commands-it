@@ -24,6 +24,7 @@ function createRepositoryMock() {
       createdAt: '2026-07-15T23:30:00.000Z',
     })),
     listRecentRulings: vi.fn(async () => []),
+    getRulingByPublicId: vi.fn(async () => null),
   } satisfies RulingsRepository;
 }
 

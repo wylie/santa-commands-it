@@ -7,8 +7,10 @@ import type {
   CreatedRulingResponse,
   InvalidRulingResponse,
   PersistedRulingDecision,
+  PublicRuling,
   SubmitRulingResponse,
 } from '@/utils/rulings';
+import { isValidPublicRulingId } from '@/utils/rulingPages';
 import {
   evaluateSantaRequest,
   formatResponseTemplate,
@@ -28,6 +30,8 @@ export const GENERIC_ERROR_MESSAGE =
   "Santa's workshop had a small mishap. Please try again.";
 export const RECENT_RULINGS_UNAVAILABLE_MESSAGE =
   "Santa's announcement board is temporarily unavailable.";
+export const RULING_LOOKUP_ERROR_MESSAGE =
+  "SANTA'S WORKSHOP IS HAVING A SMALL MISHAP. Please try again in a moment.";
 
 type SubmissionPayload = {
   name: string;
@@ -45,6 +49,19 @@ export type RecentRulingsResult =
   | {
       status: 'ok';
       rulings: CreatedRulingResponse['ruling'][];
+    }
+  | {
+      status: 'unavailable';
+      message: string;
+    };
+
+export type PublicRulingLookupResult =
+  | {
+      status: 'ok';
+      ruling: PublicRuling;
+    }
+  | {
+      status: 'not-found';
     }
   | {
       status: 'unavailable';
@@ -107,6 +124,38 @@ export async function listRecentRulingsForHeaders(
     return {
       status: 'unavailable',
       message: RECENT_RULINGS_UNAVAILABLE_MESSAGE,
+    };
+  }
+}
+
+export async function getPublicRulingForHeaders(
+  publicId: string,
+  headers: Headers,
+): Promise<PublicRulingLookupResult> {
+  if (!isValidPublicRulingId(publicId)) {
+    return {
+      status: 'not-found',
+    };
+  }
+
+  try {
+    const repository = getRulingsRepositoryForHeaders(headers);
+    const ruling = await repository.getRulingByPublicId(publicId);
+
+    if (!ruling) {
+      return {
+        status: 'not-found',
+      };
+    }
+
+    return {
+      status: 'ok',
+      ruling,
+    };
+  } catch {
+    return {
+      status: 'unavailable',
+      message: RULING_LOOKUP_ERROR_MESSAGE,
     };
   }
 }

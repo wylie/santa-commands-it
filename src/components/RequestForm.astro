@@ -33,9 +33,7 @@ const initialCount = formatCharacterCount(0, requestMaxLength);
 
     <div class="request-form__field">
       <div class="request-form__label-row">
-        <label for="visitor-request"
-          >What would you like from Santa?</label
-        >
+        <label for="visitor-request">What would you like from Santa?</label>
         <p
           id="request-counter"
           class="request-form__counter"
@@ -68,9 +66,14 @@ const initialCount = formatCharacterCount(0, requestMaxLength);
       <p class="request-form__note">
         Approved requests and coal rulings may appear publicly below.
       </p>
-      <button type="submit" class="button-command" data-request-submit>
-        ASK SANTA
-      </button>
+      <div class="request-form__action-row">
+        <button type="submit" class="button-command" data-request-submit>
+          ASK SANTA
+        </button>
+        <a class="button-link-secondary" data-request-permalink hidden>
+          VIEW &amp; SHARE
+        </a>
+      </div>
       <p
         id="request-status"
         class="request-form__status"
