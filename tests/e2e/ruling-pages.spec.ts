@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 
 import {
   configureSantaTestPage,
+  createReportViaApi,
   createRulingViaApi,
 } from './support/santaTest';
 
@@ -142,6 +143,75 @@ test.describe('public ruling pages', () => {
     ).toHaveCount(0);
   });
 
+  test('opens and closes the report form with keyboard controls, validates the reason, and accepts a report', async ({
+    page,
+  }) => {
+    const { headers } = await configureSantaTestPage(page, {
+      randomValue: 0.5,
+      clientId: 'report-client',
+    });
+    const created = await createRulingViaApi(page, headers, {
+      name: 'Holly',
+      request: 'A brass telescope',
+    });
+
+    await page.goto(`/rulings/${created.ruling.publicId}`);
+
+    const reportToggle = page.getByRole('button', {
+      name: 'REPORT THIS COMMAND',
+    });
+    await reportToggle.press('Enter');
+    await expect(page.getByLabel('Why are you reporting this?')).toBeFocused();
+
+    await page.getByRole('button', { name: 'SUBMIT REPORT' }).click();
+    await expect(
+      page.getByText('Please choose a reason for the report.'),
+    ).toBeVisible();
+
+    await page.getByLabel('Why are you reporting this?').selectOption('spam');
+    await page.getByLabel('Optional note').fill('<b>Repeated spam</b>');
+    await page.getByRole('button', { name: 'SUBMIT REPORT' }).click();
+
+    await expect(
+      page.getByText("THANK YOU. SANTA'S WORKSHOP HAS RECEIVED YOUR REPORT."),
+    ).toBeVisible();
+    await expect(reportToggle).toBeDisabled();
+  });
+
+  test('handles duplicate reports cleanly', async ({ page }) => {
+    const { headers } = await configureSantaTestPage(page, {
+      randomValue: 0.5,
+      clientId: 'duplicate-report-client',
+    });
+    const created = await createRulingViaApi(page, headers, {
+      name: 'Holly',
+      request: 'A brass telescope',
+    });
+
+    const firstReport = await createReportViaApi(
+      page,
+      headers,
+      created.ruling.publicId,
+      {
+        reason: 'spam',
+        note: 'Repeated public spam',
+      },
+    );
+
+    expect(firstReport.status()).toBe(201);
+
+    await page.goto(`/rulings/${created.ruling.publicId}`);
+    await page.getByRole('button', { name: 'REPORT THIS COMMAND' }).click();
+    await page.getByLabel('Why are you reporting this?').selectOption('spam');
+    await page.getByRole('button', { name: 'SUBMIT REPORT' }).click();
+
+    await expect(
+      page.getByText(
+        "Santa's workshop already has a recent report from here about this command.",
+      ),
+    ).toBeVisible();
+  });
+
   test('invalid and unknown identifiers return the same friendly 404 experience', async ({
     page,
   }) => {
@@ -196,5 +266,46 @@ test.describe('public ruling pages', () => {
     });
 
     expect(hasHorizontalOverflow).toBe(false);
+  });
+
+  test('emits representative security headers without CSP violations', async ({
+    page,
+  }) => {
+    const consoleMessages: string[] = [];
+    page.on('console', (message) => {
+      if (message.type() === 'error') {
+        consoleMessages.push(message.text());
+      }
+    });
+
+    const { headers } = await configureSantaTestPage(page, {
+      randomValue: 0.5,
+    });
+    const created = await createRulingViaApi(page, headers, {
+      name: 'Holly',
+      request: 'A brass telescope',
+    });
+
+    const homepageResponse = await page.request.get('/');
+    const rulingResponse = await page.request.get(
+      `/rulings/${created.ruling.publicId}`,
+    );
+    const homepageHeaders = Object.fromEntries(
+      homepageResponse
+        .headersArray()
+        .map((header) => [header.name.toLowerCase(), header.value]),
+    );
+    const rulingHeaders = Object.fromEntries(
+      rulingResponse
+        .headersArray()
+        .map((header) => [header.name.toLowerCase(), header.value]),
+    );
+
+    expect(homepageHeaders['content-security-policy']).toContain(
+      'fonts.googleapis.com',
+    );
+    expect(homepageHeaders['x-content-type-options']).toBe('nosniff');
+    expect(rulingHeaders['cross-origin-opener-policy']).toBe('same-origin');
+    expect(consoleMessages).toEqual([]);
   });
 });

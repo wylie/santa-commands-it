@@ -1,4 +1,5 @@
 ---
+import RulingReportForm from '@/components/RulingReportForm.astro';
 import RulingShareActions from '@/components/RulingShareActions.astro';
 import SantaPortrait from '@/components/SantaPortrait.astro';
 import SiteFooter from '@/components/SiteFooter.astro';
@@ -109,6 +110,7 @@ if (rulingResult.status === 'ok') {
                   canonicalUrl={canonicalUrl}
                 />
               )}
+              <RulingReportForm publicId={rulingResult.ruling.publicId} />
               <p class="ruling-card__return">
                 <a class="text-link" href="/">
                   ASK SANTA SOMETHING

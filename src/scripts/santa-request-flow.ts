@@ -19,12 +19,31 @@ import { buildRulingPath } from '@/utils/rulingPages';
 import { validateName, validateRequest } from '@/utils/validation';
 
 type PanelMode =
-  'opening' | 'considering' | 'approved' | 'random-coal' | 'blocked' | 'error';
+  | 'opening'
+  | 'considering'
+  | 'approved'
+  | 'random-coal'
+  | 'blocked'
+  | 'rate-limited'
+  | 'error';
 
 const SUBMIT_LABEL = 'ASK SANTA';
 const CONSIDERING_LABEL = 'SANTA IS CONSIDERING...';
 const RESET_LABEL = 'ASK SANTA SOMETHING ELSE';
 const ERROR_MESSAGE = "Santa's workshop had a small mishap. Please try again.";
+
+function generateIdempotencyKey(): string {
+  if (typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join(
+    '',
+  );
+}
 
 function getDelayOverride(): number | undefined {
   const override = window.__SANTA_TEST__?.consideringDelayMs;
@@ -130,6 +149,7 @@ export function initSantaRequestFlow(): void {
   const requestCounter = form.querySelector('[data-request-counter]');
   const submitButton = form.querySelector('[data-request-submit]');
   const permalink = form.querySelector('[data-request-permalink]');
+  const trapInput = form.querySelector('[data-request-trap]');
   const status = form.querySelector('[data-request-status]');
   const nameError = form.querySelector('[data-field-error="name"]');
   const requestError = form.querySelector('[data-field-error="request"]');
@@ -150,6 +170,7 @@ export function initSantaRequestFlow(): void {
     !(requestCounter instanceof HTMLElement) ||
     !(submitButton instanceof HTMLButtonElement) ||
     !(permalink instanceof HTMLAnchorElement) ||
+    !(trapInput instanceof HTMLInputElement) ||
     !(status instanceof HTMLElement) ||
     !(nameError instanceof HTMLElement) ||
     !(requestError instanceof HTMLElement) ||
@@ -165,6 +186,8 @@ export function initSantaRequestFlow(): void {
   );
   let successfulRuling: CreatedRulingResponse['ruling'] | null = null;
   let activeSubmission = false;
+  let currentSubmissionKey: string | null = null;
+  const formStartedAt = Date.now();
 
   const clearFieldError = (
     input: HTMLInputElement | HTMLTextAreaElement,
@@ -241,6 +264,7 @@ export function initSantaRequestFlow(): void {
   const handleRecoverableError = (message = ERROR_MESSAGE) => {
     successfulRuling = null;
     activeSubmission = false;
+    currentSubmissionKey = null;
     setPanelContent(
       'error',
       santaResponses.error.title,
@@ -287,6 +311,7 @@ export function initSantaRequestFlow(): void {
     successfulRuling = null;
     activeSubmission = false;
     requestInput.value = '';
+    trapInput.value = '';
     clearFieldError(nameInput, nameError);
     clearFieldError(requestInput, requestError);
     setDisabledState(controls, false);
@@ -299,9 +324,13 @@ export function initSantaRequestFlow(): void {
     focusElement(requestInput);
   };
 
-  const handleCreatedRuling = (ruling: CreatedRulingResponse['ruling']) => {
+  const handleCreatedRuling = (
+    ruling: CreatedRulingResponse['ruling'],
+    duplicateMessage?: string,
+  ) => {
     successfulRuling = ruling;
     activeSubmission = false;
+    currentSubmissionKey = null;
     setPanelContent(
       ruling.decision,
       getDecisionPanelTitle(ruling.decision),
@@ -315,7 +344,8 @@ export function initSantaRequestFlow(): void {
     permalink.href = buildRulingPath(ruling.publicId);
     permalink.hidden = false;
     announce(
-      `${getDecisionPanelTitle(ruling.decision)} ${ruling.santaResponse}`,
+      duplicateMessage ??
+        `${getDecisionPanelTitle(ruling.decision)} ${ruling.santaResponse}`,
     );
     updateRecentRulings(ruling);
     focusElement(submitButton);
@@ -325,6 +355,7 @@ export function initSantaRequestFlow(): void {
     response: Extract<SubmitRulingResponse, { status: 'invalid' }>,
   ) => {
     activeSubmission = false;
+    currentSubmissionKey = null;
     setDisabledState(controls, false);
     submitButton.textContent = SUBMIT_LABEL;
     form.removeAttribute('aria-busy');
@@ -405,6 +436,7 @@ export function initSantaRequestFlow(): void {
     updateCounter();
 
     activeSubmission = true;
+    currentSubmissionKey ??= generateIdempotencyKey();
     form.setAttribute('aria-busy', 'true');
     setPanelContent(
       'considering',
@@ -426,10 +458,14 @@ export function initSantaRequestFlow(): void {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'X-Idempotency-Key': currentSubmissionKey,
         },
         body: JSON.stringify({
           name: validatedName.value,
           request: validatedRequest.value,
+          website: trapInput.value,
+          formElapsedMs:
+            window.__SANTA_TEST__?.formElapsedMs ?? Date.now() - formStartedAt,
         }),
       });
     } catch {
@@ -456,8 +492,14 @@ export function initSantaRequestFlow(): void {
       return;
     }
 
+    if (responseBody.status === 'duplicate') {
+      handleCreatedRuling(responseBody.ruling, responseBody.message);
+      return;
+    }
+
     if (responseBody.status === 'blocked') {
       activeSubmission = false;
+      currentSubmissionKey = null;
       setPanelContent(
         'blocked',
         responseBody.message,
@@ -470,6 +512,34 @@ export function initSantaRequestFlow(): void {
         `${responseBody.message} ${responseBody.supportingMessage ?? ''}`.trim(),
       );
       focusBlockedField(responseBody.focusField);
+      return;
+    }
+
+    if (
+      responseBody.status === 'rate-limited' ||
+      responseBody.status === 'bot-rejected'
+    ) {
+      activeSubmission = false;
+      currentSubmissionKey = null;
+      const supportingMessage =
+        'supportingMessage' in responseBody
+          ? (responseBody.supportingMessage ?? '')
+          : '';
+      setPanelContent('rate-limited', responseBody.message, supportingMessage);
+      setDisabledState(controls, false);
+      submitButton.textContent = SUBMIT_LABEL;
+      form.removeAttribute('aria-busy');
+      announce(`${responseBody.message} ${supportingMessage}`.trim());
+      focusElement(submitButton);
+      return;
+    }
+
+    if (
+      responseBody.status === 'unsupported-media' ||
+      responseBody.status === 'payload-too-large' ||
+      responseBody.status === 'forbidden'
+    ) {
+      handleRecoverableError(responseBody.message);
       return;
     }
 

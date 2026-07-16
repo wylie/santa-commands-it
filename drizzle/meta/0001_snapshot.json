@@ -1,0 +1,461 @@
+{
+  "id": "841f0d64-ef84-40aa-a1cc-313ef8ef0a0b",
+  "prevId": "f2f38852-f1ef-460c-9b87-db2aa1b9df72",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.ruling_reports": {
+      "name": "ruling_reports",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigserial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "ruling_id": {
+          "name": "ruling_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "client_key_hash": {
+          "name": "client_key_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reason": {
+          "name": "reason",
+          "type": "report_reason",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "report_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'open'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "ruling_reports_client_created_idx": {
+          "name": "ruling_reports_client_created_idx",
+          "columns": [
+            {
+              "expression": "client_key_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "ruling_reports_ruling_client_created_idx": {
+          "name": "ruling_reports_ruling_client_created_idx",
+          "columns": [
+            {
+              "expression": "ruling_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "client_key_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "ruling_reports_status_created_idx": {
+          "name": "ruling_reports_status_created_idx",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "ruling_reports_ruling_id_rulings_id_fk": {
+          "name": "ruling_reports_ruling_id_rulings_id_fk",
+          "tableFrom": "ruling_reports",
+          "tableTo": "rulings",
+          "columnsFrom": ["ruling_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "ruling_reports_note_length_check": {
+          "name": "ruling_reports_note_length_check",
+          "value": "\"ruling_reports\".\"note\" is null or char_length(\"ruling_reports\".\"note\") <= 300"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.rulings": {
+      "name": "rulings",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigserial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "public_id": {
+          "name": "public_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "display_name": {
+          "name": "display_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "request_text": {
+          "name": "request_text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "decision": {
+          "name": "decision",
+          "type": "ruling_decision",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "santa_response": {
+          "name": "santa_response",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "rulings_created_at_idx": {
+          "name": "rulings_created_at_idx",
+          "columns": [
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "rulings_public_id_unique": {
+          "name": "rulings_public_id_unique",
+          "nullsNotDistinct": false,
+          "columns": ["public_id"]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "rulings_display_name_length_check": {
+          "name": "rulings_display_name_length_check",
+          "value": "char_length(\"rulings\".\"display_name\") between 1 and 40"
+        },
+        "rulings_request_text_length_check": {
+          "name": "rulings_request_text_length_check",
+          "value": "char_length(\"rulings\".\"request_text\") between 1 and 500"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.submission_attempts": {
+      "name": "submission_attempts",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigserial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "client_key_hash": {
+          "name": "client_key_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "submission_attempts_client_created_idx": {
+          "name": "submission_attempts_client_created_idx",
+          "columns": [
+            {
+              "expression": "client_key_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.submission_idempotency": {
+      "name": "submission_idempotency",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigserial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "client_key_hash": {
+          "name": "client_key_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "idempotency_key": {
+          "name": "idempotency_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "normalized_name": {
+          "name": "normalized_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "normalized_request": {
+          "name": "normalized_request",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ruling_id": {
+          "name": "ruling_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "submission_idempotency_client_key_idx": {
+          "name": "submission_idempotency_client_key_idx",
+          "columns": [
+            {
+              "expression": "client_key_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "idempotency_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "submission_idempotency_duplicate_idx": {
+          "name": "submission_idempotency_duplicate_idx",
+          "columns": [
+            {
+              "expression": "client_key_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "normalized_name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "normalized_request",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "submission_idempotency_ruling_id_rulings_id_fk": {
+          "name": "submission_idempotency_ruling_id_rulings_id_fk",
+          "tableFrom": "submission_idempotency",
+          "tableTo": "rulings",
+          "columnsFrom": ["ruling_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "submission_idempotency_key_length_check": {
+          "name": "submission_idempotency_key_length_check",
+          "value": "char_length(\"submission_idempotency\".\"idempotency_key\") between 1 and 64"
+        }
+      },
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {
+    "public.report_reason": {
+      "name": "report_reason",
+      "schema": "public",
+      "values": [
+        "bullying",
+        "hate",
+        "personal-information",
+        "inappropriate",
+        "threats",
+        "spam",
+        "other"
+      ]
+    },
+    "public.report_status": {
+      "name": "report_status",
+      "schema": "public",
+      "values": ["open", "reviewed", "dismissed", "actioned"]
+    },
+    "public.ruling_decision": {
+      "name": "ruling_decision",
+      "schema": "public",
+      "values": ["approved", "random-coal"]
+    }
+  },
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

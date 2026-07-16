@@ -178,6 +178,37 @@ test.describe('Santa Commands It homepage', () => {
     await expect(page.locator('[data-recent-list] > li')).toHaveCount(1);
   });
 
+  test('does not create a second visible ruling for the same request inside the duplicate window', async ({
+    page,
+  }) => {
+    await configureSantaTestPage(page, {
+      randomValue: 0.5,
+      consideringDelayMs: 0,
+      clientId: 'duplicate-window-client',
+    });
+    await page.goto('/');
+
+    await fillRequestForm(page, 'A brass telescope');
+    await page.getByRole('button', { name: 'ASK SANTA' }).click();
+
+    await expect(page.locator('[data-recent-list] > li')).toHaveCount(1);
+
+    await page
+      .getByRole('button', { name: 'ASK SANTA SOMETHING ELSE' })
+      .click();
+    await page
+      .getByRole('textbox', {
+        name: 'What would you like from Santa?',
+      })
+      .fill('A brass telescope');
+    await page.getByRole('button', { name: 'ASK SANTA' }).click();
+
+    await expect(page.locator('[data-recent-list] > li')).toHaveCount(1);
+    await expect(
+      page.locator('[data-response-panel][data-mode="approved"]'),
+    ).toBeVisible();
+  });
+
   test('renders HTML-like input as text in the response panel and feed', async ({
     page,
   }) => {
@@ -213,7 +244,9 @@ test.describe('Santa Commands It homepage', () => {
       await createRulingViaApi(page, headers, {
         name: `Holly ${index}`,
         request: `Request number ${index}`,
+        formElapsedMs: 2000,
       });
+      headers['x-santa-test-client-id'] = `feed-client-${index}`;
     }
 
     await page.goto('/');
@@ -238,6 +271,91 @@ test.describe('Santa Commands It homepage', () => {
       page.getByText("Santa's announcement board is temporarily unavailable."),
     ).toBeVisible();
     await expect(page.getByRole('button', { name: 'ASK SANTA' })).toBeVisible();
+  });
+
+  test('shows a friendly rate-limit message and preserves form values', async ({
+    page,
+  }) => {
+    const { headers } = await configureSantaTestPage(page, {
+      randomValue: 0.5,
+      consideringDelayMs: 0,
+      clientId: 'rate-limited-client',
+    });
+
+    for (let index = 0; index < 5; index += 1) {
+      await createRulingViaApi(page, headers, {
+        name: 'Holly',
+        request: `Distinct request ${index}`,
+      });
+    }
+
+    await page.goto('/');
+    await fillRequestForm(page, 'A sixth request');
+    await page.getByRole('button', { name: 'ASK SANTA' }).click();
+
+    await expect(
+      page.locator('[data-response-panel][data-mode="rate-limited"]'),
+    ).toBeVisible();
+    await expect(page.locator('[data-response-title]')).toBeVisible();
+    await expect(page.locator('[data-response-title]')).toHaveText(
+      'SANTA NEEDS A MOMENT. PLEASE TRY AGAIN LATER.',
+    );
+    await expect(page.getByLabel('What should Santa call you?')).toHaveValue(
+      'Holly',
+    );
+    await expect(
+      page.getByRole('textbox', {
+        name: 'What would you like from Santa?',
+      }),
+    ).toHaveValue('A sixth request');
+  });
+
+  test('silently rejects honeypot submissions without creating a public ruling', async ({
+    page,
+  }) => {
+    const { headers } = await configureSantaTestPage(page, {
+      clientId: 'honeypot-client',
+    });
+
+    const response = await page.request.post('/api/rulings', {
+      headers: {
+        ...headers,
+        'content-type': 'application/json',
+        'x-idempotency-key': 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+      },
+      data: {
+        name: 'Holly',
+        request: 'A brass telescope',
+        website: 'https://bot.example',
+        formElapsedMs: 2000,
+      },
+    });
+
+    expect(response.status()).toBe(202);
+
+    await page.goto('/');
+    await expect(page.locator('[data-recent-list]')).toHaveCount(0);
+  });
+
+  test('rejects foreign-origin submission requests', async ({ page }) => {
+    const { headers } = await configureSantaTestPage(page);
+
+    const response = await page.request.post('/api/rulings', {
+      headers: {
+        ...headers,
+        'content-type': 'application/json',
+        origin: 'https://evil.example',
+        'x-idempotency-key': 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+      },
+      data: {
+        name: 'Holly',
+        request: 'A brass telescope',
+        website: '',
+        formElapsedMs: 2000,
+      },
+    });
+
+    expect(response.status()).toBe(403);
   });
 
   test('stays within the viewport on mobile with long persisted content', async ({

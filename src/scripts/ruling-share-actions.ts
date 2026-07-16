@@ -1,4 +1,7 @@
 function fallbackCopyText(text: string): boolean {
+  const legacyClipboardDocument = document as {
+    execCommand?: (commandId: string, showUi?: boolean, value?: string) => boolean;
+  };
   const copyTarget = document.createElement('textarea');
   copyTarget.value = text;
   copyTarget.setAttribute('readonly', '');
@@ -10,7 +13,7 @@ function fallbackCopyText(text: string): boolean {
   copyTarget.setSelectionRange(0, copyTarget.value.length);
 
   try {
-    return document.execCommand('copy');
+    return legacyClipboardDocument.execCommand?.('copy') ?? false;
   } finally {
     copyTarget.remove();
   }

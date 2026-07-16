@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 The format is inspired by Keep a Changelog, and this project adheres to Semantic Versioning.
 
+## [0.1.5] - 2026-07-16
+
+### Added
+
+- Server-side submission rate limiting, duplicate detection, idempotency tracking, and lightweight bot defenses for `POST /api/rulings`
+- Public ruling reports with typed reasons, optional notes, per-client report limits, and a dedicated `POST /api/rulings/[publicId]/reports` endpoint
+- Privacy-preserving client-key hashing with `RATE_LIMIT_SECRET`, request-body size limits, safer JSON parsing, and same-origin API enforcement
+- Global security headers and CSP coverage through Astro middleware
+- Expanded automated coverage for reporting, abuse controls, duplicate handling, and security behavior
+
+### Changed
+
+- Homepage submissions now return friendly rate-limit, duplicate, and bot-rejected states without creating extra rulings
+- Public ruling pages now include an inline report flow while keeping reporter details private
+- Project documentation and environment setup now cover `RATE_LIMIT_SECRET`, abuse safeguards, and operational limits
+
 ## [0.1.4] - 2026-07-15
 
 ### Added

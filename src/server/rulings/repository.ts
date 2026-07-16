@@ -18,10 +18,24 @@ export type CreateRulingInput = {
   santaResponse: string;
 };
 
+export type StoredRuling = {
+  id: number;
+  publicRuling: PublicRuling;
+};
+
+export type RulingReference = {
+  id: number;
+  publicId: string;
+};
+
 export type RulingsRepository = {
   createRuling(input: CreateRulingInput): Promise<PublicRuling>;
+  createStoredRuling(input: CreateRulingInput): Promise<StoredRuling>;
   listRecentRulings(limit?: number): Promise<PublicRuling[]>;
   getRulingByPublicId(publicId: string): Promise<PublicRuling | null>;
+  getRulingReferenceByPublicId(
+    publicId: string,
+  ): Promise<RulingReference | null>;
 };
 
 type RulingRow = typeof rulings.$inferSelect;
@@ -44,6 +58,11 @@ export function mapRulingRowToPublicRuling(row: RulingRow): PublicRuling {
 export function createDatabaseRulingsRepository(): RulingsRepository {
   return {
     async createRuling(input) {
+      const storedRuling = await this.createStoredRuling(input);
+
+      return storedRuling.publicRuling;
+    },
+    async createStoredRuling(input) {
       const database = getDatabase();
       const [createdRuling] = await database
         .insert(rulings)
@@ -56,7 +75,10 @@ export function createDatabaseRulingsRepository(): RulingsRepository {
         })
         .returning();
 
-      return mapRulingRowToPublicRuling(createdRuling);
+      return {
+        id: createdRuling.id,
+        publicRuling: mapRulingRowToPublicRuling(createdRuling),
+      };
     },
     async listRecentRulings(limit = santaSettings.recentRulings.visibleLimit) {
       const database = getDatabase();
@@ -83,6 +105,24 @@ export function createDatabaseRulingsRepository(): RulingsRepository {
         .limit(1);
 
       return row ? mapRulingRowToPublicRuling(row) : null;
+    },
+    async getRulingReferenceByPublicId(publicId: string) {
+      const database = getDatabase();
+      const [row] = await database
+        .select({
+          id: rulings.id,
+          publicId: rulings.publicId,
+        })
+        .from(rulings)
+        .where(
+          and(
+            eq(rulings.publicId, publicId),
+            inArray(rulings.decision, ['approved', 'random-coal']),
+          ),
+        )
+        .limit(1);
+
+      return row ?? null;
     },
   };
 }

@@ -1,13 +1,13 @@
 # Santa Commands It!
 
-`Santa Commands It!` is a theatrical holiday web application from Argon Collective LLC. Visitors ask Santa for something, the server makes the authoritative decision, completed rulings are stored in Neon Postgres, and approved or coal outcomes receive permanent public pages that can be shared directly.
+`Santa Commands It!` is a theatrical holiday web application from Argon Collective LLC. Visitors ask Santa for something, the server makes the authoritative decision, completed rulings are stored in Neon Postgres, and approved or coal outcomes receive permanent public pages that can be shared directly. Version `0.1.5` adds public-use safeguards including submission rate limiting, duplicate protection, bot-resistant request handling, reporting, and security hardening.
 
 ## Release
 
-- Current version: `v0.1.4`
-- Current scope: server-rendered homepage, authoritative submission endpoint, Neon persistence, moderation-first ruling decisions, permanent public ruling pages, share actions, and automated test coverage
+- Current version: `v0.1.5`
+- Current scope: server-rendered homepage, authoritative submission and reporting endpoints, Neon persistence, moderation-first ruling decisions, permanent public ruling pages, abuse safeguards, share actions, and automated test coverage
 
-Completed rulings now persist across refreshes and can be revisited at permanent public URLs. Blocked submissions are still rejected before any database write and never receive public pages.
+Completed rulings persist across refreshes and can be revisited at permanent public URLs. Blocked submissions are still rejected before any database write and never receive public pages, and public reports can now be submitted without exposing reporter details.
 
 ## Product concept
 
@@ -40,13 +40,14 @@ Completed approvals and coal rulings are public on the homepage and on their own
 3. Create or select a Neon project.
 4. Copy the Neon pooled connection string recommended for serverless HTTP access.
 5. Add it to a local `.env` file as `DATABASE_URL=...`.
-6. Optionally add `SITE_URL=https://your-production-domain.example` to the same `.env` file for canonical URLs and production metadata.
-7. Place the supplied Santa artwork at `public/images/santa.png`.
-8. Generate and apply the schema migration:
+6. Add `RATE_LIMIT_SECRET=...` to the same `.env` file.
+7. Optionally add `SITE_URL=https://your-production-domain.example` for canonical URLs and production metadata.
+8. Place the supplied Santa artwork at `public/images/santa.png`.
+9. Generate and apply the schema migration:
    - `npm run db:generate`
    - `npm run db:migrate`
-9. Start the development server with `npm run dev`.
-10. Submit a request, confirm it appears in Santa's Latest Commands, and open its permanent ruling page.
+10. Start the development server with `npm run dev`.
+11. Submit a request, confirm it appears in Santa's Latest Commands, open its permanent ruling page, and test the report flow locally.
 
 If `DATABASE_URL` is missing, the form remains usable but the server cannot persist rulings, recent public commands will be unavailable, and no permanent ruling pages can be created.
 
@@ -56,6 +57,10 @@ If `DATABASE_URL` is missing, the form remains usable but the server cannot pers
   - Required for persisted rulings and database migrations
   - Must never use a `PUBLIC_` prefix
   - Must never be committed
+- `RATE_LIMIT_SECRET`
+  - Required in production for hashed rate-limiting and reporting client keys
+  - Should be a long random secret
+  - Uses a clearly documented development fallback locally when omitted
 - `SITE_URL`
   - Recommended for production canonical URLs, Open Graph metadata, and share links
   - Should be the full origin only, such as `https://example.com`
@@ -120,20 +125,36 @@ Do not replace it with generated or downloaded artwork in this repository.
 
 ## Server-side submission flow
 
-In `v0.1.4`, the browser performs basic validation and then submits to `POST /api/rulings`.
+In `v0.1.5`, the browser performs basic validation and then submits to `POST /api/rulings`.
 
 The server then:
 
-1. Validates the incoming JSON payload again.
-2. Trims and re-checks both the name and request.
-3. Moderates both fields.
-4. Rejects blocked content without saving it.
-5. Runs the random-coal decision only for acceptable requests.
-6. Selects and formats Santa's response on the server.
-7. Persists approved or coal rulings in Neon through Drizzle.
-8. Returns safe ruling data to the browser, including the public identifier for permanent linking.
+1. Enforces method, content-type, request-size, and same-origin expectations.
+2. Derives a privacy-preserving client key by hashing trusted platform request metadata with `RATE_LIMIT_SECRET`.
+3. Applies duplicate and idempotency checks before writing a new ruling.
+4. Applies submission rate limits before moderation or coal decisions.
+5. Trims and re-checks both the name and request.
+6. Uses a honeypot field plus a lightweight form-timing signal to reject likely bot traffic.
+7. Moderates both fields.
+8. Rejects blocked content without saving it.
+9. Runs the random-coal decision only for acceptable requests.
+10. Selects and formats Santa's response on the server.
+11. Persists approved or coal rulings in Neon through Drizzle, along with short-lived idempotency and submission-attempt records.
+12. Returns safe ruling data to the browser, including the public identifier for permanent linking.
 
 The browser updates the response panel, inserts the new ruling at the top of Santa's Latest Commands, and exposes a `VIEW & SHARE` action without a full page reload.
+
+## Public-use safeguards
+
+- Submission rate limiting starts at `5` attempts per `10` minutes and `20` attempts per `24` hours per hashed client key.
+- Report rate limiting starts at `5` reports per hour per hashed client key and `1` report per ruling per client per `24` hours.
+- Duplicate submissions are detected for the same normalized name and normalized request from the same client within `60` seconds.
+- Each intentional form submission carries an opaque idempotency key so retries return the existing ruling instead of writing another row.
+- A hidden honeypot field plus a configurable minimum form-open time help reject likely automated traffic before a ruling is created.
+- Request bodies are size-limited and parsed through a strict JSON helper rather than trusting ad hoc `request.json()` calls.
+- Security headers are applied globally through Astro middleware, including CSP, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`, and cross-origin isolation headers where appropriate.
+
+These protections are intentionally lightweight. They reduce routine abuse and operational mistakes, but they are not a substitute for future platform-level firewalling, rate limiting, and server-side moderation review.
 
 ## What gets stored
 
@@ -154,6 +175,12 @@ Only these final decision values are stored:
 
 Blocked submissions are never stored and never receive a public identifier.
 
+Additional operational tables now store:
+
+- hashed submission-attempt records for rate limiting
+- submission idempotency records with expiration timestamps
+- public ruling reports with reason, optional note, hashed client key, status, and created timestamp
+
 ## What is never stored
 
 - blocked submissions
@@ -161,8 +188,9 @@ Blocked submissions are never stored and never receive a public identifier.
 - internal database IDs in browser responses
 - email addresses
 - account data
-- application-level IP address storage
+- raw IP addresses in the application database
 - device fingerprints
+- reporter names or contact details
 
 Blocked content is rejected before any database write.
 
@@ -201,13 +229,24 @@ The initial coal percentage remains `5%`.
 
 Completed approved and coal rulings are public and accessible to anyone with the URL.
 
+## Public reporting
+
+- Individual ruling pages now expose a secondary `REPORT THIS COMMAND` action.
+- Reports accept one typed reason plus an optional short note up to `300` characters.
+- Reports are stored privately with an initial `open` status for future review tooling.
+- Reporter details are intentionally minimal: the application stores only a hashed client key when needed for rate limiting and duplicate-report protection.
+- Reports do not automatically hide a ruling in `v0.1.5`.
+- Blocked submissions still never receive public URLs and therefore cannot be reported.
+
 ## Astro rendering and deployment
 
 - The project now uses Astro server rendering with the official Vercel adapter.
 - Database access exists only in server-side modules under `src/server/`.
 - `DATABASE_URL` is never exposed to client-side code.
+- `RATE_LIMIT_SECRET` is read only on the server and should be configured distinctly in production.
 - `SITE_URL` should be configured in production so ruling pages emit stable canonical metadata.
 - Production builds output Vercel-compatible server artifacts rather than a static site.
+- This release uses database-backed safeguards because a serverless deployment cannot rely on process memory as the sole production limiter.
 
 ## Migrations
 
@@ -258,13 +297,13 @@ Test precautions:
 
 ## Current limitations
 
-- No dynamic social image generation exists yet.
-- No downloadable share cards or QR codes exist yet.
-- No rate limiting exists yet.
-- No reporting tools or admin deletion tools exist yet.
+- No admin review dashboard, removal workflow, or reporting triage interface exists yet.
+- No platform firewall, CAPTCHA, or third-party anti-bot service is configured in this repository.
+- Client-side timing and honeypot checks are only lightweight abuse signals and can be bypassed.
+- Database-backed rate limiting is intended for low public traffic and should be revisited before large-scale launch.
+- No dynamic social image generation, downloadable share cards, or QR codes exist yet.
 - No authentication or user accounts exist yet.
 - Completed public rulings remain stored until manually removed through database tools.
-- Client-side moderation is no longer authoritative, but server-side moderation still needs future launch hardening such as rate limiting and abuse controls.
 
 ## Ownership and credits
 
@@ -273,5 +312,4 @@ Test precautions:
 
 ## Roadmap
 
-- `v0.1.5`: Abuse protection, rate limiting, reporting, and security hardening
 - `v0.1.6`: Accessibility, performance, deployment, and stabilization

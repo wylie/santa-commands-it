@@ -61,3 +61,30 @@ export function validateRequest(
     value,
   };
 }
+
+export function validateOptionalNote(
+  input: string,
+  maximum: number,
+): ValidationResult {
+  const value = input.trim();
+
+  if (!value) {
+    return {
+      valid: true,
+      value: '',
+    };
+  }
+
+  if (value.length > maximum) {
+    return {
+      valid: false,
+      value,
+      error: `Please keep report notes to ${maximum} characters or fewer.`,
+    };
+  }
+
+  return {
+    valid: true,
+    value,
+  };
+}

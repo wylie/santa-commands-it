@@ -1,11 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import type { RulingsRepository } from '@/server/rulings/repository';
 import { mapRulingRowToPublicRuling } from '@/server/rulings/repository';
-import {
-  GENERIC_ERROR_MESSAGE,
-  submitSantaRequest,
-} from '@/server/rulings/service';
+import { GENERIC_ERROR_MESSAGE } from '@/server/submissions/service';
+import { submitSantaRequest } from '@/server/submissions/service';
+import type { SubmissionRepository } from '@/server/submissions/repository';
 import {
   formatRulingTimestamp,
   getDecisionPanelTitle,
@@ -15,7 +13,11 @@ import {
 
 function createRepositoryMock() {
   return {
-    createRuling: vi.fn(async (input) => ({
+    countSubmissionAttemptsSince: vi.fn(async () => 0),
+    recordSubmissionAttempt: vi.fn(async () => undefined),
+    getRulingByIdempotencyKey: vi.fn(async () => null),
+    findDuplicateRuling: vi.fn(async () => null),
+    createRulingWithIdempotency: vi.fn(async (input) => ({
       publicId: input.publicId,
       displayName: input.displayName,
       requestText: input.requestText,
@@ -23,16 +25,15 @@ function createRepositoryMock() {
       santaResponse: input.santaResponse,
       createdAt: '2026-07-15T23:30:00.000Z',
     })),
-    listRecentRulings: vi.fn(async () => []),
-    getRulingByPublicId: vi.fn(async () => null),
-  } satisfies RulingsRepository;
+  } satisfies SubmissionRepository;
 }
 
 function createDependencies(repository = createRepositoryMock()) {
   return {
-    repository,
+    submissionRepository: repository,
     randomProvider: vi.fn(() => 0.5),
     publicIdGenerator: vi.fn(() => 'public-ruling-id'),
+    nowProvider: vi.fn(() => new Date('2026-07-15T23:30:00.000Z')),
     scenario: 'normal' as const,
   };
 }
@@ -41,6 +42,10 @@ describe('server submission validation', () => {
   it('returns invalid when the name is missing', async () => {
     const response = await submitSantaRequest(
       { name: '', request: 'A brass telescope' },
+      {
+        clientKeyHash: 'hashed-client',
+        idempotencyKey: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+      },
       createDependencies(),
     );
 
@@ -56,6 +61,10 @@ describe('server submission validation', () => {
   it('returns invalid when the request is missing', async () => {
     const response = await submitSantaRequest(
       { name: 'Holly', request: '' },
+      {
+        clientKeyHash: 'hashed-client',
+        idempotencyKey: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+      },
       createDependencies(),
     );
 
@@ -71,6 +80,10 @@ describe('server submission validation', () => {
   it('rejects whitespace-only values', async () => {
     const response = await submitSantaRequest(
       { name: '   ', request: '   ' },
+      {
+        clientKeyHash: 'hashed-client',
+        idempotencyKey: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+      },
       createDependencies(),
     );
 
@@ -89,6 +102,10 @@ describe('server submission validation', () => {
         name: 'H'.repeat(40),
         request: 'R'.repeat(500),
       },
+      {
+        clientKeyHash: 'hashed-client',
+        idempotencyKey: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+      },
       createDependencies(),
     );
 
@@ -98,6 +115,10 @@ describe('server submission validation', () => {
   it('treats malformed payloads as invalid', async () => {
     const response = await submitSantaRequest(
       'not-an-object',
+      {
+        clientKeyHash: 'hashed-client',
+        idempotencyKey: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+      },
       createDependencies(),
     );
 
@@ -116,6 +137,10 @@ describe('authoritative server decision flow', () => {
     const repository = createRepositoryMock();
     const response = await submitSantaRequest(
       { name: 'blocked-example', request: 'A brass telescope' },
+      {
+        clientKeyHash: 'hashed-client',
+        idempotencyKey: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+      },
       createDependencies(repository),
     );
 
@@ -126,13 +151,17 @@ describe('authoritative server decision flow', () => {
       supportingMessage:
         'Santa will give you another chance to choose something kinder.',
     });
-    expect(repository.createRuling).not.toHaveBeenCalled();
+    expect(repository.createRulingWithIdempotency).not.toHaveBeenCalled();
   });
 
   it('returns blocked for a blocked request and never creates a ruling', async () => {
     const repository = createRepositoryMock();
     const response = await submitSantaRequest(
       { name: 'Holly', request: 'Please hurt someone with this gift.' },
+      {
+        clientKeyHash: 'hashed-client',
+        idempotencyKey: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+      },
       createDependencies(repository),
     );
 
@@ -140,7 +169,7 @@ describe('authoritative server decision flow', () => {
       status: 'blocked',
       focusField: 'request',
     });
-    expect(repository.createRuling).not.toHaveBeenCalled();
+    expect(repository.createRulingWithIdempotency).not.toHaveBeenCalled();
   });
 
   it('creates an approved ruling once when the coal roll fails', async () => {
@@ -153,12 +182,16 @@ describe('authoritative server decision flow', () => {
 
     const response = await submitSantaRequest(
       { name: 'Holly', request: 'A brass telescope' },
+      {
+        clientKeyHash: 'hashed-client',
+        idempotencyKey: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+      },
       dependencies,
     );
 
     expect(response.status).toBe('created');
-    expect(repository.createRuling).toHaveBeenCalledTimes(1);
-    expect(repository.createRuling).toHaveBeenCalledWith(
+    expect(repository.createRulingWithIdempotency).toHaveBeenCalledTimes(1);
+    expect(repository.createRulingWithIdempotency).toHaveBeenCalledWith(
       expect.objectContaining({
         decision: 'approved',
       }),
@@ -175,12 +208,16 @@ describe('authoritative server decision flow', () => {
 
     const response = await submitSantaRequest(
       { name: 'Holly', request: 'A brass telescope' },
+      {
+        clientKeyHash: 'hashed-client',
+        idempotencyKey: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+      },
       dependencies,
     );
 
     expect(response.status).toBe('created');
-    expect(repository.createRuling).toHaveBeenCalledTimes(1);
-    expect(repository.createRuling).toHaveBeenCalledWith(
+    expect(repository.createRulingWithIdempotency).toHaveBeenCalledTimes(1);
+    expect(repository.createRulingWithIdempotency).toHaveBeenCalledWith(
       expect.objectContaining({
         decision: 'random-coal',
       }),
@@ -196,11 +233,15 @@ describe('authoritative server decision flow', () => {
 
     const response = await submitSantaRequest(
       { name: 'blocked-example', request: 'A brass telescope' },
+      {
+        clientKeyHash: 'hashed-client',
+        idempotencyKey: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+      },
       dependencies,
     );
 
     expect(response.status).toBe('blocked');
-    expect(repository.createRuling).not.toHaveBeenCalled();
+    expect(repository.createRulingWithIdempotency).not.toHaveBeenCalled();
     expect(dependencies.randomProvider).not.toHaveBeenCalled();
   });
 
@@ -213,11 +254,15 @@ describe('authoritative server decision flow', () => {
         decision: 'random-coal',
         randomCoalPercentage: 100,
       },
+      {
+        clientKeyHash: 'hashed-client',
+        idempotencyKey: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+      },
       createDependencies(repository),
     );
 
     expect(response.status).toBe('created');
-    expect(repository.createRuling).toHaveBeenCalledWith(
+    expect(repository.createRulingWithIdempotency).toHaveBeenCalledWith(
       expect.not.objectContaining({
         decision: 'random-coal',
         randomCoalPercentage: 100,
@@ -235,11 +280,15 @@ describe('authoritative server decision flow', () => {
 
     const response = await submitSantaRequest(
       { name: 'Holly', request: 'A brass telescope' },
+      {
+        clientKeyHash: 'hashed-client',
+        idempotencyKey: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+      },
       dependencies,
     );
 
     expect(response.status).toBe('created');
-    expect(repository.createRuling).toHaveBeenCalledWith(
+    expect(repository.createRulingWithIdempotency).toHaveBeenCalledWith(
       expect.objectContaining({
         santaResponse:
           response.status === 'created' ? response.ruling.santaResponse : '',
@@ -251,6 +300,10 @@ describe('authoritative server decision flow', () => {
     await expect(
       submitSantaRequest(
         { name: 'Holly', request: 'A brass telescope' },
+        {
+          clientKeyHash: 'hashed-client',
+          idempotencyKey: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+        },
         {
           ...createDependencies(),
           scenario: 'submit-error',

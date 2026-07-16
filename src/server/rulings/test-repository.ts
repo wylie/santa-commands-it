@@ -2,30 +2,20 @@ import { santaSettings } from '@/config/santa-settings';
 import type {
   CreateRulingInput,
   RulingsRepository,
+  StoredRuling,
 } from '@/server/rulings/repository';
+import { clearTestRunStore, getTestRunStore } from '@/server/testing/store';
 import type { PublicRuling } from '@/utils/rulings';
-
-type TestStore = Map<string, PublicRuling[]>;
-
-const stores: TestStore = new Map();
-
-function getStore(runId: string): PublicRuling[] {
-  const store = stores.get(runId);
-
-  if (store) {
-    return store;
-  }
-
-  const nextStore: PublicRuling[] = [];
-  stores.set(runId, nextStore);
-
-  return nextStore;
-}
 
 export function createTestRulingsRepository(runId: string): RulingsRepository {
   return {
     async createRuling(input: CreateRulingInput) {
-      const store = getStore(runId);
+      const storedRuling = await this.createStoredRuling(input);
+
+      return storedRuling.publicRuling;
+    },
+    async createStoredRuling(input: CreateRulingInput): Promise<StoredRuling> {
+      const store = getTestRunStore(runId);
       const ruling: PublicRuling = {
         publicId: input.publicId,
         displayName: input.displayName,
@@ -35,26 +25,41 @@ export function createTestRulingsRepository(runId: string): RulingsRepository {
         createdAt: new Date().toISOString(),
       };
 
-      store.unshift(ruling);
+      store.rulings.unshift(ruling);
 
-      return ruling;
+      return {
+        id: store.rulings.length,
+        publicRuling: ruling,
+      };
     },
     async listRecentRulings(limit = santaSettings.recentRulings.visibleLimit) {
-      return getStore(runId).slice(0, limit);
+      return getTestRunStore(runId).rulings.slice(0, limit);
     },
     async getRulingByPublicId(publicId: string) {
       return (
-        getStore(runId).find((ruling) => ruling.publicId === publicId) ?? null
+        getTestRunStore(runId).rulings.find(
+          (ruling) => ruling.publicId === publicId,
+        ) ?? null
       );
+    },
+    async getRulingReferenceByPublicId(publicId: string) {
+      const store = getTestRunStore(runId);
+      const rulingIndex = store.rulings.findIndex(
+        (ruling) => ruling.publicId === publicId,
+      );
+
+      if (rulingIndex === -1) {
+        return null;
+      }
+
+      return {
+        id: rulingIndex + 1,
+        publicId,
+      };
     },
   };
 }
 
 export function clearTestRulingsStore(runId?: string): void {
-  if (runId) {
-    stores.delete(runId);
-    return;
-  }
-
-  stores.clear();
+  clearTestRunStore(runId);
 }

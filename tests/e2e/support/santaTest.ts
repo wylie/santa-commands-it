@@ -9,16 +9,22 @@ export async function configureSantaTestPage(
   page: Page,
   options: {
     consideringDelayMs?: number;
+    formElapsedMs?: number;
     randomValue?: number;
-    scenario?: 'submit-error' | 'recent-unavailable';
+    scenario?: 'submit-error' | 'recent-unavailable' | 'report-error';
     shareMode?: ShareMode;
     copyMode?: CopyMode;
+    clientId?: string;
   } = {},
 ) {
   const runId = randomUUID();
   const headers: Record<string, string> = {
     'x-santa-test-run-id': runId,
   };
+
+  if (options.clientId) {
+    headers['x-santa-test-client-id'] = options.clientId;
+  }
 
   if (typeof options.randomValue === 'number') {
     headers['x-santa-test-random'] = String(options.randomValue);
@@ -32,6 +38,7 @@ export async function configureSantaTestPage(
   await page.addInitScript((config) => {
     window.__SANTA_TEST__ = {
       consideringDelayMs: config.consideringDelayMs ?? 0,
+      formElapsedMs: config.formElapsedMs ?? 2000,
     };
 
     if (config.copyMode === 'success') {
@@ -104,9 +111,38 @@ export async function createRulingViaApi(
   data: {
     name: string;
     request: string;
+    website?: string;
+    formElapsedMs?: number;
   },
 ) {
   const response = await page.request.post('/api/rulings', {
+    headers: {
+      ...headers,
+      'content-type': 'application/json',
+      'x-idempotency-key': randomUUID(),
+    },
+    data: {
+      ...data,
+      website: data.website ?? '',
+      formElapsedMs: data.formElapsedMs ?? 2000,
+    },
+  });
+
+  expect(response.ok()).toBe(true);
+
+  return response.json();
+}
+
+export async function createReportViaApi(
+  page: Page,
+  headers: Record<string, string>,
+  publicId: string,
+  data: {
+    reason: string;
+    note?: string;
+  },
+) {
+  const response = await page.request.post(`/api/rulings/${publicId}/reports`, {
     headers: {
       ...headers,
       'content-type': 'application/json',
@@ -114,7 +150,5 @@ export async function createRulingViaApi(
     data,
   });
 
-  expect(response.ok()).toBe(true);
-
-  return response.json();
+  return response;
 }

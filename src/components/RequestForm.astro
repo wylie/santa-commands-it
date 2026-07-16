@@ -8,6 +8,18 @@ const initialCount = formatCharacterCount(0, requestMaxLength);
 
 <section class="request-panel" aria-label="Santa request form">
   <form class="request-form" data-request-form novalidate>
+    <div class="request-form__trap" aria-hidden="true">
+      <label for="visitor-website">Website</label>
+      <input
+        id="visitor-website"
+        name="website"
+        type="text"
+        tabindex="-1"
+        autocomplete="off"
+        data-request-trap
+      />
+    </div>
+
     <div class="request-form__field">
       <label for="visitor-name">What should Santa call you?</label>
       <input

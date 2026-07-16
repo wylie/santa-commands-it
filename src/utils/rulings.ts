@@ -17,6 +17,12 @@ export type CreatedRulingResponse = {
   ruling: PublicRuling;
 };
 
+export type DuplicateRulingResponse = {
+  status: 'duplicate';
+  ruling: PublicRuling;
+  message: string;
+};
+
 export type BlockedRulingResponse = {
   status: 'blocked';
   focusField: FocusField;
@@ -32,6 +38,33 @@ export type InvalidRulingResponse = {
   };
 };
 
+export type RateLimitedResponse = {
+  status: 'rate-limited';
+  message: string;
+  supportingMessage?: string;
+  retryAfterSeconds?: number;
+};
+
+export type BotRejectedResponse = {
+  status: 'bot-rejected';
+  message: string;
+};
+
+export type UnsupportedMediaResponse = {
+  status: 'unsupported-media';
+  message: string;
+};
+
+export type PayloadTooLargeResponse = {
+  status: 'payload-too-large';
+  message: string;
+};
+
+export type ForbiddenResponse = {
+  status: 'forbidden';
+  message: string;
+};
+
 export type ErrorRulingResponse = {
   status: 'error';
   message: string;
@@ -39,8 +72,14 @@ export type ErrorRulingResponse = {
 
 export type SubmitRulingResponse =
   | CreatedRulingResponse
+  | DuplicateRulingResponse
   | BlockedRulingResponse
   | InvalidRulingResponse
+  | RateLimitedResponse
+  | BotRejectedResponse
+  | UnsupportedMediaResponse
+  | PayloadTooLargeResponse
+  | ForbiddenResponse
   | ErrorRulingResponse;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -79,6 +118,10 @@ export function isSubmitRulingResponse(
     return isPublicRuling(value.ruling);
   }
 
+  if (value.status === 'duplicate') {
+    return isPublicRuling(value.ruling) && typeof value.message === 'string';
+  }
+
   if (value.status === 'blocked') {
     return (
       (value.focusField === 'name' ||
@@ -105,6 +148,22 @@ export function isSubmitRulingResponse(
 
   if (value.status === 'error') {
     return typeof value.message === 'string';
+  }
+
+  if (
+    value.status === 'rate-limited' ||
+    value.status === 'bot-rejected' ||
+    value.status === 'unsupported-media' ||
+    value.status === 'payload-too-large' ||
+    value.status === 'forbidden'
+  ) {
+    return (
+      typeof value.message === 'string' &&
+      (value.supportingMessage === undefined ||
+        typeof value.supportingMessage === 'string') &&
+      (value.retryAfterSeconds === undefined ||
+        typeof value.retryAfterSeconds === 'number')
+    );
   }
 
   return false;
