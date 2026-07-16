@@ -82,6 +82,12 @@ export type SubmitRulingResponse =
   | ForbiddenResponse
   | ErrorRulingResponse;
 
+const timestampFormatter = new Intl.DateTimeFormat('en-US', {
+  dateStyle: 'long',
+  timeStyle: 'short',
+  timeZone: santaSettings.recentRulings.timeZone,
+});
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
@@ -182,11 +188,11 @@ export function getDecisionLabel(decision: PersistedRulingDecision): string {
 export function formatRulingTimestamp(value: string | Date): string {
   const date = value instanceof Date ? value : new Date(value);
 
-  return new Intl.DateTimeFormat('en-US', {
-    dateStyle: 'long',
-    timeStyle: 'short',
-    timeZone: santaSettings.recentRulings.timeZone,
-  }).format(date);
+  if (Number.isNaN(date.getTime())) {
+    return 'an unknown workshop time';
+  }
+
+  return timestampFormatter.format(date);
 }
 
 export function serializeCreatedAt(value: string | Date): string {

@@ -1,4 +1,5 @@
 import { securitySettings } from '@/config/security';
+import { TimedRequestError, fetchJsonWithTimeout } from '@/scripts/fetch-json';
 import { isSubmitReportResponse } from '@/utils/reports';
 
 function focusElement(element: HTMLElement): void {
@@ -45,6 +46,10 @@ export function initRulingReportFlow(): void {
   }
 
   const controls = [reasonField, noteField, submitButton, cancelButton];
+  const networkFailureMessage =
+    "Santa's workshop had a small mishap. Please try again.";
+  const timeoutMessage =
+    "Santa's workshop is taking longer than usual. Please try again.";
 
   const setHidden = (element: HTMLElement, hidden: boolean) => {
     element.hidden = hidden;
@@ -141,20 +146,25 @@ export function initRulingReportFlow(): void {
     let response: Response;
 
     try {
-      response = await fetch(`/api/rulings/${publicId}/reports`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      response = await fetchJsonWithTimeout(
+        `/api/rulings/${publicId}/reports`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            reason: reasonField.value,
+            note: noteField.value,
+          }),
         },
-        body: JSON.stringify({
-          reason: reasonField.value,
-          note: noteField.value,
-        }),
-      });
-    } catch {
+      );
+    } catch (error) {
       setBusy(false);
       status.textContent =
-        "Santa's workshop had a small mishap. Please try again.";
+        error instanceof TimedRequestError
+          ? timeoutMessage
+          : networkFailureMessage;
       return;
     }
 
@@ -164,15 +174,13 @@ export function initRulingReportFlow(): void {
       responseBody = await response.json();
     } catch {
       setBusy(false);
-      status.textContent =
-        "Santa's workshop had a small mishap. Please try again.";
+      status.textContent = networkFailureMessage;
       return;
     }
 
     if (!isSubmitReportResponse(responseBody)) {
       setBusy(false);
-      status.textContent =
-        "Santa's workshop had a small mishap. Please try again.";
+      status.textContent = networkFailureMessage;
       return;
     }
 
@@ -202,6 +210,7 @@ export function initRulingReportFlow(): void {
       setHidden(panel, true);
       toggle.setAttribute('aria-expanded', 'false');
       toggle.disabled = true;
+      focusElement(status);
       return;
     }
 

@@ -159,6 +159,44 @@ test.describe('Santa Commands It homepage', () => {
     ).toHaveValue('A brass telescope');
   });
 
+  test('recovers cleanly when a submission request times out', async ({
+    page,
+  }) => {
+    await configureSantaTestPage(page, {
+      consideringDelayMs: 0,
+      requestTimeoutMs: 100,
+    });
+
+    await page.route('**/api/rulings', async (route) => {
+      await new Promise((resolve) => {
+        setTimeout(resolve, 350);
+      });
+
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          status: 'error',
+          message: "Santa's workshop had a small mishap. Please try again.",
+        }),
+      });
+    });
+
+    await page.goto('/');
+    await fillRequestForm(page, 'A brass telescope');
+    await page.getByRole('button', { name: 'ASK SANTA' }).click();
+
+    await expect(
+      page.locator('[data-response-panel][data-mode="error"]'),
+    ).toBeVisible();
+    await expect(
+      page.getByText(
+        "Santa's workshop is taking longer than usual. Please try again.",
+      ),
+    ).toBeVisible();
+    await expect(page.getByRole('button', { name: 'ASK SANTA' })).toBeEnabled();
+  });
+
   test('prevents duplicate clicks from creating duplicate visible rulings', async ({
     page,
   }) => {

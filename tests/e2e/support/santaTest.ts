@@ -10,6 +10,7 @@ export async function configureSantaTestPage(
   options: {
     consideringDelayMs?: number;
     formElapsedMs?: number;
+    requestTimeoutMs?: number;
     randomValue?: number;
     scenario?: 'submit-error' | 'recent-unavailable' | 'report-error';
     shareMode?: ShareMode;
@@ -39,6 +40,7 @@ export async function configureSantaTestPage(
     window.__SANTA_TEST__ = {
       consideringDelayMs: config.consideringDelayMs ?? 0,
       formElapsedMs: config.formElapsedMs ?? 2000,
+      requestTimeoutMs: config.requestTimeoutMs,
     };
 
     if (config.copyMode === 'success') {

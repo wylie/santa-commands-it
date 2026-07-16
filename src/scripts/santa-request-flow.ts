@@ -1,6 +1,7 @@
 import { santaResponses } from '@/config/responses';
 import { REQUEST_LIMITS } from '@/config/request';
 import { santaSettings } from '@/config/santa-settings';
+import { TimedRequestError, fetchJsonWithTimeout } from '@/scripts/fetch-json';
 import {
   formatCharacterCount,
   getCharacterCountState,
@@ -31,6 +32,8 @@ const SUBMIT_LABEL = 'ASK SANTA';
 const CONSIDERING_LABEL = 'SANTA IS CONSIDERING...';
 const RESET_LABEL = 'ASK SANTA SOMETHING ELSE';
 const ERROR_MESSAGE = "Santa's workshop had a small mishap. Please try again.";
+const TIMEOUT_MESSAGE =
+  "Santa's workshop is taking longer than usual. Please try again.";
 
 function generateIdempotencyKey(): string {
   if (typeof crypto.randomUUID === 'function') {
@@ -187,7 +190,7 @@ export function initSantaRequestFlow(): void {
   let successfulRuling: CreatedRulingResponse['ruling'] | null = null;
   let activeSubmission = false;
   let currentSubmissionKey: string | null = null;
-  const formStartedAt = Date.now();
+  let formStartedAt = Date.now();
 
   const clearFieldError = (
     input: HTMLInputElement | HTMLTextAreaElement,
@@ -261,10 +264,16 @@ export function initSantaRequestFlow(): void {
     focusElement(requestInput);
   };
 
-  const handleRecoverableError = (message = ERROR_MESSAGE) => {
+  const handleRecoverableError = (
+    message = ERROR_MESSAGE,
+    options: { preserveSubmissionKey?: boolean } = {},
+  ) => {
     successfulRuling = null;
     activeSubmission = false;
-    currentSubmissionKey = null;
+
+    if (!options.preserveSubmissionKey) {
+      currentSubmissionKey = null;
+    }
     setPanelContent(
       'error',
       santaResponses.error.title,
@@ -304,7 +313,7 @@ export function initSantaRequestFlow(): void {
       list.lastElementChild?.remove();
     }
 
-    recentAnnouncement.textContent = `${ruling.displayName} has a new public ruling.`;
+    recentAnnouncement.textContent = `${ruling.displayName} now has a public Santa ruling.`;
   };
 
   const resetForAnotherRequest = () => {
@@ -312,6 +321,7 @@ export function initSantaRequestFlow(): void {
     activeSubmission = false;
     requestInput.value = '';
     trapInput.value = '';
+    formStartedAt = Date.now();
     clearFieldError(nameInput, nameError);
     clearFieldError(requestInput, requestError);
     setDisabledState(controls, false);
@@ -454,7 +464,7 @@ export function initSantaRequestFlow(): void {
     let response: Response;
 
     try {
-      response = await fetch('/api/rulings', {
+      response = await fetchJsonWithTimeout('/api/rulings', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -468,8 +478,11 @@ export function initSantaRequestFlow(): void {
             window.__SANTA_TEST__?.formElapsedMs ?? Date.now() - formStartedAt,
         }),
       });
-    } catch {
-      handleRecoverableError();
+    } catch (error) {
+      handleRecoverableError(
+        error instanceof TimedRequestError ? TIMEOUT_MESSAGE : ERROR_MESSAGE,
+        { preserveSubmissionKey: true },
+      );
       return;
     }
 
@@ -478,12 +491,12 @@ export function initSantaRequestFlow(): void {
     try {
       responseBody = await response.json();
     } catch {
-      handleRecoverableError();
+      handleRecoverableError(ERROR_MESSAGE, { preserveSubmissionKey: true });
       return;
     }
 
     if (!isSubmitRulingResponse(responseBody)) {
-      handleRecoverableError();
+      handleRecoverableError(ERROR_MESSAGE, { preserveSubmissionKey: true });
       return;
     }
 

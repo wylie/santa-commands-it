@@ -4,7 +4,7 @@ import fs from 'node:fs';
 const imagePath = new URL('../../public/images/santa.png', import.meta.url);
 const hasSantaImage = fs.existsSync(imagePath);
 const altText =
-  'A vintage-style portrait of Santa Claus with an imposing expression, presented like an old holiday poster.';
+  'A vintage-style portrait of Santa Claus seated confidently in his red suit, presented like a cheerful old holiday poster.';
 ---
 
 <figure class="portrait-frame">
@@ -19,6 +19,7 @@ const altText =
           height="1200"
           loading="eager"
           decoding="async"
+          fetchpriority="high"
         />
       ) : (
         <div

@@ -1,5 +1,6 @@
 ---
 import { SITE_METADATA, SITE_TITLE } from '@/config/site';
+import { getSiteUrl } from '@/server/env';
 import { buildCanonicalUrl } from '@/utils/rulingPages';
 
 interface Props {
@@ -16,7 +17,7 @@ const {
   description = SITE_METADATA.description,
   canonicalPath = '/',
   canonicalUrl = buildCanonicalUrl(canonicalPath, {
-    siteUrl: import.meta.env.SITE_URL ?? process.env.SITE_URL,
+    siteUrl: getSiteUrl(),
     requestUrl: Astro.url,
   }),
   ogType = 'website',
@@ -29,6 +30,7 @@ const {
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link

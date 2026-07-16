@@ -9,17 +9,32 @@ interface Props {
 const { publicId } = Astro.props;
 ---
 
-<section class="ruling-report" data-report-root data-public-id={publicId}>
+<section
+  class="ruling-report"
+  aria-labelledby={`report-section-title-${publicId}`}
+  data-report-root
+  data-public-id={publicId}
+>
+  <h2 id={`report-section-title-${publicId}`} class="sr-only">
+    Report this public Santa command
+  </h2>
   <button
     type="button"
     class="ruling-report__toggle"
     aria-expanded="false"
+    aria-controls={`report-panel-${publicId}`}
     data-report-toggle
   >
     REPORT THIS COMMAND
   </button>
 
-  <div class="ruling-report__panel" data-report-panel hidden>
+  <div
+    id={`report-panel-${publicId}`}
+    class="ruling-report__panel"
+    aria-labelledby={`report-section-title-${publicId}`}
+    data-report-panel
+    hidden
+  >
     <form class="ruling-report__form" data-report-form novalidate>
       <div class="ruling-report__field">
         <label for={`report-reason-${publicId}`}
@@ -88,6 +103,8 @@ const { publicId } = Astro.props;
     class="ruling-report__status"
     role="status"
     aria-live="polite"
+    aria-atomic="true"
+    tabindex="-1"
     data-report-status
   >
   </p>

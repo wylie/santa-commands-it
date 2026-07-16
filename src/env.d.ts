@@ -13,6 +13,7 @@ declare global {
     __SANTA_TEST__?: {
       consideringDelayMs?: number;
       formElapsedMs?: number;
+      requestTimeoutMs?: number;
     };
   }
 }

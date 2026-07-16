@@ -356,6 +356,12 @@ describe('public ruling mapping and rendering safety', () => {
     );
   });
 
+  it('falls back safely when a ruling timestamp is invalid', () => {
+    expect(formatRulingTimestamp('not-a-date')).toBe(
+      'an unknown workshop time',
+    );
+  });
+
   it('keeps HTML-like values as plain text-safe strings in public data', () => {
     const response = {
       status: 'created',

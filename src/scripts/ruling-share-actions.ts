@@ -1,6 +1,10 @@
 function fallbackCopyText(text: string): boolean {
   const legacyClipboardDocument = document as {
-    execCommand?: (commandId: string, showUi?: boolean, value?: string) => boolean;
+    execCommand?: (
+      commandId: string,
+      showUi?: boolean,
+      value?: string,
+    ) => boolean;
   };
   const copyTarget = document.createElement('textarea');
   copyTarget.value = text;

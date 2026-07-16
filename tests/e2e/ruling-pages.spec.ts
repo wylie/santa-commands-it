@@ -212,6 +212,49 @@ test.describe('public ruling pages', () => {
     ).toBeVisible();
   });
 
+  test('recovers cleanly when a report request times out', async ({ page }) => {
+    const { headers } = await configureSantaTestPage(page, {
+      randomValue: 0.5,
+      requestTimeoutMs: 100,
+    });
+    const created = await createRulingViaApi(page, headers, {
+      name: 'Holly',
+      request: 'A brass telescope',
+    });
+
+    await page.route(
+      `**/api/rulings/${created.ruling.publicId}/reports`,
+      async (route) => {
+        await new Promise((resolve) => {
+          setTimeout(resolve, 350);
+        });
+
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            status: 'error',
+            message: "Santa's workshop had a small mishap. Please try again.",
+          }),
+        });
+      },
+    );
+
+    await page.goto(`/rulings/${created.ruling.publicId}`);
+    await page.getByRole('button', { name: 'REPORT THIS COMMAND' }).click();
+    await page.getByLabel('Why are you reporting this?').selectOption('spam');
+    await page.getByRole('button', { name: 'SUBMIT REPORT' }).click();
+
+    await expect(
+      page.getByText(
+        "Santa's workshop is taking longer than usual. Please try again.",
+      ),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: 'SUBMIT REPORT' }),
+    ).toBeEnabled();
+  });
+
   test('invalid and unknown identifiers return the same friendly 404 experience', async ({
     page,
   }) => {

@@ -8,7 +8,7 @@
   --color-surface-primary: #ffffff;
   --color-surface-secondary: #f8fbfd;
   --color-text-primary: #313330;
-  --color-text-secondary: #66726d;
+  --color-text-secondary: #52615b;
   --color-evergreen: #496354;
   --color-evergreen-deep: #355043;
   --color-cranberry: #b96767;
@@ -16,7 +16,7 @@
   --color-approved-surface: #f7fbf8;
   --color-coal-surface: #f4f7fa;
   --color-blocked-surface: #fff8f6;
-  --color-field-border: #bfd0d5;
+  --color-field-border: #a8bcc4;
   --color-focus: #4f7262;
   --color-shadow: rgb(96 112 124 / 0.12);
   --color-shadow-soft: rgb(96 112 124 / 0.08);
@@ -198,6 +198,7 @@ a {
 
 .portrait-frame__mount {
   width: 100%;
+  aspect-ratio: 4 / 5;
 }
 
 .portrait-frame__image,
@@ -464,6 +465,7 @@ h2 {
 
 .button-command {
   justify-self: start;
+  min-inline-size: 10.5rem;
   min-height: 3.2rem;
   padding: 0.95rem 1.45rem;
   border: 0;
@@ -507,6 +509,7 @@ h2 {
   justify-content: center;
   gap: 0.35rem;
   min-height: 2.9rem;
+  min-inline-size: 10rem;
   padding: 0.75rem 1.1rem;
   border-radius: var(--radius-pill);
   font-family: var(--font-ui);
@@ -777,7 +780,8 @@ h2 {
 .ruling-report__toggle,
 .ruling-report__cancel {
   justify-self: start;
-  padding: 0;
+  min-height: 2.4rem;
+  padding: 0.35rem 0.1rem;
   border: 0;
   background: transparent;
   color: var(--color-evergreen-deep);
@@ -920,6 +924,17 @@ h2 {
   font-size: var(--font-size-xs);
 }
 
+@media (max-height: 52rem) and (min-width: 64rem) {
+  .hero__left-rail {
+    position: static;
+    min-height: auto;
+  }
+
+  .site-footer {
+    margin-top: 0;
+  }
+}
+
 @media (min-width: 64rem) {
   .hero {
     grid-template-columns: var(--left-column-width) var(--right-column-width);
@@ -1034,5 +1049,62 @@ h2 {
     animation-iteration-count: 1 !important;
     scroll-behavior: auto !important;
     transition-duration: 1ms !important;
+  }
+}
+
+@media (forced-colors: active) {
+  :root {
+    --color-page-background: Canvas;
+    --color-page-edge: Canvas;
+    --color-page-glow: Canvas;
+    --color-surface-primary: Canvas;
+    --color-surface-secondary: Canvas;
+    --color-text-primary: CanvasText;
+    --color-text-secondary: CanvasText;
+    --color-evergreen: LinkText;
+    --color-evergreen-deep: LinkText;
+    --color-cranberry: ButtonText;
+    --color-cranberry-deep: ButtonText;
+    --color-approved-surface: Canvas;
+    --color-coal-surface: Canvas;
+    --color-blocked-surface: Canvas;
+    --color-field-border: ButtonText;
+    --color-focus: Highlight;
+    --focus-ring: none;
+  }
+
+  * {
+    forced-color-adjust: auto;
+  }
+
+  html,
+  body,
+  .speech-panel,
+  .request-panel,
+  .recent-rulings,
+  .ruling-card,
+  .ruling-report__panel,
+  .portrait-frame__placeholder {
+    background: Canvas;
+    box-shadow: none;
+  }
+
+  .button-command,
+  .button-link-secondary,
+  .button-secondary,
+  .text-link,
+  .recent-rulings__link,
+  .request-form input,
+  .request-form textarea,
+  .ruling-report select,
+  .ruling-report textarea {
+    border: 1px solid ButtonText;
+    box-shadow: none;
+  }
+
+  :focus-visible {
+    outline: 2px solid Highlight;
+    outline-offset: 3px;
+    box-shadow: none;
   }
 }

@@ -1,0 +1,27 @@
+# Santa Commands It! Pre-launch Checklist
+
+- Review moderation words, phrases, and any test-only fixtures in `src/config/moderation.ts`.
+- Confirm the random coal percentage and enabled state in `src/config/santa-settings.ts`.
+- Confirm `DATABASE_URL` points to the intended Neon environment.
+- Apply committed migrations with `npm run db:migrate`.
+- Confirm `SITE_URL` matches the public production origin exactly.
+- Confirm `RATE_LIMIT_SECRET` is set, strong, and unique to the environment.
+- Confirm the Argon Collective URL is correct if the footer link remains enabled.
+- Confirm CSP works in production and preview deployments.
+- Confirm the Google Font loads, and confirm the site stays readable if it does not.
+- Confirm submission rate limiting works.
+- Confirm report rate limiting works.
+- Confirm blocked requests are not stored.
+- Confirm recent rulings display correctly.
+- Confirm ruling share URLs and metadata are correct.
+- Confirm 404 behavior for invalid and unknown ruling identifiers.
+- Confirm report submission works and stores only intended data.
+- Confirm no secrets appear in client bundles or rendered HTML.
+- Confirm no raw user content is written to logs.
+- Run `npm run test`.
+- Run `npm run test:e2e`.
+- Run `npm run build`.
+- Run `npm run test:lighthouse` against a local server.
+- Review the site at mobile and desktop widths.
+- Re-check public-content and privacy copy for accuracy.
+- Create or verify a backup and recovery plan appropriate for Neon.

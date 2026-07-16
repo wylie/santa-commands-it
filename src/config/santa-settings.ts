@@ -13,6 +13,9 @@ export const santaSettings = {
     visibleLimit: 10,
     timeZone: 'America/New_York',
   },
+  network: {
+    requestTimeoutMs: 12000,
+  },
 } as const;
 
 export function assertCoalPercentage(percentage: number): number {

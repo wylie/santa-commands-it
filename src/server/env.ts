@@ -16,8 +16,31 @@ export class RateLimitSecretConfigurationError extends Error {
   }
 }
 
+export class SiteUrlConfigurationError extends Error {
+  constructor(
+    message = 'SITE_URL must be a valid absolute URL when it is configured.',
+  ) {
+    super(message);
+    this.name = 'SiteUrlConfigurationError';
+  }
+}
+
+function readEnvValue(name: 'DATABASE_URL' | 'SITE_URL' | 'RATE_LIMIT_SECRET') {
+  return import.meta.env[name] ?? process.env[name];
+}
+
+function normalizeAbsoluteUrl(value: string): string | null {
+  try {
+    const url = new URL(value);
+
+    return url.origin;
+  } catch {
+    return null;
+  }
+}
+
 export function getDatabaseUrl(): string {
-  const databaseUrl = import.meta.env.DATABASE_URL ?? process.env.DATABASE_URL;
+  const databaseUrl = readEnvValue('DATABASE_URL');
 
   if (!databaseUrl) {
     throw new DatabaseConfigurationError();
@@ -27,7 +50,23 @@ export function getDatabaseUrl(): string {
 }
 
 export function getSiteUrl(): string | null {
-  return import.meta.env.SITE_URL ?? process.env.SITE_URL ?? null;
+  const configuredSiteUrl = readEnvValue('SITE_URL');
+
+  if (!configuredSiteUrl) {
+    return null;
+  }
+
+  const normalizedSiteUrl = normalizeAbsoluteUrl(configuredSiteUrl);
+
+  if (normalizedSiteUrl) {
+    return normalizedSiteUrl;
+  }
+
+  if (isProductionEnvironment()) {
+    throw new SiteUrlConfigurationError();
+  }
+
+  return null;
 }
 
 export function isProductionEnvironment(): boolean {
@@ -35,8 +74,7 @@ export function isProductionEnvironment(): boolean {
 }
 
 export function getRateLimitSecret(): string {
-  const configuredSecret =
-    import.meta.env.RATE_LIMIT_SECRET ?? process.env.RATE_LIMIT_SECRET;
+  const configuredSecret = readEnvValue('RATE_LIMIT_SECRET');
 
   if (configuredSecret && configuredSecret.length >= 16) {
     return configuredSecret;

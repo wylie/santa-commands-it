@@ -20,6 +20,21 @@ The format is inspired by Keep a Changelog, and this project adheres to Semantic
 - Public ruling pages now include an inline report flow while keeping reporter details private
 - Project documentation and environment setup now cover `RATE_LIMIT_SECRET`, abuse safeguards, and operational limits
 
+## [0.1.6] - 2026-07-16
+
+### Added
+
+- Automated accessibility coverage with Axe for representative homepage, ruling-page, report, and not-found states
+- Local Lighthouse review tooling for the homepage and a representative ruling page
+- A dedicated pre-launch checklist for environment setup, moderation review, privacy checks, and final validation
+
+### Changed
+
+- Accessibility, keyboard, and live-region behavior were audited and refined across submission, sharing, reporting, and error states
+- Responsive, short-viewport, forced-colors, and focus styling behavior were tightened for launch readiness
+- Client-side submission and reporting flows now time out cleanly and preserve retry safety more reliably
+- Environment, deployment, preview, metadata, and production-readiness documentation were expanded for the full `v0.1.x` milestone
+
 ## [0.1.4] - 2026-07-15
 
 ### Added
