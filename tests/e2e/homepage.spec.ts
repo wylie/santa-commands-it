@@ -41,7 +41,7 @@ async function fillRequestForm(
   await page.getByLabel('What should Santa call you?').fill(name);
   await page
     .getByRole('textbox', {
-      name: 'What would you like Santa to command?',
+      name: 'What would you like from Santa?',
     })
     .fill(requestText);
 }
@@ -188,7 +188,7 @@ test.describe('Santa Commands It homepage', () => {
     );
     await expect(
       page.getByRole('textbox', {
-        name: 'What would you like Santa to command?',
+        name: 'What would you like from Santa?',
       }),
     ).toHaveValue('A brass telescope');
   });

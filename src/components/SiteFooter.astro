@@ -16,7 +16,7 @@ const year = new Date().getFullYear();
     A project from{' '}
     {
       SITE_OWNER.url ? (
-        <a href={SITE_OWNER.url}>{SITE_OWNER.name}</a>
+        <a href={SITE_OWNER.url} target="_blank">{SITE_OWNER.name}</a>
       ) : (
         <span>{SITE_OWNER.name}</span>
       )

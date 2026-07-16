@@ -5,7 +5,7 @@ export const SITE_DESCRIPTION =
 
 export const SITE_OWNER = {
   name: 'Argon Collective LLC',
-  url: null,
+  url: 'https://argoncollective.com',
 } as const;
 
 export const SITE_METADATA = {
