@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 The format is inspired by Keep a Changelog, and this project adheres to Semantic Versioning.
 
+## [0.1.3] - 2026-07-15
+
+### Added
+
+- Neon Postgres and Drizzle integration with an initial `rulings` schema and committed migration
+- Server-authoritative `POST /api/rulings` endpoint for validated, moderated Santa submissions
+- Persisted public rulings with generated public identifiers, stored Santa responses, and created timestamps
+- Server-rendered latest-commands query plus live client-side insertion after successful submissions
+- Mocked end-to-end test mode for persisted rulings, blocked submissions, recoverable failures, and feed limits
+
+### Changed
+
+- Validation, moderation, and random-coal decisions now run authoritatively on the server
+- The homepage now renders recent public rulings from persistence instead of a permanent placeholder
+- The browser flow now submits to the server and treats response payloads as untrusted typed data
+- Database and migration setup is now documented for local development and future schema changes
+
 ## [0.1.2] - 2026-07-15
 
 ### Added

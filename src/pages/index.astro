@@ -5,11 +5,16 @@ import SantaPortrait from '@/components/SantaPortrait.astro';
 import SantaSpeechBubble from '@/components/SantaSpeechBubble.astro';
 import SiteFooter from '@/components/SiteFooter.astro';
 import BaseLayout from '@/layouts/BaseLayout.astro';
+import { listRecentRulingsForHeaders } from '@/server/rulings/service';
+
+const recentRulingsResult = await listRecentRulingsForHeaders(
+  Astro.request.headers,
+);
 ---
 
 <BaseLayout
   title="Santa Commands It! | A cheerful command from Santa"
-  description="A warm, theatrical holiday homepage where visitors can ask Santa for a local ruling, a moderation warning, or occasional coal."
+  description="A warm, theatrical holiday homepage where visitors can ask Santa for a server-backed ruling that may be approved, blocked, or awarded coal."
   canonicalPath="/"
 >
   <a class="skip-link" href="#main-content">Skip to content</a>
@@ -25,7 +30,14 @@ import BaseLayout from '@/layouts/BaseLayout.astro';
       <div class="hero__content">
         <SantaSpeechBubble />
         <RequestForm />
-        <RecentRulings />
+        <RecentRulings
+          rulings={recentRulingsResult.status === 'ok'
+            ? recentRulingsResult.rulings
+            : []}
+          unavailableMessage={recentRulingsResult.status === 'unavailable'
+            ? recentRulingsResult.message
+            : null}
+        />
       </div>
     </section>
   </main>

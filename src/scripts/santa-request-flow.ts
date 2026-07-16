@@ -1,55 +1,42 @@
-import { moderationRules } from '@/config/moderation';
-import { REQUEST_LIMITS } from '@/config/request';
 import { santaResponses } from '@/config/responses';
-import { getConsideringDelay } from '@/config/santa-settings';
+import { REQUEST_LIMITS } from '@/config/request';
+import { santaSettings } from '@/config/santa-settings';
 import {
   formatCharacterCount,
   getCharacterCountState,
 } from '@/utils/characterCount';
 import {
-  evaluateSantaRequest,
-  formatResponseTemplate,
-  type SantaDecision,
-} from '@/utils/santa-decision';
+  formatRulingTimestamp,
+  getDecisionLabel,
+  getDecisionPanelTitle,
+  isSubmitRulingResponse,
+  type CreatedRulingResponse,
+  type FocusField,
+  type PublicRuling,
+  type SubmitRulingResponse,
+} from '@/utils/rulings';
 import { validateName, validateRequest } from '@/utils/validation';
 
 type PanelMode =
   'opening' | 'considering' | 'approved' | 'random-coal' | 'blocked' | 'error';
-
-type FinalDecision = Extract<
-  SantaDecision,
-  { type: 'approved' | 'random-coal' }
->;
 
 const SUBMIT_LABEL = 'ASK SANTA';
 const CONSIDERING_LABEL = 'SANTA IS CONSIDERING...';
 const RESET_LABEL = 'ASK SANTA SOMETHING ELSE';
 const ERROR_MESSAGE = "Santa's workshop had a small mishap. Please try again.";
 
-function getTestRandomValue(): number | undefined {
-  const queue = window.__SANTA_TEST__?.randomValues;
-
-  if (!queue?.length) {
-    return undefined;
-  }
-
-  const nextValue = queue.shift();
-
-  return typeof nextValue === 'number' ? nextValue : undefined;
-}
-
-function getRandomValue(): number {
-  return getTestRandomValue() ?? Math.random();
-}
-
-function getDelay(randomValue: number): number {
+function getDelayOverride(): number | undefined {
   const override = window.__SANTA_TEST__?.consideringDelayMs;
 
   if (typeof override === 'number' && override >= 0) {
     return override;
   }
 
-  return getConsideringDelay(randomValue);
+  return undefined;
+}
+
+function getMinimumConsideringDelay(): number {
+  return getDelayOverride() ?? santaSettings.consideringDelay.minimum;
 }
 
 function setDisabledState(
@@ -67,6 +54,42 @@ function focusElement(element: HTMLElement): void {
   });
 }
 
+function createRecentRulingItem(ruling: PublicRuling): HTMLLIElement {
+  const item = document.createElement('li');
+  item.className = 'recent-rulings__item';
+  item.dataset.rulingId = ruling.publicId;
+
+  const meta = document.createElement('div');
+  meta.className = 'recent-rulings__meta';
+
+  const decision = document.createElement('p');
+  decision.className = 'recent-rulings__decision';
+  decision.dataset.decision = ruling.decision;
+  decision.textContent = getDecisionLabel(ruling.decision);
+
+  const time = document.createElement('time');
+  time.className = 'recent-rulings__time';
+  time.dateTime = ruling.createdAt;
+  time.textContent = formatRulingTimestamp(ruling.createdAt);
+
+  const name = document.createElement('p');
+  name.className = 'recent-rulings__name';
+  name.textContent = ruling.displayName;
+
+  const request = document.createElement('p');
+  request.className = 'recent-rulings__request';
+  request.textContent = ruling.requestText;
+
+  const response = document.createElement('p');
+  response.className = 'recent-rulings__response';
+  response.textContent = ruling.santaResponse;
+
+  meta.append(decision, time);
+  item.append(meta, name, request, response);
+
+  return item;
+}
+
 export function initSantaRequestFlow(): void {
   const form = document.querySelector('[data-request-form]');
   const responsePanel = document.querySelector('[data-response-panel]');
@@ -75,13 +98,15 @@ export function initSantaRequestFlow(): void {
     '[data-response-supporting]',
   );
   const responseRequest = document.querySelector('[data-response-request]');
+  const recentRulingsSection = document.querySelector('[data-recent-rulings]');
 
   if (
     !(form instanceof HTMLFormElement) ||
     !(responsePanel instanceof HTMLElement) ||
     !(responseTitle instanceof HTMLElement) ||
     !(responseSupporting instanceof HTMLElement) ||
-    !(responseRequest instanceof HTMLElement)
+    !(responseRequest instanceof HTMLElement) ||
+    !(recentRulingsSection instanceof HTMLElement)
   ) {
     return;
   }
@@ -93,6 +118,16 @@ export function initSantaRequestFlow(): void {
   const status = form.querySelector('[data-request-status]');
   const nameError = form.querySelector('[data-field-error="name"]');
   const requestError = form.querySelector('[data-field-error="request"]');
+  const recentList = recentRulingsSection.querySelector('[data-recent-list]');
+  const recentEmptyState = recentRulingsSection.querySelector(
+    '[data-recent-empty]',
+  );
+  const recentUnavailableState = recentRulingsSection.querySelector(
+    '[data-recent-unavailable]',
+  );
+  const recentAnnouncement = recentRulingsSection.querySelector(
+    '[data-recent-announcement]',
+  );
 
   if (
     !(nameInput instanceof HTMLInputElement) ||
@@ -101,13 +136,19 @@ export function initSantaRequestFlow(): void {
     !(submitButton instanceof HTMLButtonElement) ||
     !(status instanceof HTMLElement) ||
     !(nameError instanceof HTMLElement) ||
-    !(requestError instanceof HTMLElement)
+    !(requestError instanceof HTMLElement) ||
+    !(recentAnnouncement instanceof HTMLElement)
   ) {
     return;
   }
 
   const controls = [nameInput, requestInput, submitButton];
-  let finalDecision: FinalDecision | null = null;
+  const recentLimit = Number(
+    recentRulingsSection.dataset.limit ??
+      santaSettings.recentRulings.visibleLimit,
+  );
+  let successfulRuling: CreatedRulingResponse['ruling'] | null = null;
+  let activeSubmission = false;
 
   const clearFieldError = (
     input: HTMLInputElement | HTMLTextAreaElement,
@@ -129,17 +170,15 @@ export function initSantaRequestFlow(): void {
   };
 
   const updateCounter = () => {
-    const text = formatCharacterCount(
+    const countText = formatCharacterCount(
       requestInput.value.length,
       REQUEST_LIMITS.requestMaxLength,
     );
-    const state = getCharacterCountState(
+    requestCounter.textContent = countText;
+    requestCounter.dataset.state = getCharacterCountState(
       requestInput.value.length,
       REQUEST_LIMITS.requestMaxLength,
     );
-
-    requestCounter.textContent = text;
-    requestCounter.dataset.state = state;
   };
 
   const announce = (message: string) => {
@@ -174,8 +213,63 @@ export function initSantaRequestFlow(): void {
     announce('');
   };
 
+  const focusBlockedField = (focusField: FocusField) => {
+    if (focusField === 'name' || focusField === 'both') {
+      focusElement(nameInput);
+      return;
+    }
+
+    focusElement(requestInput);
+  };
+
+  const handleRecoverableError = (message = ERROR_MESSAGE) => {
+    successfulRuling = null;
+    activeSubmission = false;
+    setPanelContent(
+      'error',
+      santaResponses.error.title,
+      santaResponses.error.supporting ?? '',
+    );
+    setDisabledState(controls, false);
+    submitButton.textContent = SUBMIT_LABEL;
+    form.removeAttribute('aria-busy');
+    announce(message);
+  };
+
+  const updateRecentRulings = (ruling: PublicRuling) => {
+    recentUnavailableState?.remove();
+    recentEmptyState?.remove();
+
+    let list =
+      recentList instanceof HTMLOListElement
+        ? recentList
+        : recentRulingsSection.querySelector('[data-recent-list]');
+
+    if (!(list instanceof HTMLOListElement)) {
+      list = document.createElement('ol');
+      list.className = 'recent-rulings__list';
+      list.setAttribute('data-recent-list', '');
+      recentRulingsSection.append(list);
+    }
+
+    const existingItem = list.querySelector(
+      `[data-ruling-id="${ruling.publicId}"]`,
+    );
+
+    if (!existingItem) {
+      list.prepend(createRecentRulingItem(ruling));
+    }
+
+    while (list.children.length > recentLimit) {
+      list.lastElementChild?.remove();
+    }
+
+    recentAnnouncement.textContent = `${ruling.displayName} has a new public ruling.`;
+  };
+
   const resetForAnotherRequest = () => {
-    finalDecision = null;
+    successfulRuling = null;
+    activeSubmission = false;
     requestInput.value = '';
     clearFieldError(nameInput, nameError);
     clearFieldError(requestInput, requestError);
@@ -187,61 +281,49 @@ export function initSantaRequestFlow(): void {
     focusElement(requestInput);
   };
 
-  const handleBlockedDecision = (
-    decision: Extract<SantaDecision, { type: 'blocked' }>,
-  ) => {
-    const blockedTitle = decision.response.title;
-    const blockedSupporting = decision.response.supporting ?? '';
-
-    setPanelContent('blocked', blockedTitle, blockedSupporting);
-    setDisabledState(controls, false);
-    submitButton.textContent = SUBMIT_LABEL;
-    form.removeAttribute('aria-busy');
-    announce(`${blockedTitle} ${blockedSupporting}`.trim());
-
-    if (decision.field === 'name' || decision.field === 'both') {
-      focusElement(nameInput);
-      return;
-    }
-
-    focusElement(requestInput);
-  };
-
-  const handleFinalDecision = (decision: FinalDecision) => {
-    const renderedTitle = formatResponseTemplate(
-      decision.response.title,
-      decision,
-    );
-    const renderedSupporting = decision.response.supporting
-      ? formatResponseTemplate(decision.response.supporting, decision)
-      : '';
-
-    finalDecision = decision;
+  const handleCreatedRuling = (ruling: CreatedRulingResponse['ruling']) => {
+    successfulRuling = ruling;
+    activeSubmission = false;
     setPanelContent(
-      decision.type,
-      renderedTitle,
-      renderedSupporting,
-      decision.request,
+      ruling.decision,
+      getDecisionPanelTitle(ruling.decision),
+      ruling.santaResponse,
+      ruling.requestText,
     );
     setDisabledState([nameInput, requestInput], true);
     submitButton.disabled = false;
     submitButton.textContent = RESET_LABEL;
     form.removeAttribute('aria-busy');
-    announce(`${renderedTitle} ${renderedSupporting}`.trim());
+    announce(
+      `${getDecisionPanelTitle(ruling.decision)} ${ruling.santaResponse}`,
+    );
+    updateRecentRulings(ruling);
     focusElement(submitButton);
   };
 
-  const handleUnexpectedError = () => {
-    finalDecision = null;
-    setPanelContent(
-      'error',
-      santaResponses.error.title,
-      santaResponses.error.supporting ?? '',
-    );
+  const applyInvalidResponse = (
+    response: Extract<SubmitRulingResponse, { status: 'invalid' }>,
+  ) => {
+    activeSubmission = false;
     setDisabledState(controls, false);
     submitButton.textContent = SUBMIT_LABEL;
     form.removeAttribute('aria-busy');
-    announce(ERROR_MESSAGE);
+
+    let firstInvalidField: HTMLInputElement | HTMLTextAreaElement | null = null;
+
+    if (response.fieldErrors.name) {
+      setFieldError(nameInput, nameError, response.fieldErrors.name);
+      firstInvalidField = nameInput;
+    }
+
+    if (response.fieldErrors.request) {
+      setFieldError(requestInput, requestError, response.fieldErrors.request);
+      firstInvalidField ??= requestInput;
+    }
+
+    if (firstInvalidField) {
+      focusElement(firstInvalidField);
+    }
   };
 
   updateCounter();
@@ -259,7 +341,11 @@ export function initSantaRequestFlow(): void {
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
 
-    if (finalDecision) {
+    if (activeSubmission) {
+      return;
+    }
+
+    if (successfulRuling) {
       resetForAnotherRequest();
       return;
     }
@@ -298,37 +384,86 @@ export function initSantaRequestFlow(): void {
     requestInput.value = validatedRequest.value;
     updateCounter();
 
+    activeSubmission = true;
+    form.setAttribute('aria-busy', 'true');
+    setPanelContent(
+      'considering',
+      santaResponses.considering.title,
+      santaResponses.considering.supporting,
+    );
+    setDisabledState(controls, true);
+    submitButton.textContent = CONSIDERING_LABEL;
+    announce('Santa is considering your request.');
+
+    const minimumDelay = new Promise((resolve) => {
+      window.setTimeout(resolve, getMinimumConsideringDelay());
+    });
+
+    let response: Response;
+
     try {
-      const decision = evaluateSantaRequest({
-        name: validatedName.value,
-        request: validatedRequest.value,
-        moderation: moderationRules,
-        randomValue: getRandomValue(),
-        templateValue: getRandomValue(),
+      response = await fetch('/api/rulings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: validatedName.value,
+          request: validatedRequest.value,
+        }),
       });
-
-      if (decision.type === 'blocked') {
-        handleBlockedDecision(decision);
-        return;
-      }
-
-      form.setAttribute('aria-busy', 'true');
-      setPanelContent(
-        'considering',
-        santaResponses.considering.title,
-        santaResponses.considering.supporting,
-      );
-      announce('Santa is considering your request.');
-      setDisabledState(controls, true);
-      submitButton.textContent = CONSIDERING_LABEL;
-
-      await new Promise<void>((resolve) => {
-        window.setTimeout(resolve, getDelay(getRandomValue()));
-      });
-
-      handleFinalDecision(decision);
     } catch {
-      handleUnexpectedError();
+      handleRecoverableError();
+      return;
     }
+
+    let responseBody: unknown;
+
+    try {
+      responseBody = await response.json();
+    } catch {
+      handleRecoverableError();
+      return;
+    }
+
+    if (!isSubmitRulingResponse(responseBody)) {
+      handleRecoverableError();
+      return;
+    }
+
+    if (responseBody.status === 'invalid') {
+      applyInvalidResponse(responseBody);
+      return;
+    }
+
+    if (responseBody.status === 'blocked') {
+      activeSubmission = false;
+      setPanelContent(
+        'blocked',
+        responseBody.message,
+        responseBody.supportingMessage ?? '',
+      );
+      setDisabledState(controls, false);
+      submitButton.textContent = SUBMIT_LABEL;
+      form.removeAttribute('aria-busy');
+      announce(
+        `${responseBody.message} ${responseBody.supportingMessage ?? ''}`.trim(),
+      );
+      focusBlockedField(responseBody.focusField);
+      return;
+    }
+
+    if (responseBody.status === 'error') {
+      handleRecoverableError(responseBody.message);
+      return;
+    }
+
+    if (!response.ok) {
+      handleRecoverableError();
+      return;
+    }
+
+    await minimumDelay;
+    handleCreatedRuling(responseBody.ruling);
   });
 }

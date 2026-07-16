@@ -9,6 +9,10 @@ export const santaSettings = {
     name: 40,
     request: 500,
   },
+  recentRulings: {
+    visibleLimit: 10,
+    timeZone: 'America/New_York',
+  },
 } as const;
 
 export function assertCoalPercentage(percentage: number): number {

@@ -9,6 +9,7 @@ export default [
     ignores: [
       '.astro/',
       'dist/',
+      '.vercel/',
       'node_modules/',
       'playwright-report/',
       'coverage/',

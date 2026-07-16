@@ -1,28 +1,31 @@
 # Santa Commands It!
 
-`Santa Commands It!` is a theatrical holiday web application from Argon Collective LLC. Visitors ask Santa for something, Santa reviews the request locally in the browser, and he responds with approval, coal, or a moderation warning.
+`Santa Commands It!` is a theatrical holiday web application from Argon Collective LLC. Visitors ask Santa for something, the server makes the authoritative decision, completed rulings are stored in Neon Postgres, and the latest public commands render directly on the homepage.
 
 ## Release
 
-- Current version: `v0.1.2`
-- Current scope: homepage experience, local request interaction, moderation-first decision flow, configurable random coal, testing, and project tooling
+- Current version: `v0.1.3`
+- Current scope: server-rendered homepage, authoritative submission endpoint, Neon persistence, Drizzle schema and migrations, moderation-first ruling decisions, and automated test coverage
 
-Nothing is persisted in this release. Refreshing the page resets the interaction.
+Completed rulings now persist across refreshes. Blocked submissions are still rejected before any database write.
 
 ## Product concept
 
-Santa is warm, theatrical, self-important, and convinced that his rulings settle the matter. Visitors ask for something, and Santa may:
+Santa is warm, theatrical, self-important, and certain that his declarations settle the matter. Visitors ask for something, and Santa may:
 
 - approve it with `SANTA COMMANDS IT!`
-- reject unacceptable content before any final ruling
+- reject unacceptable content before any ruling is stored
 - award coal to an otherwise acceptable request
 
-Blocked submissions are not final rulings. They are rejected before storage or publication, and they are not shown in the public recent-commands area.
+Completed approvals and coal rulings are public on the homepage. No account is required, but successful local submissions may appear in Santa's latest public commands.
 
 ## Technology stack
 
-- Astro
+- Astro with server rendering
 - TypeScript in strict mode
+- Neon Postgres
+- Drizzle ORM
+- Drizzle Kit
 - Plain CSS with reusable design tokens
 - Vitest
 - Playwright
@@ -34,50 +37,72 @@ Blocked submissions are not final rulings. They are rejected before storage or p
 
 1. Use Node.js `22.22.3` or another compatible Node 22 release.
 2. Install dependencies with `npm install`.
-3. Place the supplied Santa artwork at `public/images/santa.png`.
-4. Start the development server with `npm run dev`.
+3. Create or select a Neon project.
+4. Copy the Neon pooled connection string recommended for serverless HTTP access.
+5. Add it to a local `.env` file as `DATABASE_URL=...`.
+6. Place the supplied Santa artwork at `public/images/santa.png`.
+7. Generate and apply the schema migration:
+   - `npm run db:generate`
+   - `npm run db:migrate`
+8. Start the development server with `npm run dev`.
+9. Submit a request and confirm it appears in Santa's Latest Commands.
 
-If the Santa image is missing, the homepage renders a styled placeholder instead of a broken image.
+If `DATABASE_URL` is missing, the form remains usable but the server cannot persist rulings and the latest-commands section will show an unavailable message instead of crashing the page.
+
+## Environment variables
+
+- `DATABASE_URL`
+  - Required for persisted rulings and database migrations
+  - Must never use a `PUBLIC_` prefix
+  - Must never be committed
+
+Use `.env.example` as the local template.
 
 ## Available npm scripts
 
 - `npm run dev` starts the Astro development server.
-- `npm run build` creates the production build in `dist/`.
+- `npm run build` creates the server build for the Vercel adapter output.
 - `npm run preview` serves the production build locally.
 - `npm run lint` runs ESLint.
 - `npm run format` formats the repository with Prettier.
 - `npm run format:check` checks formatting without writing changes.
 - `npm run typecheck` runs `astro check`.
-- `npm run test` runs the Vitest unit suite.
+- `npm run db:generate` generates a Drizzle migration from schema changes.
+- `npm run db:migrate` applies generated migrations to the configured database.
+- `npm run db:studio` opens Drizzle Studio against the configured database.
+- `npm run db:check` runs Drizzle's schema check command.
+- `npm run test` runs the Vitest suite.
 - `npm run test:watch` runs Vitest in watch mode.
 - `npm run test:e2e` runs the Playwright browser suite.
-- `npm run check` runs the main pre-commit validation flow.
+- `npm run check` runs the main validation flow.
 
 ## Project structure
 
 ```text
 .
+├── drizzle/
 ├── public/
 │   ├── favicon.svg
 │   └── images/
+├── scripts/
 ├── src/
 │   ├── components/
 │   ├── config/
 │   ├── layouts/
 │   ├── pages/
 │   ├── scripts/
+│   ├── server/
 │   ├── styles/
 │   └── utils/
 ├── tests/
 │   ├── e2e/
 │   └── unit/
+├── .env.example
 ├── CHANGELOG.md
 ├── astro.config.mjs
-├── eslint.config.mjs
+├── drizzle.config.ts
 ├── package.json
-├── playwright.config.ts
-├── tsconfig.json
-└── vitest.config.ts
+└── playwright.config.ts
 ```
 
 ## Santa image placement
@@ -88,116 +113,145 @@ The supplied vintage-style Santa illustration is expected at:
 
 Do not replace it with generated or downloaded artwork in this repository.
 
+## Server-side submission flow
+
+In `v0.1.3`, the browser performs basic validation and then submits to `POST /api/rulings`.
+
+The server then:
+
+1. Validates the incoming JSON payload again.
+2. Trims and re-checks both the name and request.
+3. Moderates both fields.
+4. Rejects blocked content without saving it.
+5. Runs the random-coal decision only for acceptable requests.
+6. Selects and formats Santa's response on the server.
+7. Persists approved or coal rulings in Neon through Drizzle.
+8. Returns safe ruling data to the browser.
+
+The browser updates the response panel and inserts the new ruling at the top of Santa's Latest Commands without a full page reload.
+
+## What gets stored
+
+The `rulings` table stores only final public rulings:
+
+- internal primary key
+- public identifier
+- trimmed display name
+- trimmed request text
+- final decision
+- rendered Santa response
+- created timestamp
+
+Only these final decision values are stored:
+
+- `approved`
+- `random-coal`
+
+## What is never stored
+
+- blocked submissions
+- moderation-match details
+- internal database IDs in browser responses
+- email addresses
+- account data
+- application-level IP address storage
+- device fingerprints
+
+Blocked content is rejected before any database write.
+
+## Moderation and random coal
+
+Moderation rules remain editable in `src/config/moderation.ts`, but they are now enforced authoritatively on the server.
+
+Santa settings remain editable in `src/config/santa-settings.ts`, including:
+
+- random coal enabled state
+- random coal percentage
+- considering delay range
+- recent-ruling list limit
+- configured display timezone for recent ruling timestamps
+
+The initial coal percentage remains `5%`.
+
+## Latest commands behavior
+
+- The homepage fetches the newest public rulings on the server during rendering.
+- The latest-commands section shows a real semantic list when rulings exist.
+- The empty state still works for a brand-new database.
+- If recent-ruling loading fails, the homepage stays usable and shows a quiet unavailable message.
+- After a successful submission, the browser inserts the new ruling at the top of the visible list and keeps only the latest ten items.
+
+## Astro rendering and deployment
+
+- The project now uses Astro server rendering with the official Vercel adapter.
+- Database access exists only in server-side modules under `src/server/`.
+- `DATABASE_URL` is never exposed to client-side code.
+- Production builds output Vercel-compatible server artifacts rather than a static site.
+
+## Migrations
+
+Generate a migration after future schema changes:
+
+- `npm run db:generate`
+
+Apply migrations locally or to Neon:
+
+- `npm run db:migrate`
+
+Open Drizzle Studio for local inspection:
+
+- `npm run db:studio`
+
+The committed initial migration lives under `drizzle/`. Ordinary application startup does not mutate the schema automatically.
+
 ## Design and layout
 
-- The desktop homepage uses a sticky two-column layout.
-- The left rail holds the Santa artwork and the compact site footer.
-- The right column stacks the opening Santa panel, the form, and the latest-commands placeholder.
-- Mobile and tablet collapse into a normal top-to-bottom flow.
-- The visual system uses a light winter palette of snowy blue-white, soft ivory, cool blue-gray, muted evergreen, charcoal, and restrained cranberry accents.
-- Germania One is loaded from Google Fonts and used only for display text such as Santa-facing headings and rulings.
-- Body copy, helper text, labels, counters, and form controls continue to use the readable body and UI font stacks.
-
-## Interactive request flow
-
-In `v0.1.2`, the homepage form is fully interactive in the current page session:
-
-1. The visitor enters a name and a request.
-2. The form validates required fields and length limits.
-3. Santa checks the trimmed values against local moderation rules.
-4. Blocked content is rejected immediately with a warning to revise the submission.
-5. Acceptable submissions enter a short considering state.
-6. Santa then approves the request or awards random coal.
-7. The visitor can ask again without reloading the page.
-
-All valid and acceptable requests remain local to the browser session. Nothing is saved, published, or added to the recent-commands section yet.
-
-## Validation rules
-
-- Name: required, trimmed, maximum `40` characters
-- Request: required, trimmed, maximum `500` characters
-- Validation errors are shown inline and focus moves to the first invalid field.
-- The request counter updates live and adds visible warning text near the 500-character limit.
-
-## Moderation and decision configuration
-
-Editable Santa behavior lives in `src/config/`.
-
-- `src/config/santa-settings.ts`
-  - random coal on or off
-  - random coal percentage
-  - considering delay range
-  - name and request limits
-- `src/config/moderation.ts`
-  - blocked words
-  - blocked phrases
-  - allowed exceptions
-- `src/config/responses.ts`
-  - opening copy
-  - considering copy
-  - approved responses
-  - coal responses
-  - blocked warning copy
-
-The initial random coal percentage is `5%`.
-
-To change coal behavior:
-
-- Set `randomCoalEnabled` to `false` to disable coal entirely.
-- Set `randomCoalPercentage` anywhere from `0` to `100`.
-
-To update moderation:
-
-- Add standalone terms to `blockedWords`.
-- Add multi-word checks to `blockedPhrases`.
-- Add known false-positive phrases or terms to `allowedExceptions`.
-
-The repository only includes small placeholder moderation entries for testing. They must be reviewed and replaced before launch.
-
-## Client-side moderation limitations
-
-Moderation in `v0.1.2` runs only in the browser. This is useful for local interaction and tests, but it is not production-safe protection.
-
-- Client-side checks can be bypassed.
-- Blocked content is not stored or published in this release.
-- The same moderation rules will need to run server-side before any future database write.
-
-Server-side enforcement is planned for `v0.1.3` when persistence is introduced.
+- Desktop uses the sticky two-column Santa layout.
+- The left rail holds the Santa artwork and the compact footer.
+- The right column stacks the response panel, form, and public latest-commands list.
+- Mobile and tablet collapse into normal document flow.
+- The visual system keeps the light winter palette, Germania One display typography, and rounded low-border surfaces introduced in earlier releases.
 
 ## Accessibility goals
 
 - Semantic landmarks and headings
 - Keyboard-friendly submission and ask-again flow
-- Accessible labels, hints, inline errors, and status messaging
-- Character counter association for the request field
-- Clear approved, coal, and blocked states without relying on color alone
+- Accessible inline validation and blocked-state focus handling
+- Safe public ruling markup with semantic `time` elements
+- Status announcements that do not reread the entire feed
 - Responsive layout down to narrow mobile widths
 - Reduced-motion support
 - Sufficient contrast at 200% zoom
 
-## Ownership and credits
-
-- `Santa Commands It!` is a project from Argon Collective LLC.
-- The compact left-rail footer carries the site attribution without making ownership part of the Santa joke.
-
 ## Testing
 
-- `npm run test` runs the unit suite for validation, moderation normalization, coal decisions, and the Santa decision engine.
-- `npm run test:e2e` runs the browser suite covering validation, approval, coal, blocked submissions, ask-again behavior, and layout safety.
-- `npm run check` runs the main validation flow.
-- `npm run build` verifies the production build.
+- `npm run test` covers validation, moderation normalization, coal decisions, server submission flow, and public-ruling mapping without requiring a live database.
+- `npm run test:e2e` uses a dedicated test-mode server strategy instead of a real Neon database.
+- `npm run build` verifies the server-rendered production output.
+
+Test precautions:
+
+- Do not point ad hoc integration tests at a production Neon database.
+- The standard test suite does not require destructive database access.
+- If you add database integration tests later, use a dedicated test database and explicit cleanup.
 
 ## Current limitations
 
-- No database persistence exists yet.
-- The recent-commands section remains an empty placeholder.
-- No public feed or shareable ruling pages exist yet.
-- No authentication or admin tooling exists yet.
-- Moderation is client-side only and must not be treated as sufficient enforcement for a persisted product.
+- No shareable individual ruling pages exist yet.
+- No social metadata exists for individual rulings yet.
+- No rate limiting exists yet.
+- No reporting tools or admin deletion tools exist yet.
+- No authentication or user accounts exist yet.
+- Completed public rulings remain stored until manually removed through database tools.
+- Client-side moderation is no longer authoritative, but server-side moderation still needs future launch hardening such as rate limiting and abuse controls.
+
+## Ownership and credits
+
+- `Santa Commands It!` is a project from Argon Collective LLC.
+- The compact left-rail footer carries the site attribution without turning ownership into part of the Santa joke.
 
 ## Roadmap
 
-- `v0.1.3`: Database persistence and recent rulings
-- `v0.1.4`: Individual shareable ruling pages
-- `v0.1.5`: Abuse protection and hardening
-- `v0.1.6`: Accessibility, performance, and stabilization
+- `v0.1.4`: Individual shareable ruling pages and social metadata
+- `v0.1.5`: Abuse protection, rate limiting, reporting, and security hardening
+- `v0.1.6`: Accessibility, performance, deployment, and stabilization

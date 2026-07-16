@@ -30,6 +30,25 @@ export type SantaDecision =
       request: string;
     };
 
+export function getBlockedField(
+  name: string,
+  request: string,
+  moderation: ModerationRules,
+): BlockedField | null {
+  const blockedName = isBlockedByModeration(name, moderation);
+  const blockedRequest = isBlockedByModeration(request, moderation);
+
+  if (!blockedName && !blockedRequest) {
+    return null;
+  }
+
+  if (blockedName && blockedRequest) {
+    return 'both';
+  }
+
+  return blockedName ? 'name' : 'request';
+}
+
 export function formatResponseTemplate(
   template: string,
   values: { name: string; request: string },
@@ -86,20 +105,14 @@ export function evaluateSantaRequest({
   randomValue: number;
   templateValue?: number;
 }): SantaDecision {
-  const blockedName = isBlockedByModeration(name, moderation);
-  const blockedRequest = isBlockedByModeration(request, moderation);
+  const blockedField = getBlockedField(name, request, moderation);
 
-  if (blockedName || blockedRequest) {
+  if (blockedField) {
     const [response] = santaResponses.blocked;
 
     return {
       type: 'blocked',
-      field:
-        blockedName && blockedRequest
-          ? 'both'
-          : blockedName
-            ? 'name'
-            : 'request',
+      field: blockedField,
       response,
       name,
       request,

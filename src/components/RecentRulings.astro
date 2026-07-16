@@ -1,13 +1,65 @@
-<section class="recent-rulings" aria-labelledby="recent-rulings-title">
+---
+import { santaSettings } from '@/config/santa-settings';
+import {
+  formatRulingTimestamp,
+  getDecisionLabel,
+  type PublicRuling,
+} from '@/utils/rulings';
+
+interface Props {
+  rulings?: PublicRuling[];
+  unavailableMessage?: string | null;
+}
+
+const { rulings = [], unavailableMessage = null } = Astro.props;
+const hasRulings = rulings.length > 0;
+---
+
+<section
+  class="recent-rulings"
+  aria-labelledby="recent-rulings-title"
+  data-recent-rulings
+  data-limit={santaSettings.recentRulings.visibleLimit}
+>
   <div class="section-heading">
     <h2 id="recent-rulings-title">Santa&apos;s Latest Commands</h2>
   </div>
 
-  <div class="recent-rulings__empty">
-    <p>Santa has not made any public commands yet.</p>
-    <p class="recent-rulings__note">
-      Future approvals and coal decrees will appear here once the workshop
-      ledger is ready.
-    </p>
-  </div>
+  {
+    unavailableMessage ? (
+      <div class="recent-rulings__empty" data-recent-unavailable>
+        <p>{unavailableMessage}</p>
+      </div>
+    ) : hasRulings ? (
+      <ol class="recent-rulings__list" data-recent-list>
+        {rulings.map((ruling) => (
+          <li class="recent-rulings__item" data-ruling-id={ruling.publicId}>
+            <div class="recent-rulings__meta">
+              <p
+                class="recent-rulings__decision"
+                data-decision={ruling.decision}
+              >
+                {getDecisionLabel(ruling.decision)}
+              </p>
+              <time class="recent-rulings__time" datetime={ruling.createdAt}>
+                {formatRulingTimestamp(ruling.createdAt)}
+              </time>
+            </div>
+            <p class="recent-rulings__name">{ruling.displayName}</p>
+            <p class="recent-rulings__request">{ruling.requestText}</p>
+            <p class="recent-rulings__response">{ruling.santaResponse}</p>
+          </li>
+        ))}
+      </ol>
+    ) : (
+      <div class="recent-rulings__empty" data-recent-empty>
+        <p>Santa has not made any public commands yet.</p>
+        <p class="recent-rulings__note">
+          Future approvals and coal decrees will appear here once the workshop
+          ledger is ready.
+        </p>
+      </div>
+    )
+  }
+  <p class="sr-only" aria-live="polite" data-recent-announcement></p>
 </section>
