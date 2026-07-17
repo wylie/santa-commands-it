@@ -24,6 +24,9 @@ test.describe('public ruling pages', () => {
 
     expect(response?.status()).toBe(200);
     await expect(
+      page.getByAltText(/vintage-style portrait of Santa Claus/i),
+    ).toBeVisible();
+    await expect(
       page.getByRole('heading', { name: 'SANTA COMMANDS IT!' }),
     ).toBeVisible();
     await expect(page.locator('.ruling-card__request')).toContainText(
@@ -51,6 +54,13 @@ test.describe('public ruling pages', () => {
     await expect(page.locator('.ruling-card__response')).toHaveText(
       firstResponse ?? '',
     );
+  });
+
+  test('serves the canonical santa.png asset directly', async ({ page }) => {
+    const response = await page.request.get('/images/santa.png');
+
+    expect(response.status()).toBe(200);
+    expect(response.headers()['content-type']).toContain('image/png');
   });
 
   test('a coal ruling page stays public and recent rulings link to it', async ({

@@ -32,6 +32,16 @@ export const DUPLICATE_SUBMISSION_MESSAGE =
   'Santa has already answered that request.';
 export const BOT_REJECTED_MESSAGE = RATE_LIMITED_MESSAGE;
 
+export class SubmissionPersistenceError extends Error {
+  constructor(
+    message = 'Unable to persist ruling submission.',
+    options?: ErrorOptions,
+  ) {
+    super(message, options);
+    this.name = 'SubmissionPersistenceError';
+  }
+}
+
 type SubmissionPayload = {
   name: string;
   request: string;
@@ -321,7 +331,7 @@ export async function submitSantaRequest(
           now.getTime() + securitySettings.submissions.idempotency.retentionMs,
         ),
       });
-  } catch {
+  } catch (error) {
     const replayedRuling =
       await dependencies.submissionRepository.getRulingByIdempotencyKey(
         context.clientKeyHash,
@@ -337,7 +347,7 @@ export async function submitSantaRequest(
       };
     }
 
-    throw new Error('Unable to persist ruling submission.');
+    throw new SubmissionPersistenceError(undefined, { cause: error });
   }
 
   return {

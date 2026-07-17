@@ -201,8 +201,7 @@ a {
   aspect-ratio: 4 / 5;
 }
 
-.portrait-frame__image,
-.portrait-frame__placeholder {
+.portrait-frame__image {
   width: 100%;
   height: auto;
   border-radius: var(--radius-image);
@@ -211,26 +210,6 @@ a {
 
 .portrait-frame__image {
   object-fit: contain;
-}
-
-.portrait-frame__placeholder {
-  display: grid;
-  place-items: center;
-  min-height: 17rem;
-  padding: var(--space-lg);
-  text-align: center;
-  background: linear-gradient(
-    180deg,
-    rgb(255 255 255 / 0.78),
-    rgb(248 251 253 / 0.88)
-  );
-}
-
-.portrait-frame__markings {
-  position: absolute;
-  inset: 9% 10%;
-  border: 1px dashed rgb(191 208 213 / 0.72);
-  border-radius: 1rem;
 }
 
 .hero__content {
@@ -1084,11 +1063,6 @@ h2 {
   .recent-rulings,
   .ruling-card,
   .ruling-report__panel,
-  .portrait-frame__placeholder {
-    background: Canvas;
-    box-shadow: none;
-  }
-
   .button-command,
   .button-link-secondary,
   .button-secondary,

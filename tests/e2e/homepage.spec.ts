@@ -14,6 +14,11 @@ test.describe('Santa Commands It homepage', () => {
     await page.goto('/');
 
     await expect(
+      page.getByAltText(/vintage-style portrait of Santa Claus/i),
+    ).toBeVisible();
+    await expect(page.getByText('public/images/santa.png')).toHaveCount(0);
+
+    await expect(
       page.getByText('Santa has not made any public commands yet.'),
     ).toBeVisible();
   });

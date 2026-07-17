@@ -34,6 +34,8 @@ The format is inspired by Keep a Changelog, and this project adheres to Semantic
 - Responsive, short-viewport, forced-colors, and focus styling behavior were tightened for launch readiness
 - Client-side submission and reporting flows now time out cleanly and preserve retry safety more reliably
 - Environment, deployment, preview, metadata, and production-readiness documentation were expanded for the full `v0.1.x` milestone
+- Submission persistence now uses a Neon HTTP-compatible atomic write path instead of an unsupported transaction call
+- The committed Santa PNG now renders directly from `/images/santa.png` in every environment without a runtime placeholder fallback
 
 ## [0.1.4] - 2026-07-15
 
@@ -102,6 +104,6 @@ The format is inspired by Keep a Changelog, and this project adheres to Semantic
 - Initial Astro project configuration with strict TypeScript, ESLint, Prettier, Vitest, and Playwright
 - Reusable design-token foundation for color, typography, spacing, layout, motion, and focus states
 - Responsive homepage with Santa portrait placement, speech bubble, introductory copy, and recent-rulings placeholder
-- Graceful Santa artwork integration that uses `public/images/santa.png` when supplied and a styled fallback when it is absent
+- Santa artwork integration using the canonical `public/images/santa.png` asset path
 - Accessible request-form shell with typed field limits, a live character counter, and a foundation-release status message
 - README, changelog, favicon, and project documentation for local setup and future roadmap

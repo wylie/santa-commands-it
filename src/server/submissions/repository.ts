@@ -1,4 +1,4 @@
-import { and, count, desc, eq, gte, gt } from 'drizzle-orm';
+import { and, count, desc, eq, gte, gt, sql } from 'drizzle-orm';
 
 import { getDatabase } from '@/server/db/client';
 import {
@@ -44,6 +44,31 @@ export type SubmissionRepository = {
     input: CreateSubmissionRulingInput,
   ): Promise<PublicRuling>;
 };
+
+type PersistedRulingInsertRow = {
+  id: number;
+  publicId: string;
+  displayName: string;
+  requestText: string;
+  decision: 'approved' | 'random-coal';
+  santaResponse: string;
+  createdAt: Date | string;
+};
+
+function mapInsertedRowToPublicRuling(
+  row: PersistedRulingInsertRow,
+): PublicRuling {
+  return mapRulingRowToPublicRuling({
+    id: Number(row.id),
+    publicId: row.publicId,
+    displayName: row.displayName,
+    requestText: row.requestText,
+    decision: row.decision,
+    santaResponse: row.santaResponse,
+    createdAt:
+      row.createdAt instanceof Date ? row.createdAt : new Date(row.createdAt),
+  });
+}
 
 export function createDatabaseSubmissionRepository(): SubmissionRepository {
   return {
@@ -116,30 +141,68 @@ export function createDatabaseSubmissionRepository(): SubmissionRepository {
     },
     async createRulingWithIdempotency(input) {
       const database = getDatabase();
+      const created = await database.execute(sql<PersistedRulingInsertRow>`
+        WITH created_ruling AS (
+          INSERT INTO rulings (
+            public_id,
+            display_name,
+            request_text,
+            decision,
+            santa_response
+          )
+          VALUES (
+            ${input.publicId},
+            ${input.displayName},
+            ${input.requestText},
+            ${input.decision}::ruling_decision,
+            ${input.santaResponse}
+          )
+          RETURNING
+            id,
+            public_id,
+            display_name,
+            request_text,
+            decision,
+            santa_response,
+            created_at
+        ),
+        created_idempotency AS (
+          INSERT INTO submission_idempotency (
+            client_key_hash,
+            idempotency_key,
+            normalized_name,
+            normalized_request,
+            ruling_id,
+            expires_at
+          )
+          SELECT
+            ${input.clientKeyHash},
+            ${input.idempotencyKey},
+            ${input.normalizedName},
+            ${input.normalizedRequest},
+            created_ruling.id,
+            ${input.expiresAt}
+          FROM created_ruling
+          RETURNING ruling_id
+        )
+        SELECT
+          created_ruling.id AS "id",
+          created_ruling.public_id AS "publicId",
+          created_ruling.display_name AS "displayName",
+          created_ruling.request_text AS "requestText",
+          created_ruling.decision AS "decision",
+          created_ruling.santa_response AS "santaResponse",
+          created_ruling.created_at AS "createdAt"
+        FROM created_ruling
+        INNER JOIN created_idempotency ON true
+      `);
+      const [createdRuling] = created.rows as PersistedRulingInsertRow[];
 
-      return database.transaction(async (transaction) => {
-        const [createdRuling] = await transaction
-          .insert(rulings)
-          .values({
-            publicId: input.publicId,
-            displayName: input.displayName,
-            requestText: input.requestText,
-            decision: input.decision,
-            santaResponse: input.santaResponse,
-          })
-          .returning();
+      if (!createdRuling) {
+        throw new Error('Ruling insert did not return a row.');
+      }
 
-        await transaction.insert(submissionIdempotency).values({
-          clientKeyHash: input.clientKeyHash,
-          idempotencyKey: input.idempotencyKey,
-          normalizedName: input.normalizedName,
-          normalizedRequest: input.normalizedRequest,
-          rulingId: createdRuling.id,
-          expiresAt: input.expiresAt,
-        });
-
-        return mapRulingRowToPublicRuling(createdRuling);
-      });
+      return mapInsertedRowToPublicRuling(createdRuling);
     },
   };
 }

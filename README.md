@@ -42,27 +42,27 @@ Completed approvals and coal rulings are public on the homepage and on their own
 5. Add it to a local `.env` file as `DATABASE_URL=...`.
 6. Add `RATE_LIMIT_SECRET=...` to the same `.env` file.
 7. Optionally add `SITE_URL=https://your-production-domain.example` for canonical URLs and production metadata.
-8. Place the supplied Santa artwork at `public/images/santa.png`.
-9. Generate and apply the schema migration:
+8. Generate and apply the schema migration:
    - `npm run db:generate`
    - `npm run db:migrate`
-10. Start the development server with `npm run dev`.
-11. Submit a request, confirm it appears in Santa's Latest Commands, open its permanent ruling page, and test the report flow locally.
+9. Start the development server with `npm run dev`.
+10. Submit a request, confirm it appears in Santa's Latest Commands, open its permanent ruling page, and test the report flow locally.
 
 If `DATABASE_URL` is missing, the form remains usable but the server cannot persist rulings, recent public commands will be unavailable, and no permanent ruling pages can be created.
 
 ## Environment variables
 
 - `DATABASE_URL`
-  - Required for persisted rulings and database migrations
+  - Required for local submissions, persisted rulings, database reads, and database migrations
   - Must never use a `PUBLIC_` prefix
   - Must never be committed
 - `RATE_LIMIT_SECRET`
   - Required in production for hashed rate-limiting and reporting client keys
   - Should be a long random secret
-  - Uses a clearly documented development fallback locally when omitted
+  - Uses a documented local-development fallback only when omitted outside production
 - `SITE_URL`
-  - Recommended for production canonical URLs, Open Graph metadata, and share links
+  - Optional in local development because same-origin requests and local canonical URLs can fall back to the current request origin
+  - Required in production for canonical URLs, Open Graph metadata, and share links
   - Should be the full origin only, such as `https://example.com`
   - Falls back to the current request origin for local development when omitted
 - `SANTA_TEST_MODE`
@@ -119,13 +119,16 @@ Use `.env.example` as the local template.
 └── playwright.config.ts
 ```
 
-## Santa image placement
+## Santa artwork
 
-The supplied vintage-style Santa illustration is expected at:
+The Santa artwork is a required committed asset.
 
-`public/images/santa.png`
+- Canonical filesystem path: `public/images/santa.png`
+- Canonical browser URL: `/images/santa.png`
+- The homepage and individual ruling pages both render that exact PNG path directly.
+- Do not rename it, change its capitalization, or introduce Santa-specific JPEG or JPG variants.
 
-Do not replace it with generated or downloaded artwork in this repository.
+If the deployed site does not show Santa, verify that `/images/santa.png` returns `200` with `image/png` and confirm the deployment includes the tracked file.
 
 ## Server-side submission flow
 
@@ -255,6 +258,39 @@ Completed approved and coal rulings are public and accessible to anyone with the
 - This release uses database-backed safeguards because a serverless deployment cannot rely on process memory as the sole production limiter.
 - The Vercel adapter does not support Astro's native preview server, so the local `preview` script intentionally runs a production-mode server approximation instead.
 - Same-origin request enforcement accepts the configured production origin and the current request origin, which keeps preview deployments safe without allowing arbitrary origins.
+
+## Diagnosing submission errors safely
+
+- Browser responses for failed submissions stay generic on purpose.
+- For a local `POST /api/rulings` failure, inspect the terminal that is running `npm run dev`.
+- For Vercel failures, inspect the function logs for the `/api/rulings` invocation.
+- Safe diagnostics include the failing submission stage, sanitized error class, and database error code.
+- Diagnostics must not include submitted names, submitted requests, raw request bodies, secrets, or raw IP addresses.
+
+If the homepage can read recent rulings but valid submissions fail, run `npm run db:migrate` against the same database the app is using and then retry the submission. Reads only require the `rulings` table, while submissions also require the `submission_attempts` and `submission_idempotency` tables.
+
+## Local and Vercel environment setup
+
+Local development:
+
+- Required: `DATABASE_URL`
+- Optional: `SITE_URL`
+- Optional with a documented development fallback: `RATE_LIMIT_SECRET`
+
+Vercel production and preview:
+
+- Required: `DATABASE_URL`
+- Required: `SITE_URL`
+- Required: `RATE_LIMIT_SECRET`
+
+Do not place secrets in `vercel.json`. Configure them through the Vercel project environment settings instead.
+
+## Migrations and deployment verification
+
+- Apply local schema updates with `npm run db:migrate`.
+- Apply the same migration command against the production or preview database before expecting new submission or reporting code paths to work.
+- After deployment, verify the ruling flow and open `/images/santa.png` directly to confirm the deployed asset path is correct.
+- Remember that `public/images/santa.png` is the repository filesystem path, while `/images/santa.png` is the browser URL.
 
 ## Production readiness
 

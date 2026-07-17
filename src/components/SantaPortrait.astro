@@ -1,38 +1,19 @@
 ---
-import fs from 'node:fs';
-
-const imagePath = new URL('../../public/images/santa.png', import.meta.url);
-const hasSantaImage = fs.existsSync(imagePath);
 const altText =
   'A vintage-style portrait of Santa Claus seated confidently in his red suit, presented like a cheerful old holiday poster.';
 ---
 
 <figure class="portrait-frame">
   <div class="portrait-frame__mount">
-    {
-      hasSantaImage ? (
-        <img
-          class="portrait-frame__image"
-          src="/images/santa.png"
-          alt={altText}
-          width="960"
-          height="1200"
-          loading="eager"
-          decoding="async"
-          fetchpriority="high"
-        />
-      ) : (
-        <div
-          class="portrait-frame__placeholder"
-          aria-labelledby="santa-artwork-status"
-        >
-          <div class="portrait-frame__markings" aria-hidden="true" />
-          <p id="santa-artwork-status">
-            Place the supplied Santa artwork at{' '}
-            <code>public/images/santa.png</code>.
-          </p>
-        </div>
-      )
-    }
+    <img
+      class="portrait-frame__image"
+      src="/images/santa.png"
+      alt={altText}
+      width="960"
+      height="1200"
+      loading="eager"
+      decoding="async"
+      fetchpriority="high"
+    />
   </div>
 </figure>

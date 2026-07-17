@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 
 import { json, methodNotAllowed } from '@/server/api/responses';
+import { classifySubmissionRouteError } from '@/server/api/submission-errors';
 import { parseJsonRequest } from '@/server/api/request-body';
 import { hashClientIdentifier } from '@/server/security/client-key';
 import { isAllowedOrigin } from '@/server/security/origin';
@@ -108,13 +109,16 @@ export const POST: APIRoute = async ({ request }) => {
     }
 
     return json(response, { status: 500 });
-  } catch {
+  } catch (error) {
+    const classification = classifySubmissionRouteError(error);
+    console.error('[santa-commands-it]', classification.log);
+
     return json(
       {
         status: 'error',
         message: GENERIC_ERROR_MESSAGE,
       },
-      { status: 503 },
+      { status: classification.statusCode },
     );
   }
 };
