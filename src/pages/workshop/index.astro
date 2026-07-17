@@ -20,6 +20,7 @@ const { metrics, recentRulings, recentActivity } =
   description="A private operational view of public Santa rulings and owner activity."
   currentPath={Astro.url.pathname}
   csrfToken={session.csrfToken}
+  openReportCount={metrics.openReports}
 >
   <section class="workshop-grid workshop-grid--metrics" aria-label="Overview">
     <article class="workshop-card">
@@ -42,6 +43,18 @@ const { metrics, recentRulings, recentActivity } =
       <h2>Open reports</h2>
       <p class="workshop-metric">{metrics.openReports}</p>
     </article>
+    <article class="workshop-card">
+      <h2>Reviewed reports</h2>
+      <p class="workshop-metric">{metrics.reviewedReports}</p>
+    </article>
+    <article class="workshop-card">
+      <h2>Actioned in 7 days</h2>
+      <p class="workshop-metric">{metrics.actionedReportsLast7Days}</p>
+    </article>
+    <article class="workshop-card">
+      <h2>Rulings with 2+ open reports</h2>
+      <p class="workshop-metric">{metrics.rulingsWithMultipleOpenReports}</p>
+    </article>
   </section>
 
   <section class="workshop-grid workshop-grid--columns">
@@ -62,7 +75,8 @@ const { metrics, recentRulings, recentActivity } =
                 <p class="workshop-summary-list__meta">
                   {getDecisionLabel(ruling.decision)} ·{' '}
                   {getVisibilityLabel(ruling.visibility)} ·{' '}
-                  {formatRulingTimestamp(ruling.createdAt)}
+                  {formatRulingTimestamp(ruling.createdAt)} ·{' '}
+                  {ruling.openReportCount}/{ruling.reportCount} open reports
                 </p>
               </div>
               <a

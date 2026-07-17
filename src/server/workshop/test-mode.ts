@@ -1,5 +1,9 @@
 import { isEndToEndTestMode } from '@/server/env';
 import {
+  createDatabaseWorkshopReportsRepository,
+  createTestWorkshopReportsRepository,
+} from '@/server/workshop/reports-repository';
+import {
   createDatabaseWorkshopAuthRepository,
   createDatabaseWorkshopRepository,
   createTestWorkshopAuthRepository,
@@ -31,4 +35,14 @@ export function getWorkshopRepositoryForHeaders(headers: Headers) {
   const runId = headers.get('x-santa-test-run-id') ?? 'default';
 
   return createTestWorkshopRepository(runId);
+}
+
+export function getWorkshopReportsRepositoryForHeaders(headers: Headers) {
+  if (!isWorkshopTestRequest(headers)) {
+    return createDatabaseWorkshopReportsRepository();
+  }
+
+  const runId = headers.get('x-santa-test-run-id') ?? 'default';
+
+  return createTestWorkshopReportsRepository(runId);
 }

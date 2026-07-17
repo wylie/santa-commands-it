@@ -10,6 +10,10 @@ import {
   workshopLoginAttempts,
   workshopSessions,
 } from '@/server/db/schema';
+import type {
+  TestReportRecord,
+  TestStoredRuling,
+} from '@/server/testing/store';
 import { getTestRunStore } from '@/server/testing/store';
 import { serializeCreatedAt } from '@/utils/rulings';
 import type {
@@ -39,6 +43,7 @@ export type CreateOwnerActivityInput = {
   action: OwnerActivityAction;
   targetType: OwnerActivityTargetType;
   targetPublicId?: string | null;
+  relatedPublicId?: string | null;
   details?: string | null;
 };
 
@@ -89,10 +94,16 @@ export type WorkshopRepository = {
     publicId: string,
     limit?: number,
   ): Promise<OwnerActivityEntry[]>;
+  listOwnerActivityForReport(
+    publicId: string,
+    limit?: number,
+  ): Promise<OwnerActivityEntry[]>;
 };
 
 type WorkshopRulingRow = typeof rulings.$inferSelect & {
   reportCount: number;
+  openReportCount: number;
+  latestReportAt: Date | null;
 };
 
 function mapWorkshopRulingRow(row: WorkshopRulingRow): WorkshopRulingSummary {
@@ -107,6 +118,8 @@ function mapWorkshopRulingRow(row: WorkshopRulingRow): WorkshopRulingSummary {
     hiddenReason: row.hiddenReason,
     createdAt: serializeCreatedAt(row.createdAt),
     reportCount: Number(row.reportCount ?? 0),
+    openReportCount: Number(row.openReportCount ?? 0),
+    latestReportAt: serializeOptionalTimestamp(row.latestReportAt),
   };
 }
 
@@ -117,6 +130,7 @@ function mapOwnerActivityRow(
     action: row.action,
     targetType: row.targetType,
     targetPublicId: row.targetPublicId,
+    relatedPublicId: row.relatedPublicId,
     details: row.details,
     createdAt: serializeCreatedAt(row.createdAt),
   };
@@ -244,6 +258,9 @@ export function createDatabaseWorkshopRepository(): WorkshopRepository {
         coalRulings,
         hiddenRulings,
         openReports,
+        reviewedReports,
+        actionedReportsLast7Days,
+        multiOpenRulings,
       ] = await Promise.all([
         database.select({ value: count() }).from(rulings),
         database
@@ -262,6 +279,32 @@ export function createDatabaseWorkshopRepository(): WorkshopRepository {
           .select({ value: count() })
           .from(rulingReports)
           .where(eq(rulingReports.status, 'open')),
+        database
+          .select({ value: count() })
+          .from(rulingReports)
+          .where(eq(rulingReports.status, 'reviewed')),
+        database
+          .select({ value: count() })
+          .from(rulingReports)
+          .where(
+            and(
+              eq(rulingReports.status, 'actioned'),
+              gte(
+                rulingReports.resolvedAt,
+                new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+              ),
+            ),
+          ),
+        database.execute(sql<{ value: string }>`
+          select count(*)::text as value
+          from (
+            select ruling_id
+            from ruling_reports
+            where status = 'open'
+            group by ruling_id
+            having count(*) > 1
+          ) grouped
+        `),
       ]);
 
       return {
@@ -270,6 +313,13 @@ export function createDatabaseWorkshopRepository(): WorkshopRepository {
         coalRulings: Number(coalRulings[0]?.value ?? 0),
         hiddenRulings: Number(hiddenRulings[0]?.value ?? 0),
         openReports: Number(openReports[0]?.value ?? 0),
+        reviewedReports: Number(reviewedReports[0]?.value ?? 0),
+        actionedReportsLast7Days: Number(
+          actionedReportsLast7Days[0]?.value ?? 0,
+        ),
+        rulingsWithMultipleOpenReports: Number(
+          multiOpenRulings.rows[0]?.value ?? 0,
+        ),
       };
     },
     async listRecentWorkshopRulings(
@@ -289,6 +339,8 @@ export function createDatabaseWorkshopRepository(): WorkshopRepository {
           hiddenReason: rulings.hiddenReason,
           createdAt: rulings.createdAt,
           reportCount: count(rulingReports.id),
+          openReportCount: sql<number>`sum(case when ${rulingReports.status} = 'open' then 1 else 0 end)`,
+          latestReportAt: sql<Date | null>`max(${rulingReports.createdAt})`,
         })
         .from(rulings)
         .leftJoin(rulingReports, eq(rulingReports.rulingId, rulings.id))
@@ -300,6 +352,7 @@ export function createDatabaseWorkshopRepository(): WorkshopRepository {
         mapWorkshopRulingRow({
           ...row,
           reportCount: Number(row.reportCount ?? 0),
+          openReportCount: Number(row.openReportCount ?? 0),
         }),
       );
     },
@@ -327,6 +380,8 @@ export function createDatabaseWorkshopRepository(): WorkshopRepository {
             hiddenReason: rulings.hiddenReason,
             createdAt: rulings.createdAt,
             reportCount: count(rulingReports.id),
+            openReportCount: sql<number>`sum(case when ${rulingReports.status} = 'open' then 1 else 0 end)`,
+            latestReportAt: sql<Date | null>`max(${rulingReports.createdAt})`,
           })
           .from(rulings)
           .leftJoin(rulingReports, eq(rulingReports.rulingId, rulings.id))
@@ -343,6 +398,7 @@ export function createDatabaseWorkshopRepository(): WorkshopRepository {
           mapWorkshopRulingRow({
             ...row,
             reportCount: Number(row.reportCount ?? 0),
+            openReportCount: Number(row.openReportCount ?? 0),
           }),
         ),
         total: Number(totalRows[0]?.value ?? 0),
@@ -365,6 +421,8 @@ export function createDatabaseWorkshopRepository(): WorkshopRepository {
           hiddenReason: rulings.hiddenReason,
           createdAt: rulings.createdAt,
           reportCount: count(rulingReports.id),
+          openReportCount: sql<number>`sum(case when ${rulingReports.status} = 'open' then 1 else 0 end)`,
+          latestReportAt: sql<Date | null>`max(${rulingReports.createdAt})`,
         })
         .from(rulings)
         .leftJoin(rulingReports, eq(rulingReports.rulingId, rulings.id))
@@ -376,6 +434,7 @@ export function createDatabaseWorkshopRepository(): WorkshopRepository {
         ? mapWorkshopRulingRow({
             ...row,
             reportCount: Number(row.reportCount ?? 0),
+            openReportCount: Number(row.openReportCount ?? 0),
           })
         : null;
     },
@@ -445,6 +504,7 @@ export function createDatabaseWorkshopRepository(): WorkshopRepository {
         action: input.action,
         targetType: input.targetType,
         targetPublicId: input.targetPublicId ?? null,
+        relatedPublicId: input.relatedPublicId ?? null,
         details: input.details ?? null,
       });
     },
@@ -470,8 +530,13 @@ export function createDatabaseWorkshopRepository(): WorkshopRepository {
         .from(ownerActivity)
         .where(
           and(
-            eq(ownerActivity.targetType, 'ruling'),
-            eq(ownerActivity.targetPublicId, publicId),
+            or(
+              and(
+                eq(ownerActivity.targetType, 'ruling'),
+                eq(ownerActivity.targetPublicId, publicId),
+              ),
+              eq(ownerActivity.relatedPublicId, publicId),
+            ),
           ),
         )
         .orderBy(desc(ownerActivity.createdAt), desc(ownerActivity.id))
@@ -479,6 +544,53 @@ export function createDatabaseWorkshopRepository(): WorkshopRepository {
 
       return rows.map(mapOwnerActivityRow);
     },
+    async listOwnerActivityForReport(
+      publicId,
+      limit = securitySettings.workshop.search.recentActivityLimit,
+    ) {
+      const database = getDatabase();
+      const rows = await database
+        .select()
+        .from(ownerActivity)
+        .where(
+          or(
+            and(
+              eq(ownerActivity.targetType, 'report'),
+              eq(ownerActivity.targetPublicId, publicId),
+            ),
+            eq(ownerActivity.relatedPublicId, publicId),
+          ),
+        )
+        .orderBy(desc(ownerActivity.createdAt), desc(ownerActivity.id))
+        .limit(limit);
+
+      return rows.map(mapOwnerActivityRow);
+    },
+  };
+}
+
+function buildTestWorkshopRulingSummary(
+  ruling: TestStoredRuling,
+  reports: TestReportRecord[],
+): WorkshopRulingSummary {
+  const matchingReports = reports.filter(
+    (report) => report.rulingId === ruling.id,
+  );
+  const latestReport = matchingReports
+    .slice()
+    .sort(
+      (left, right) =>
+        new Date(right.createdAt).getTime() -
+        new Date(left.createdAt).getTime(),
+    )[0];
+
+  return {
+    ...ruling,
+    reportCount: matchingReports.length,
+    openReportCount: matchingReports.filter(
+      (report) => report.status === 'open',
+    ).length,
+    latestReportAt: latestReport?.createdAt ?? null,
   };
 }
 
@@ -570,6 +682,23 @@ export function createTestWorkshopRepository(
         ).length,
         openReports: store.reports.filter((report) => report.status === 'open')
           .length,
+        reviewedReports: store.reports.filter(
+          (report) => report.status === 'reviewed',
+        ).length,
+        actionedReportsLast7Days: store.reports.filter(
+          (report) =>
+            report.status === 'actioned' &&
+            report.resolvedAt &&
+            new Date(report.resolvedAt).getTime() >=
+              Date.now() - 7 * 24 * 60 * 60 * 1000,
+        ).length,
+        rulingsWithMultipleOpenReports: store.rulings.filter(
+          (ruling) =>
+            store.reports.filter(
+              (report) =>
+                report.rulingId === ruling.id && report.status === 'open',
+            ).length > 1,
+        ).length,
       };
     },
     async listRecentWorkshopRulings(
@@ -585,12 +714,7 @@ export function createTestWorkshopRepository(
             new Date(left.createdAt).getTime(),
         )
         .slice(0, limit)
-        .map((ruling) => ({
-          ...ruling,
-          reportCount: store.reports.filter(
-            (report) => report.rulingId === ruling.id,
-          ).length,
-        }));
+        .map((ruling) => buildTestWorkshopRulingSummary(ruling, store.reports));
     },
     async listWorkshopRulings(filters) {
       const store = getTestRunStore(runId);
@@ -634,12 +758,11 @@ export function createTestWorkshopRepository(
       const start = (page - 1) * pageSize;
 
       return {
-        rulings: filtered.slice(start, start + pageSize).map((ruling) => ({
-          ...ruling,
-          reportCount: store.reports.filter(
-            (report) => report.rulingId === ruling.id,
-          ).length,
-        })),
+        rulings: filtered
+          .slice(start, start + pageSize)
+          .map((ruling) =>
+            buildTestWorkshopRulingSummary(ruling, store.reports),
+          ),
         total: filtered.length,
         page,
         pageSize,
@@ -650,12 +773,7 @@ export function createTestWorkshopRepository(
       const ruling = store.rulings.find((item) => item.publicId === publicId);
 
       return ruling
-        ? {
-            ...ruling,
-            reportCount: store.reports.filter(
-              (report) => report.rulingId === ruling.id,
-            ).length,
-          }
+        ? buildTestWorkshopRulingSummary(ruling, store.reports)
         : null;
     },
     async hideRuling(publicId, reason, now) {
@@ -674,12 +792,7 @@ export function createTestWorkshopRepository(
       ruling.hiddenAt = now.toISOString();
       ruling.hiddenReason = reason;
 
-      return {
-        ...ruling,
-        reportCount: store.reports.filter(
-          (report) => report.rulingId === ruling.id,
-        ).length,
-      };
+      return buildTestWorkshopRulingSummary(ruling, store.reports);
     },
     async restoreRuling(publicId) {
       const store = getTestRunStore(runId);
@@ -696,12 +809,7 @@ export function createTestWorkshopRepository(
       ruling.visibility = 'public';
       ruling.hiddenAt = null;
 
-      return {
-        ...ruling,
-        reportCount: store.reports.filter(
-          (report) => report.rulingId === ruling.id,
-        ).length,
-      };
+      return buildTestWorkshopRulingSummary(ruling, store.reports);
     },
     async deleteRuling(publicId) {
       const store = getTestRunStore(runId);
@@ -735,6 +843,7 @@ export function createTestWorkshopRepository(
         action: input.action,
         targetType: input.targetType,
         targetPublicId: input.targetPublicId ?? null,
+        relatedPublicId: input.relatedPublicId ?? null,
         details: input.details ?? null,
         createdAt: new Date().toISOString(),
       });
@@ -748,6 +857,7 @@ export function createTestWorkshopRepository(
           action: entry.action,
           targetType: entry.targetType,
           targetPublicId: entry.targetPublicId,
+          relatedPublicId: entry.relatedPublicId,
           details: entry.details,
           createdAt: entry.createdAt,
         }));
@@ -759,13 +869,37 @@ export function createTestWorkshopRepository(
       return getTestRunStore(runId)
         .ownerActivity.filter(
           (entry) =>
-            entry.targetType === 'ruling' && entry.targetPublicId === publicId,
+            (entry.targetType === 'ruling' &&
+              entry.targetPublicId === publicId) ||
+            entry.relatedPublicId === publicId,
         )
         .slice(0, limit)
         .map((entry) => ({
           action: entry.action,
           targetType: entry.targetType,
           targetPublicId: entry.targetPublicId,
+          relatedPublicId: entry.relatedPublicId,
+          details: entry.details,
+          createdAt: entry.createdAt,
+        }));
+    },
+    async listOwnerActivityForReport(
+      publicId,
+      limit = securitySettings.workshop.search.recentActivityLimit,
+    ) {
+      return getTestRunStore(runId)
+        .ownerActivity.filter(
+          (entry) =>
+            (entry.targetType === 'report' &&
+              entry.targetPublicId === publicId) ||
+            entry.relatedPublicId === publicId,
+        )
+        .slice(0, limit)
+        .map((entry) => ({
+          action: entry.action,
+          targetType: entry.targetType,
+          targetPublicId: entry.targetPublicId,
+          relatedPublicId: entry.relatedPublicId,
           details: entry.details,
           createdAt: entry.createdAt,
         }));

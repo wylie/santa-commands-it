@@ -1,9 +1,9 @@
 {
   "name": "santa-commands-it",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "type": "module",
-  "description": "A bright theatrical holiday web app from Argon Collective LLC with hardened public Santa rulings, reporting, and launch-readiness refinements.",
+  "description": "A bright theatrical holiday web app from Argon Collective LLC with hardened public Santa rulings, reporting, and a private workshop moderation queue.",
   "engines": {
     "node": ">=22.22.3"
   },

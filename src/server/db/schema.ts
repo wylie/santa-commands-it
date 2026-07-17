@@ -47,11 +47,17 @@ export const ownerActivityActionEnum = pgEnum('owner_activity_action', [
   'ruling-hidden',
   'ruling-restored',
   'ruling-deleted',
+  'report-reviewed',
+  'report-dismissed',
+  'report-reopened',
+  'report-actioned',
+  'ruling-hidden-from-report',
+  'related-reports-actioned',
 ]);
 
 export const ownerActivityTargetTypeEnum = pgEnum(
   'owner_activity_target_type',
-  ['auth', 'ruling'],
+  ['auth', 'ruling', 'report'],
 );
 
 export const rulings = pgTable(
@@ -148,6 +154,7 @@ export const rulingReports = pgTable(
   'ruling_reports',
   {
     id: bigserial('id', { mode: 'number' }).primaryKey(),
+    publicId: text('public_id').notNull().unique(),
     rulingId: bigint('ruling_id', { mode: 'number' })
       .notNull()
       .references(() => rulings.id, {
@@ -157,11 +164,15 @@ export const rulingReports = pgTable(
     reason: reportReasonEnum('reason').notNull(),
     note: text('note'),
     status: reportStatusEnum('status').default('open').notNull(),
+    reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
+    resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+    resolutionNote: text('resolution_note'),
     createdAt: timestamp('created_at', { withTimezone: true })
       .defaultNow()
       .notNull(),
   },
   (table) => [
+    index('ruling_reports_public_id_idx').on(table.publicId),
     index('ruling_reports_client_created_idx').on(
       table.clientKeyHash,
       table.createdAt,
@@ -175,9 +186,18 @@ export const rulingReports = pgTable(
       table.status,
       table.createdAt,
     ),
+    index('ruling_reports_ruling_status_created_idx').on(
+      table.rulingId,
+      table.status,
+      table.createdAt,
+    ),
     check(
       'ruling_reports_note_length_check',
       sql`${table.note} is null or char_length(${table.note}) <= 300`,
+    ),
+    check(
+      'ruling_reports_resolution_note_length_check',
+      sql`${table.resolutionNote} is null or char_length(${table.resolutionNote}) <= 500`,
     ),
   ],
 );
@@ -221,6 +241,7 @@ export const ownerActivity = pgTable(
     action: ownerActivityActionEnum('action').notNull(),
     targetType: ownerActivityTargetTypeEnum('target_type').notNull(),
     targetPublicId: text('target_public_id'),
+    relatedPublicId: text('related_public_id'),
     details: text('details'),
     createdAt: timestamp('created_at', { withTimezone: true })
       .defaultNow()
@@ -229,9 +250,10 @@ export const ownerActivity = pgTable(
   (table) => [
     index('owner_activity_created_at_idx').on(table.createdAt),
     index('owner_activity_target_public_id_idx').on(table.targetPublicId),
+    index('owner_activity_related_public_id_idx').on(table.relatedPublicId),
     check(
       'owner_activity_details_length_check',
-      sql`${table.details} is null or char_length(${table.details}) <= 300`,
+      sql`${table.details} is null or char_length(${table.details}) <= 500`,
     ),
   ],
 );

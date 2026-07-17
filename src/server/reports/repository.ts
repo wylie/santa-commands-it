@@ -1,9 +1,12 @@
+import { randomUUID } from 'node:crypto';
+
 import { and, count, eq, gte } from 'drizzle-orm';
 
 import type { ReportReason } from '@/config/reports';
 import { getDatabase } from '@/server/db/client';
 import { rulingReports } from '@/server/db/schema';
 import { getTestRunStore } from '@/server/testing/store';
+import { WORKSHOP_REPORT_ID_PREFIX } from '@/utils/workshop';
 
 export type CreateRulingReportInput = {
   rulingId: number;
@@ -61,6 +64,7 @@ export function createDatabaseRulingReportsRepository(): RulingReportsRepository
     async createReport(input) {
       const database = getDatabase();
       await database.insert(rulingReports).values({
+        publicId: `${WORKSHOP_REPORT_ID_PREFIX}${randomUUID()}`,
         rulingId: input.rulingId,
         clientKeyHash: input.clientKeyHash,
         reason: input.reason,
@@ -98,11 +102,15 @@ export function createTestRulingReportsRepository(
       const store = getTestRunStore(runId);
       store.reports.push({
         id: store.reports.length + 1,
+        publicId: `${WORKSHOP_REPORT_ID_PREFIX}${randomUUID()}`,
         rulingId: input.rulingId,
         clientKeyHash: input.clientKeyHash,
         reason: input.reason,
         note: input.note || null,
         status: 'open',
+        reviewedAt: null,
+        resolvedAt: null,
+        resolutionNote: null,
         createdAt: new Date().toISOString(),
       });
     },

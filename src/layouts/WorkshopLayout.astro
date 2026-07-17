@@ -7,9 +7,16 @@ interface Props {
   description: string;
   currentPath?: string;
   csrfToken?: string;
+  openReportCount?: number;
 }
 
-const { title, description, currentPath = '', csrfToken } = Astro.props;
+const {
+  title,
+  description,
+  currentPath = '',
+  csrfToken,
+  openReportCount = 0,
+} = Astro.props;
 ---
 
 <BaseLayout
@@ -28,7 +35,11 @@ const { title, description, currentPath = '', csrfToken } = Astro.props;
       </div>
       {
         csrfToken && (
-          <WorkshopNav currentPath={currentPath} csrfToken={csrfToken} />
+          <WorkshopNav
+            currentPath={currentPath}
+            csrfToken={csrfToken}
+            openReportCount={openReportCount}
+          />
         )
       }
     </header>

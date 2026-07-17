@@ -2,9 +2,10 @@
 interface Props {
   currentPath: string;
   csrfToken: string;
+  openReportCount?: number;
 }
 
-const { currentPath, csrfToken } = Astro.props;
+const { currentPath, csrfToken, openReportCount = 0 } = Astro.props;
 
 const links = [
   {
@@ -16,6 +17,11 @@ const links = [
     href: '/workshop/rulings',
     label: 'Rulings',
     active: currentPath.startsWith('/workshop/rulings'),
+  },
+  {
+    href: '/workshop/reports',
+    label: 'Reports',
+    active: currentPath.startsWith('/workshop/reports'),
   },
 ];
 ---
@@ -29,7 +35,10 @@ const links = [
           href={link.href}
           aria-current={link.active ? 'page' : undefined}
         >
-          {link.label}
+          <span>{link.label}</span>
+          {link.href === '/workshop/reports' && (
+            <span class="workshop-nav__count">{openReportCount}</span>
+          )}
         </a>
       ))
     }

@@ -2,9 +2,17 @@
 import WorkshopLayout from '@/layouts/WorkshopLayout.astro';
 import { securitySettings } from '@/config/security';
 import { requireWorkshopPageSession } from '@/server/workshop/auth';
-import { getWorkshopRulingDetailData } from '@/server/workshop/service';
+import {
+  getWorkshopOpenReportCount,
+  getWorkshopRulingDetailData,
+} from '@/server/workshop/service';
 import { formatRulingTimestamp, getDecisionLabel } from '@/utils/rulings';
-import { getOwnerActivityLabel, getVisibilityLabel } from '@/utils/workshop';
+import {
+  getOwnerActivityLabel,
+  getVisibilityLabel,
+  getWorkshopReportReasonLabel,
+  getWorkshopReportStatusLabel,
+} from '@/utils/workshop';
 import { buildRulingPath } from '@/utils/rulingPages';
 
 const session = await requireWorkshopPageSession(Astro);
@@ -18,6 +26,7 @@ const detail = await getWorkshopRulingDetailData(
   publicId,
   Astro.request.headers,
 );
+const openReportCount = await getWorkshopOpenReportCount(Astro.request.headers);
 
 if (!detail) {
   return Astro.redirect('/workshop/rulings?error=not-found');
@@ -69,6 +78,7 @@ const currentLocation = Astro.url.pathname;
   description="A private owner view of one persisted Santa ruling."
   currentPath="/workshop/rulings"
   csrfToken={session.csrfToken}
+  openReportCount={openReportCount}
 >
   {
     bannerMessage && (
@@ -118,6 +128,24 @@ const currentLocation = Astro.url.pathname;
         <div>
           <dt>Reports</dt>
           <dd>{detail.ruling.reportCount}</dd>
+        </div>
+        <div>
+          <dt>Open reports</dt>
+          <dd>{detail.ruling.openReportCount}</dd>
+        </div>
+        <div>
+          <dt>Latest report</dt>
+          <dd>
+            {
+              detail.ruling.latestReportAt ? (
+                <time datetime={detail.ruling.latestReportAt}>
+                  {formatRulingTimestamp(detail.ruling.latestReportAt)}
+                </time>
+              ) : (
+                'None'
+              )
+            }
+          </dd>
         </div>
         {
           detail.ruling.hiddenAt && (
@@ -253,6 +281,54 @@ const currentLocation = Astro.url.pathname;
         </button>
       </form>
     </article>
+  </section>
+
+  <section class="workshop-panel">
+    <div class="workshop-card__header">
+      <h2>Reports on this ruling</h2>
+      {
+        detail.ruling.reportCount > 0 && (
+          <a
+            class="workshop-inline-link"
+            href={`/workshop/reports?q=${encodeURIComponent(detail.ruling.publicId)}`}
+          >
+            Open report queue
+          </a>
+        )
+      }
+    </div>
+    {
+      detail.reports.length === 0 ? (
+        <p class="workshop-empty">
+          No reports have been submitted for this ruling.
+        </p>
+      ) : (
+        <ol class="workshop-summary-list">
+          {detail.reports.map((report) => (
+            <li class="workshop-summary-list__item">
+              <div>
+                <p class="workshop-summary-list__title">
+                  {getWorkshopReportReasonLabel(report.reason)} ·{' '}
+                  {getWorkshopReportStatusLabel(report.status)}
+                </p>
+                <p class="workshop-summary-list__meta">
+                  {report.publicId} · {formatRulingTimestamp(report.createdAt)}
+                </p>
+                {report.note && (
+                  <p class="workshop-summary-list__detail">{report.note}</p>
+                )}
+              </div>
+              <a
+                class="workshop-inline-link"
+                href={`/workshop/reports/${report.publicId}`}
+              >
+                Review
+              </a>
+            </li>
+          ))}
+        </ol>
+      )
+    }
   </section>
 
   <section class="workshop-panel">

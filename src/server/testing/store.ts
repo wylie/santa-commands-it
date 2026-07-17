@@ -4,6 +4,7 @@ import type {
   OwnerActivityAction,
   OwnerActivityTargetType,
   RulingVisibility,
+  WorkshopReportStatus,
 } from '@/utils/workshop';
 
 export type TestStoredRuling = PublicRuling & {
@@ -30,11 +31,15 @@ export type TestIdempotencyRecord = {
 
 export type TestReportRecord = {
   id: number;
+  publicId: string;
   rulingId: number;
   clientKeyHash: string;
   reason: ReportReason;
   note: string | null;
-  status: 'open' | 'reviewed' | 'dismissed' | 'actioned';
+  status: WorkshopReportStatus;
+  reviewedAt: string | null;
+  resolvedAt: string | null;
+  resolutionNote: string | null;
   createdAt: string;
 };
 
@@ -57,6 +62,7 @@ export type TestOwnerActivityRecord = {
   action: OwnerActivityAction;
   targetType: OwnerActivityTargetType;
   targetPublicId: string | null;
+  relatedPublicId: string | null;
   details: string | null;
   createdAt: string;
 };

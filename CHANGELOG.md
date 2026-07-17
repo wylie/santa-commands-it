@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 The format is inspired by Keep a Changelog, and this project adheres to Semantic Versioning.
 
+## [0.2.1] - 2026-07-17
+
+### Added
+
+- A private workshop report-review queue at `/workshop/reports` plus per-report detail pages at `/workshop/reports/[reportId]`
+- Opaque report public identifiers, review and resolution timestamps, private resolution notes, and related-public-id owner activity links for moderation history
+- Report moderation actions for reviewed, dismissed, reopened, actioned, and hide-ruling-from-report flows, including automatic actioning of related open or reviewed reports on the same ruling
+- Dashboard and navigation coverage for open report counts, reviewed reports, recent actioned reports, and rulings with multiple open reports
+- Unit and Playwright coverage for report queue filtering, moderation transitions, report-driven ruling hiding, and ruling-side report summaries
+
+### Changed
+
+- Workshop ruling detail and list views now expose report summaries, open-report counts, latest-report timing, and direct report-queue entry points
+- Owner activity now records report-focused moderation events alongside the existing workshop auth and ruling-management audit trail
+- Project documentation and package metadata now describe the `v0.2.1` moderation-queue release
+
 ## [0.2.0] - 2026-07-17
 
 ### Added

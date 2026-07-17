@@ -1,9 +1,14 @@
 import type { PersistedRulingDecision } from '@/utils/rulings';
+import { reportReasons, type ReportReason } from '@/config/reports';
 
 export type RulingVisibility = 'public' | 'hidden';
 export type WorkshopSort = 'newest' | 'oldest';
 export type WorkshopDecisionFilter = 'all' | PersistedRulingDecision;
 export type WorkshopVisibilityFilter = 'all' | RulingVisibility;
+export type WorkshopReportStatus =
+  'open' | 'reviewed' | 'dismissed' | 'actioned';
+export type WorkshopReportStatusFilter = 'all' | WorkshopReportStatus;
+export type WorkshopReportReasonFilter = 'all' | ReportReason;
 
 export type OwnerActivityAction =
   | 'login-success'
@@ -11,14 +16,21 @@ export type OwnerActivityAction =
   | 'logout'
   | 'ruling-hidden'
   | 'ruling-restored'
-  | 'ruling-deleted';
+  | 'ruling-deleted'
+  | 'report-reviewed'
+  | 'report-dismissed'
+  | 'report-reopened'
+  | 'report-actioned'
+  | 'ruling-hidden-from-report'
+  | 'related-reports-actioned';
 
-export type OwnerActivityTargetType = 'auth' | 'ruling';
+export type OwnerActivityTargetType = 'auth' | 'ruling' | 'report';
 
 export type OwnerActivityEntry = {
   action: OwnerActivityAction;
   targetType: OwnerActivityTargetType;
   targetPublicId: string | null;
+  relatedPublicId: string | null;
   details: string | null;
   createdAt: string;
 };
@@ -34,6 +46,8 @@ export type WorkshopRulingSummary = {
   hiddenReason: string | null;
   createdAt: string;
   reportCount: number;
+  openReportCount: number;
+  latestReportAt: string | null;
 };
 
 export type WorkshopRulingDetail = WorkshopRulingSummary;
@@ -44,6 +58,9 @@ export type WorkshopDashboardMetrics = {
   coalRulings: number;
   hiddenRulings: number;
   openReports: number;
+  reviewedReports: number;
+  actionedReportsLast7Days: number;
+  rulingsWithMultipleOpenReports: number;
 };
 
 export type WorkshopRulingFilters = {
@@ -53,6 +70,41 @@ export type WorkshopRulingFilters = {
   sort: WorkshopSort;
   page: number;
 };
+
+export type WorkshopReportSummary = {
+  publicId: string;
+  reason: ReportReason;
+  note: string | null;
+  status: WorkshopReportStatus;
+  reviewedAt: string | null;
+  resolvedAt: string | null;
+  resolutionNote: string | null;
+  createdAt: string;
+  rulingPublicId: string;
+  rulingDisplayName: string;
+  rulingRequestText: string;
+  rulingDecision: PersistedRulingDecision;
+  rulingVisibility: RulingVisibility;
+  rulingCreatedAt: string;
+  totalReportsForRuling: number;
+  openReportsForRuling: number;
+};
+
+export type WorkshopReportDetail = WorkshopReportSummary & {
+  rulingSantaResponse: string;
+};
+
+export type WorkshopReportFilters = {
+  query: string;
+  status: WorkshopReportStatusFilter;
+  reason: WorkshopReportReasonFilter;
+  visibility: WorkshopVisibilityFilter;
+  sort: WorkshopSort;
+  page: number;
+};
+
+export const WORKSHOP_REPORT_ID_PREFIX = 'report_';
+const WORKSHOP_REPORT_ID_PATTERN = /^report_[a-z0-9-]{24,80}$/;
 
 export function serializeOptionalTimestamp(
   value: string | Date | null | undefined,
@@ -96,7 +148,40 @@ export function getOwnerActivityLabel(action: OwnerActivityAction): string {
       return 'Ruling restored';
     case 'ruling-deleted':
       return 'Ruling deleted';
+    case 'report-reviewed':
+      return 'Report reviewed';
+    case 'report-dismissed':
+      return 'Report dismissed';
+    case 'report-reopened':
+      return 'Report reopened';
+    case 'report-actioned':
+      return 'Report actioned';
+    case 'ruling-hidden-from-report':
+      return 'Ruling hidden from report';
+    case 'related-reports-actioned':
+      return 'Related reports actioned';
   }
+}
+
+export function getWorkshopReportStatusLabel(
+  status: WorkshopReportStatus,
+): string {
+  switch (status) {
+    case 'open':
+      return 'Open';
+    case 'reviewed':
+      return 'Reviewed';
+    case 'dismissed':
+      return 'Dismissed';
+    case 'actioned':
+      return 'Actioned';
+  }
+}
+
+export function getWorkshopReportReasonLabel(reason: ReportReason): string {
+  return (
+    reportReasons.find((entry) => entry.value === reason)?.label ?? 'Unknown'
+  );
 }
 
 export function coerceWorkshopDecisionFilter(
@@ -127,8 +212,45 @@ export function coerceWorkshopSort(value: string | null): WorkshopSort {
   return value === 'oldest' ? 'oldest' : 'newest';
 }
 
+export function coerceWorkshopReportStatusFilter(
+  value: string | null,
+): WorkshopReportStatusFilter {
+  if (
+    value === 'open' ||
+    value === 'reviewed' ||
+    value === 'dismissed' ||
+    value === 'actioned'
+  ) {
+    return value;
+  }
+
+  return 'all';
+}
+
+export function coerceWorkshopReportReasonFilter(
+  value: string | null,
+): WorkshopReportReasonFilter {
+  if (
+    value === 'bullying' ||
+    value === 'hate' ||
+    value === 'personal-information' ||
+    value === 'inappropriate' ||
+    value === 'threats' ||
+    value === 'spam' ||
+    value === 'other'
+  ) {
+    return value;
+  }
+
+  return 'all';
+}
+
 export function coercePositivePage(value: string | null): number {
   const page = value ? Number.parseInt(value, 10) : Number.NaN;
 
   return Number.isInteger(page) && page > 0 ? page : 1;
+}
+
+export function isValidWorkshopReportId(value: string): boolean {
+  return WORKSHOP_REPORT_ID_PATTERN.test(value);
 }

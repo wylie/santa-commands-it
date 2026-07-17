@@ -46,6 +46,7 @@ export const securitySettings = {
       pageSize: 25,
       recentActivityLimit: 10,
       recentRulingsLimit: 5,
+      relatedReportsLimit: 20,
     },
     auth: {
       sessionDurationMs: 12 * 60 * 60 * 1000,
@@ -60,6 +61,8 @@ export const securitySettings = {
       },
     },
     hideReasonMaxLength: 300,
+    resolutionNoteMaxLength: 500,
+    formBodyLimitBytes: 10 * 1024,
   },
 } as const;
 
@@ -141,6 +144,10 @@ export function validateSecuritySettings(): void {
     'Workshop recent rulings limit must be a positive integer.',
   );
   assertPositiveInteger(
+    securitySettings.workshop.search.relatedReportsLimit,
+    'Workshop related-reports limit must be a positive integer.',
+  );
+  assertPositiveInteger(
     securitySettings.workshop.auth.sessionDurationMs,
     'Workshop session duration must be a positive integer.',
   );
@@ -155,6 +162,14 @@ export function validateSecuritySettings(): void {
   assertPositiveInteger(
     securitySettings.workshop.hideReasonMaxLength,
     'Workshop hide-reason limit must be a positive integer.',
+  );
+  assertPositiveInteger(
+    securitySettings.workshop.resolutionNoteMaxLength,
+    'Workshop resolution-note limit must be a positive integer.',
+  );
+  assertPositiveInteger(
+    securitySettings.workshop.formBodyLimitBytes,
+    'Workshop form body limit must be a positive integer.',
   );
 }
 

@@ -1,0 +1,422 @@
+---
+import WorkshopLayout from '@/layouts/WorkshopLayout.astro';
+import { reportReasons } from '@/config/reports';
+import { requireWorkshopPageSession } from '@/server/workshop/auth';
+import {
+  getWorkshopOpenReportCount,
+  getWorkshopReportsPageData,
+} from '@/server/workshop/service';
+import { formatRulingTimestamp, getDecisionLabel } from '@/utils/rulings';
+import {
+  getVisibilityLabel,
+  getWorkshopReportReasonLabel,
+  getWorkshopReportStatusLabel,
+} from '@/utils/workshop';
+
+const session = await requireWorkshopPageSession(Astro);
+
+if (session instanceof Response) {
+  return session;
+}
+
+const data = await getWorkshopReportsPageData(
+  Astro.request.headers,
+  Astro.url.searchParams,
+);
+const openReportCount = await getWorkshopOpenReportCount(Astro.request.headers);
+const status = Astro.url.searchParams.get('status');
+const error = Astro.url.searchParams.get('error');
+const bannerMessage =
+  status === 'reviewed'
+    ? {
+        tone: 'success',
+        message: 'The report is marked reviewed.',
+      }
+    : status === 'reviewed-with-warning'
+      ? {
+          tone: 'warning',
+          message:
+            'The report was reviewed, but the activity entry could not be recorded.',
+        }
+      : status === 'dismissed'
+        ? {
+            tone: 'success',
+            message: 'The report is dismissed.',
+          }
+        : status === 'dismissed-with-warning'
+          ? {
+              tone: 'warning',
+              message:
+                'The report was dismissed, but the activity entry could not be recorded.',
+            }
+          : status === 'reopened'
+            ? {
+                tone: 'success',
+                message: 'The report is open again.',
+              }
+            : status === 'reopened-with-warning'
+              ? {
+                  tone: 'warning',
+                  message:
+                    'The report was reopened, but the activity entry could not be recorded.',
+                }
+              : status === 'actioned'
+                ? {
+                    tone: 'success',
+                    message: 'The report is marked actioned.',
+                  }
+                : status === 'actioned-with-warning'
+                  ? {
+                      tone: 'warning',
+                      message:
+                        'The report was actioned, but the activity entry could not be recorded.',
+                    }
+                  : status === 'hidden-from-report'
+                    ? {
+                        tone: 'success',
+                        message:
+                          'The ruling is hidden from the public site. Any related open or reviewed reports were marked actioned.',
+                      }
+                    : status === 'hidden-from-report-with-warning'
+                      ? {
+                          tone: 'warning',
+                          message:
+                            'The ruling was hidden from the report, but at least one activity entry could not be recorded.',
+                        }
+                      : error === 'invalid-note'
+                        ? {
+                            tone: 'error',
+                            message:
+                              'Please keep resolution notes to 500 characters or fewer.',
+                          }
+                        : error === 'invalid-hide-reason'
+                          ? {
+                              tone: 'error',
+                              message:
+                                'Please keep hide notes to 300 characters or fewer.',
+                            }
+                          : error === 'already-hidden'
+                            ? {
+                                tone: 'error',
+                                message:
+                                  'That ruling is already hidden from the public site.',
+                              }
+                            : error === 'no-op'
+                              ? {
+                                  tone: 'error',
+                                  message:
+                                    'That report is already in the requested state.',
+                                }
+                              : error === 'invalid-transition'
+                                ? {
+                                    tone: 'error',
+                                    message:
+                                      'That moderation action is not available for the report’s current state.',
+                                  }
+                                : error === 'transition-conflict'
+                                  ? {
+                                      tone: 'error',
+                                      message:
+                                        'That report could not be actioned because it is no longer open or reviewed.',
+                                    }
+                                  : error === 'not-found'
+                                    ? {
+                                        tone: 'error',
+                                        message:
+                                          'That report could not be found.',
+                                      }
+                                    : null;
+
+const totalPages = Math.max(1, Math.ceil(data.total / data.pageSize));
+const startResult = data.total === 0 ? 0 : (data.page - 1) * data.pageSize + 1;
+const endResult = Math.min(data.total, data.page * data.pageSize);
+
+function buildQueryString(page: number) {
+  const next = new URLSearchParams();
+
+  if (data.filters.query) {
+    next.set('q', data.filters.query);
+  }
+
+  if (data.filters.status !== 'all') {
+    next.set('status', data.filters.status);
+  }
+
+  if (data.filters.reason !== 'all') {
+    next.set('reason', data.filters.reason);
+  }
+
+  if (data.filters.visibility !== 'all') {
+    next.set('visibility', data.filters.visibility);
+  }
+
+  if (data.filters.sort !== 'newest') {
+    next.set('sort', data.filters.sort);
+  }
+
+  if (page > 1) {
+    next.set('page', String(page));
+  }
+
+  const serialized = next.toString();
+
+  return serialized ? `?${serialized}` : '';
+}
+
+function excerpt(value: string, maximum = 120) {
+  return value.length > maximum ? `${value.slice(0, maximum - 1)}…` : value;
+}
+---
+
+<WorkshopLayout
+  title="Report Review Queue"
+  description="Review, triage, and action private reports against public Santa rulings."
+  currentPath={Astro.url.pathname}
+  csrfToken={session.csrfToken}
+  openReportCount={openReportCount}
+>
+  {
+    bannerMessage && (
+      <p
+        class={`workshop-banner workshop-banner--${bannerMessage.tone}`}
+        role="status"
+      >
+        {bannerMessage.message}
+      </p>
+    )
+  }
+
+  <section class="workshop-panel">
+    <form class="workshop-filters" method="get" action="/workshop/reports">
+      <div class="workshop-form__field">
+        <label for="workshop-report-search">Search reports</label>
+        <input
+          id="workshop-report-search"
+          name="q"
+          type="search"
+          value={data.filters.query}
+          maxlength="120"
+        />
+      </div>
+
+      <div class="workshop-form__field">
+        <label for="workshop-report-status">Status</label>
+        <select id="workshop-report-status" name="status">
+          <option value="all" selected={data.filters.status === 'all'}>
+            All statuses
+          </option>
+          <option value="open" selected={data.filters.status === 'open'}>
+            Open
+          </option>
+          <option
+            value="reviewed"
+            selected={data.filters.status === 'reviewed'}
+          >
+            Reviewed
+          </option>
+          <option
+            value="dismissed"
+            selected={data.filters.status === 'dismissed'}
+          >
+            Dismissed
+          </option>
+          <option
+            value="actioned"
+            selected={data.filters.status === 'actioned'}
+          >
+            Actioned
+          </option>
+        </select>
+      </div>
+
+      <div class="workshop-form__field">
+        <label for="workshop-report-reason">Reason</label>
+        <select id="workshop-report-reason" name="reason">
+          <option value="all" selected={data.filters.reason === 'all'}>
+            All reasons
+          </option>
+          {
+            reportReasons.map((reason) => (
+              <option
+                value={reason.value}
+                selected={data.filters.reason === reason.value}
+              >
+                {reason.label}
+              </option>
+            ))
+          }
+        </select>
+      </div>
+
+      <div class="workshop-form__field">
+        <label for="workshop-report-visibility">Ruling visibility</label>
+        <select id="workshop-report-visibility" name="visibility">
+          <option value="all" selected={data.filters.visibility === 'all'}>
+            All visibility
+          </option>
+          <option
+            value="public"
+            selected={data.filters.visibility === 'public'}
+          >
+            Public
+          </option>
+          <option
+            value="hidden"
+            selected={data.filters.visibility === 'hidden'}
+          >
+            Hidden
+          </option>
+        </select>
+      </div>
+
+      <div class="workshop-form__field">
+        <label for="workshop-report-sort">Sort</label>
+        <select id="workshop-report-sort" name="sort">
+          <option value="newest" selected={data.filters.sort === 'newest'}>
+            Newest
+          </option>
+          <option value="oldest" selected={data.filters.sort === 'oldest'}>
+            Oldest
+          </option>
+        </select>
+      </div>
+
+      <div class="workshop-form__actions">
+        <button type="submit" class="button-command">Apply</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="workshop-panel">
+    <div class="workshop-results-bar">
+      <p>
+        Page {data.page} of {totalPages}
+      </p>
+      <p>
+        {startResult}-{endResult} of {data.total} reports
+      </p>
+    </div>
+
+    {
+      data.reports.length === 0 ? (
+        <p class="workshop-empty">No reports matched this search.</p>
+      ) : (
+        <div class="workshop-table-wrap">
+          <table class="workshop-table">
+            <thead>
+              <tr>
+                <th scope="col">Report</th>
+                <th scope="col">Ruling</th>
+                <th scope="col">Reason</th>
+                <th scope="col">Status</th>
+                <th scope="col">Visibility</th>
+                <th scope="col">Ruling reports</th>
+                <th scope="col">Created</th>
+                <th scope="col">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.reports.map((report) => (
+                <tr>
+                  <td data-label="Report">
+                    <p class="workshop-summary-list__title">
+                      {report.publicId}
+                    </p>
+                    {report.note && (
+                      <p class="workshop-summary-list__detail">
+                        {excerpt(report.note)}
+                      </p>
+                    )}
+                  </td>
+                  <td data-label="Ruling">
+                    <p class="workshop-summary-list__title">
+                      {report.rulingDisplayName}
+                    </p>
+                    <p class="workshop-summary-list__meta">
+                      {report.rulingPublicId} ·{' '}
+                      {getDecisionLabel(report.rulingDecision)}
+                    </p>
+                    <p class="workshop-summary-list__detail">
+                      {excerpt(report.rulingRequestText)}
+                    </p>
+                  </td>
+                  <td data-label="Reason">
+                    {getWorkshopReportReasonLabel(report.reason)}
+                  </td>
+                  <td data-label="Status">
+                    <span
+                      class="workshop-status-pill"
+                      data-status={report.status}
+                    >
+                      {getWorkshopReportStatusLabel(report.status)}
+                    </span>
+                  </td>
+                  <td data-label="Visibility">
+                    <span
+                      class="workshop-status-pill"
+                      data-visibility={report.rulingVisibility}
+                    >
+                      {getVisibilityLabel(report.rulingVisibility)}
+                    </span>
+                  </td>
+                  <td data-label="Ruling reports">
+                    {report.openReportsForRuling}/{report.totalReportsForRuling}{' '}
+                    open
+                  </td>
+                  <td data-label="Created">
+                    <time datetime={report.createdAt}>
+                      {formatRulingTimestamp(report.createdAt)}
+                    </time>
+                  </td>
+                  <td data-label="Actions">
+                    <div class="workshop-row-actions">
+                      <a
+                        class="workshop-inline-link"
+                        href={`/workshop/reports/${report.publicId}`}
+                      >
+                        Review
+                      </a>
+                      <a
+                        class="workshop-inline-link"
+                        href={`/workshop/rulings/${report.rulingPublicId}`}
+                      >
+                        Ruling
+                      </a>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )
+    }
+
+    <div class="workshop-pagination" aria-label="Pagination">
+      {
+        data.page > 1 ? (
+          <a
+            class="button-link-secondary"
+            href={`/workshop/reports${buildQueryString(data.page - 1)}`}
+          >
+            Previous page
+          </a>
+        ) : (
+          <span class="button-link-secondary is-disabled">Previous page</span>
+        )
+      }
+      {
+        data.page < totalPages ? (
+          <a
+            class="button-link-secondary"
+            href={`/workshop/reports${buildQueryString(data.page + 1)}`}
+          >
+            Next page
+          </a>
+        ) : (
+          <span class="button-link-secondary is-disabled">Next page</span>
+        )
+      }
+    </div>
+  </section>
+</WorkshopLayout>

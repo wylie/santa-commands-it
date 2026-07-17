@@ -1,0 +1,508 @@
+---
+import WorkshopLayout from '@/layouts/WorkshopLayout.astro';
+import { securitySettings } from '@/config/security';
+import { requireWorkshopPageSession } from '@/server/workshop/auth';
+import {
+  getWorkshopOpenReportCount,
+  getWorkshopReportDetailData,
+} from '@/server/workshop/service';
+import { formatRulingTimestamp, getDecisionLabel } from '@/utils/rulings';
+import {
+  getOwnerActivityLabel,
+  getVisibilityLabel,
+  getWorkshopReportReasonLabel,
+  getWorkshopReportStatusLabel,
+} from '@/utils/workshop';
+import { buildRulingPath } from '@/utils/rulingPages';
+
+const session = await requireWorkshopPageSession(Astro);
+
+if (session instanceof Response) {
+  return session;
+}
+
+const reportId = Astro.params.reportId ?? '';
+const detail = await getWorkshopReportDetailData(
+  reportId,
+  Astro.request.headers,
+);
+const openReportCount = await getWorkshopOpenReportCount(Astro.request.headers);
+
+if (!detail) {
+  return Astro.redirect('/workshop/reports?error=not-found');
+}
+
+const status = Astro.url.searchParams.get('status');
+const error = Astro.url.searchParams.get('error');
+const bannerMessage =
+  status === 'reviewed'
+    ? {
+        tone: 'success',
+        message: 'The report is marked reviewed.',
+      }
+    : status === 'reviewed-with-warning'
+      ? {
+          tone: 'warning',
+          message:
+            'The report was reviewed, but the activity entry could not be recorded.',
+        }
+      : status === 'dismissed'
+        ? {
+            tone: 'success',
+            message: 'The report is dismissed.',
+          }
+        : status === 'dismissed-with-warning'
+          ? {
+              tone: 'warning',
+              message:
+                'The report was dismissed, but the activity entry could not be recorded.',
+            }
+          : status === 'reopened'
+            ? {
+                tone: 'success',
+                message: 'The report is open again.',
+              }
+            : status === 'reopened-with-warning'
+              ? {
+                  tone: 'warning',
+                  message:
+                    'The report was reopened, but the activity entry could not be recorded.',
+                }
+              : status === 'actioned'
+                ? {
+                    tone: 'success',
+                    message: 'The report is marked actioned.',
+                  }
+                : status === 'actioned-with-warning'
+                  ? {
+                      tone: 'warning',
+                      message:
+                        'The report was actioned, but the activity entry could not be recorded.',
+                    }
+                  : status === 'hidden-from-report'
+                    ? {
+                        tone: 'success',
+                        message:
+                          'The ruling is hidden from the public site. Any related open or reviewed reports were marked actioned.',
+                      }
+                    : status === 'hidden-from-report-with-warning'
+                      ? {
+                          tone: 'warning',
+                          message:
+                            'The ruling was hidden from the report, but at least one activity entry could not be recorded.',
+                        }
+                      : error === 'invalid-note'
+                        ? {
+                            tone: 'error',
+                            message:
+                              'Please keep resolution notes to 500 characters or fewer.',
+                          }
+                        : error === 'invalid-hide-reason'
+                          ? {
+                              tone: 'error',
+                              message:
+                                'Please keep hide notes to 300 characters or fewer.',
+                            }
+                          : error === 'already-hidden'
+                            ? {
+                                tone: 'error',
+                                message:
+                                  'That ruling is already hidden from the public site.',
+                              }
+                            : error === 'no-op'
+                              ? {
+                                  tone: 'error',
+                                  message:
+                                    'That report is already in the requested state.',
+                                }
+                              : error === 'invalid-transition'
+                                ? {
+                                    tone: 'error',
+                                    message:
+                                      'That moderation action is not available for the report’s current state.',
+                                  }
+                                : error === 'transition-conflict'
+                                  ? {
+                                      tone: 'error',
+                                      message:
+                                        'That report could not be actioned because it is no longer open or reviewed.',
+                                    }
+                                  : error === 'not-found'
+                                    ? {
+                                        tone: 'error',
+                                        message:
+                                          'That report could not be found.',
+                                      }
+                                    : null;
+
+const currentLocation = Astro.url.pathname;
+---
+
+<WorkshopLayout
+  title={`Report ${detail.report.publicId}`}
+  description="A private moderation view for one reported Santa ruling."
+  currentPath="/workshop/reports"
+  csrfToken={session.csrfToken}
+  openReportCount={openReportCount}
+>
+  {
+    bannerMessage && (
+      <p
+        class={`workshop-banner workshop-banner--${bannerMessage.tone}`}
+        role="status"
+      >
+        {bannerMessage.message}
+      </p>
+    )
+  }
+
+  <section class="workshop-grid workshop-grid--detail">
+    <article class="workshop-card">
+      <div class="workshop-card__header">
+        <h2>Report details</h2>
+        <a class="workshop-inline-link" href="/workshop/reports">
+          Back to reports
+        </a>
+      </div>
+
+      <dl class="workshop-detail-list">
+        <div>
+          <dt>Report ID</dt>
+          <dd>{detail.report.publicId}</dd>
+        </div>
+        <div>
+          <dt>Status</dt>
+          <dd>{getWorkshopReportStatusLabel(detail.report.status)}</dd>
+        </div>
+        <div>
+          <dt>Reason</dt>
+          <dd>{getWorkshopReportReasonLabel(detail.report.reason)}</dd>
+        </div>
+        <div>
+          <dt>Created</dt>
+          <dd>
+            <time datetime={detail.report.createdAt}>
+              {formatRulingTimestamp(detail.report.createdAt)}
+            </time>
+          </dd>
+        </div>
+        <div>
+          <dt>Reviewed at</dt>
+          <dd>
+            {
+              detail.report.reviewedAt ? (
+                <time datetime={detail.report.reviewedAt}>
+                  {formatRulingTimestamp(detail.report.reviewedAt)}
+                </time>
+              ) : (
+                'Not yet'
+              )
+            }
+          </dd>
+        </div>
+        <div>
+          <dt>Resolved at</dt>
+          <dd>
+            {
+              detail.report.resolvedAt ? (
+                <time datetime={detail.report.resolvedAt}>
+                  {formatRulingTimestamp(detail.report.resolvedAt)}
+                </time>
+              ) : (
+                'Not resolved'
+              )
+            }
+          </dd>
+        </div>
+      </dl>
+
+      {
+        detail.report.note && (
+          <div class="workshop-card__section">
+            <h3>Reporter note</h3>
+            <p class="workshop-prose">{detail.report.note}</p>
+          </div>
+        )
+      }
+
+      {
+        detail.report.resolutionNote && (
+          <div class="workshop-card__section">
+            <h3>Resolution note</h3>
+            <p class="workshop-prose">{detail.report.resolutionNote}</p>
+          </div>
+        )
+      }
+
+      <div class="workshop-card__section">
+        <h3>Ruling</h3>
+        <p class="workshop-prose">{detail.report.rulingRequestText}</p>
+      </div>
+
+      <div class="workshop-card__section">
+        <h3>Santa response</h3>
+        <p class="workshop-prose">{detail.report.rulingSantaResponse}</p>
+      </div>
+
+      <div class="workshop-card__section">
+        <h3>Ruling metadata</h3>
+        <p class="workshop-summary-list__meta">
+          {detail.report.rulingPublicId} ·{' '}
+          {getDecisionLabel(detail.report.rulingDecision)} ·{' '}
+          {getVisibilityLabel(detail.report.rulingVisibility)} ·{' '}
+          {detail.report.openReportsForRuling}/{
+            detail.report.totalReportsForRuling
+          }{' '}
+          open reports
+        </p>
+        <div class="workshop-row-actions">
+          <a
+            class="workshop-inline-link"
+            href={`/workshop/rulings/${detail.report.rulingPublicId}`}
+          >
+            Open ruling tools
+          </a>
+          {
+            detail.report.rulingVisibility === 'public' && (
+              <a
+                class="workshop-inline-link"
+                href={buildRulingPath(detail.report.rulingPublicId)}
+                target="_self"
+              >
+                Open public ruling
+              </a>
+            )
+          }
+        </div>
+      </div>
+    </article>
+
+    <article class="workshop-card">
+      <h2>Moderation actions</h2>
+
+      {
+        detail.report.status === 'open' && (
+          <form
+            class="workshop-form"
+            method="post"
+            action={`/api/workshop/reports/${detail.report.publicId}/review`}
+          >
+            <input type="hidden" name="csrfToken" value={session.csrfToken} />
+            <input type="hidden" name="returnTo" value={currentLocation} />
+            <h3>Mark reviewed</h3>
+            <p class="workshop-form__hint">
+              Keep the report open while recording that an owner has reviewed
+              it.
+            </p>
+            <button type="submit" class="button-command">
+              Mark reviewed
+            </button>
+          </form>
+        )
+      }
+
+      {
+        (detail.report.status === 'open' ||
+          detail.report.status === 'reviewed') && (
+          <>
+            <form
+              class="workshop-form"
+              method="post"
+              action={`/api/workshop/reports/${detail.report.publicId}/dismiss`}
+            >
+              <input type="hidden" name="csrfToken" value={session.csrfToken} />
+              <input type="hidden" name="returnTo" value={currentLocation} />
+              <h3>Dismiss report</h3>
+              <p class="workshop-form__hint">
+                Resolve the report without changing the public ruling.
+              </p>
+              <div class="workshop-form__field">
+                <label for="dismiss-resolution-note">
+                  Optional private resolution note
+                </label>
+                <textarea
+                  id="dismiss-resolution-note"
+                  name="resolutionNote"
+                  rows="4"
+                  maxlength={securitySettings.workshop.resolutionNoteMaxLength}
+                />
+              </div>
+              <button type="submit" class="button-command">
+                Dismiss report
+              </button>
+            </form>
+
+            <form
+              class="workshop-form"
+              method="post"
+              action={`/api/workshop/reports/${detail.report.publicId}/action`}
+            >
+              <input type="hidden" name="csrfToken" value={session.csrfToken} />
+              <input type="hidden" name="returnTo" value={currentLocation} />
+              <h3>Mark actioned</h3>
+              <p class="workshop-form__hint">
+                Resolve the report without hiding the ruling from the public
+                site.
+              </p>
+              <div class="workshop-form__field">
+                <label for="action-resolution-note">
+                  Optional private resolution note
+                </label>
+                <textarea
+                  id="action-resolution-note"
+                  name="resolutionNote"
+                  rows="4"
+                  maxlength={securitySettings.workshop.resolutionNoteMaxLength}
+                />
+              </div>
+              <button type="submit" class="button-command">
+                Mark actioned
+              </button>
+            </form>
+
+            {detail.report.rulingVisibility === 'public' && (
+              <form
+                class="workshop-form workshop-form--danger"
+                method="post"
+                action={`/api/workshop/reports/${detail.report.publicId}/hide-ruling`}
+              >
+                <input
+                  type="hidden"
+                  name="csrfToken"
+                  value={session.csrfToken}
+                />
+                <input type="hidden" name="returnTo" value={currentLocation} />
+                <h3>Hide ruling from this report</h3>
+                <p class="workshop-form__hint">
+                  Hide the ruling publicly and mark this report, plus related
+                  open or reviewed reports on the same ruling, as actioned.
+                </p>
+                <div class="workshop-form__field">
+                  <label for="hide-ruling-reason">
+                    Optional private hide note
+                  </label>
+                  <textarea
+                    id="hide-ruling-reason"
+                    name="hideReason"
+                    rows="4"
+                    maxlength={securitySettings.workshop.hideReasonMaxLength}
+                  />
+                </div>
+                <div class="workshop-form__field">
+                  <label for="hide-ruling-resolution-note">
+                    Optional private resolution note
+                  </label>
+                  <textarea
+                    id="hide-ruling-resolution-note"
+                    name="resolutionNote"
+                    rows="4"
+                    maxlength={
+                      securitySettings.workshop.resolutionNoteMaxLength
+                    }
+                  />
+                </div>
+                <button
+                  type="submit"
+                  class="button-command button-command--danger"
+                >
+                  Hide ruling and action reports
+                </button>
+              </form>
+            )}
+          </>
+        )
+      }
+
+      {
+        (detail.report.status === 'reviewed' ||
+          detail.report.status === 'dismissed' ||
+          detail.report.status === 'actioned') && (
+          <form
+            class="workshop-form"
+            method="post"
+            action={`/api/workshop/reports/${detail.report.publicId}/reopen`}
+          >
+            <input type="hidden" name="csrfToken" value={session.csrfToken} />
+            <input type="hidden" name="returnTo" value={currentLocation} />
+            <h3>Reopen report</h3>
+            <p class="workshop-form__hint">
+              Put the report back in the open queue for further review.
+            </p>
+            <button type="submit" class="button-command">
+              Reopen report
+            </button>
+          </form>
+        )
+      }
+    </article>
+  </section>
+
+  <section class="workshop-grid workshop-grid--columns">
+    <article class="workshop-card">
+      <h2>Related reports for this ruling</h2>
+      {
+        detail.relatedReports.length === 0 ? (
+          <p class="workshop-empty">
+            No other reports are attached to this ruling.
+          </p>
+        ) : (
+          <ol class="workshop-summary-list">
+            {detail.relatedReports.map((report) => (
+              <li class="workshop-summary-list__item">
+                <div>
+                  <p class="workshop-summary-list__title">
+                    {getWorkshopReportReasonLabel(report.reason)} ·{' '}
+                    {getWorkshopReportStatusLabel(report.status)}
+                  </p>
+                  <p class="workshop-summary-list__meta">
+                    {report.publicId} ·{' '}
+                    {formatRulingTimestamp(report.createdAt)}
+                  </p>
+                  {report.note && (
+                    <p class="workshop-summary-list__detail">{report.note}</p>
+                  )}
+                </div>
+                <a
+                  class="workshop-inline-link"
+                  href={`/workshop/reports/${report.publicId}`}
+                >
+                  Open
+                </a>
+              </li>
+            ))}
+          </ol>
+        )
+      }
+    </article>
+
+    <article class="workshop-card">
+      <h2>Report activity</h2>
+      {
+        detail.activity.length === 0 ? (
+          <p class="workshop-empty">
+            No owner activity has been recorded for this report yet.
+          </p>
+        ) : (
+          <ol class="workshop-summary-list">
+            {detail.activity.map((entry) => (
+              <li class="workshop-summary-list__item">
+                <div>
+                  <p class="workshop-summary-list__title">
+                    {getOwnerActivityLabel(entry.action)}
+                  </p>
+                  <p class="workshop-summary-list__meta">
+                    {formatRulingTimestamp(entry.createdAt)}
+                    {entry.targetPublicId ? ` · ${entry.targetPublicId}` : ''}
+                  </p>
+                  {entry.details && (
+                    <p class="workshop-summary-list__detail">{entry.details}</p>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ol>
+        )
+      }
+    </article>
+  </section>
+</WorkshopLayout>

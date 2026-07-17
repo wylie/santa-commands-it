@@ -1,11 +1,11 @@
 # Santa Commands It!
 
-`Santa Commands It!` is a theatrical holiday web application from Argon Collective LLC. Visitors ask Santa for something, the server makes the authoritative decision, completed rulings are stored in Neon Postgres, and approved or coal outcomes receive permanent public pages that can be shared directly. Version `0.2.0` begins the `v0.2.x` owner-administration milestone with a private workshop area for managing public rulings safely without working directly in Neon.
+`Santa Commands It!` is a theatrical holiday web application from Argon Collective LLC. Visitors ask Santa for something, the server makes the authoritative decision, completed rulings are stored in Neon Postgres, and approved or coal outcomes receive permanent public pages that can be shared directly. Version `0.2.1` continues the `v0.2.x` owner-administration milestone with a private workshop moderation queue for reviewing public reports safely without working directly in Neon.
 
 ## Release
 
-- Current version: `v0.2.0`
-- Current scope: the preserved public Santa experience plus a private `Santa's Workshop` owner area with secure single-owner authentication, server-side sessions, ruling visibility controls, permanent deletion, and private audit activity
+- Current version: `v0.2.1`
+- Current scope: the preserved public Santa experience plus a private `Santa's Workshop` owner area with secure single-owner authentication, server-side sessions, ruling visibility controls, a report-review queue, permanent deletion, and private audit activity
 
 Completed rulings persist across refreshes and can be revisited at permanent public URLs when they remain public. Blocked submissions are still rejected before any database write and never receive public pages, public reports can be submitted without exposing reporter details, and hidden rulings now return the same public not-found experience as unknown identifiers.
 
@@ -50,7 +50,7 @@ Completed approvals and coal rulings are public on the homepage and on their own
 - `npm run db:migrate`
 
 11. Start the development server with `npm run dev`.
-12. Submit a request, confirm it appears in Santa's Latest Commands, open its permanent ruling page, sign into `/workshop/login`, and test hide, restore, and delete behavior against local data.
+12. Submit a request, confirm it appears in Santa's Latest Commands, open its permanent ruling page, submit one or more reports, sign into `/workshop/login`, and test report review, hide, restore, and delete behavior against local data.
 
 If `DATABASE_URL` is missing, the form remains usable but the server cannot persist rulings, recent public commands will be unavailable, and no permanent ruling pages can be created.
 
@@ -95,6 +95,8 @@ Private owner routes now live under:
 - `/workshop/login`
 - `/workshop/rulings`
 - `/workshop/rulings/[publicId]`
+- `/workshop/reports`
+- `/workshop/reports/[reportId]`
 
 The public homepage, public ruling pages, submission flow, reporting flow, Santa artwork, winter visual design, and latest-commands feed remain intact and operate independently of the owner area.
 
@@ -117,7 +119,18 @@ The public homepage, public ruling pages, submission flow, reporting flow, Santa
 - Visibility filters support all, public, and hidden rulings.
 - Sorting supports newest first and oldest first.
 - Pagination is server-side with a page size of `25`.
+- Private ruling views now include report totals, open-report counts, latest-report timestamps, and direct links into the report queue.
 - Workshop pages are private, `noindex`, `nofollow`, and excluded from public navigation.
+
+## Workshop report review
+
+- Reports now receive opaque private identifiers under `/workshop/reports/[reportId]`; internal numeric database ids are never used in owner URLs.
+- The report queue is server-side searchable, filterable by status, reason, and ruling visibility, sorted by review priority, and paginated at `25` items per page.
+- Supported report states are `open`, `reviewed`, `dismissed`, and `actioned`.
+- Owners can mark a report reviewed, dismiss it with an optional private resolution note, reopen it, or mark it actioned without changing the public ruling.
+- Owners can also hide a public ruling directly from a report. That action hides the ruling publicly, marks the current report actioned, and also marks other `open` or `reviewed` reports for the same ruling as actioned. Already dismissed reports remain dismissed.
+- The workshop dashboard now tracks open reports, reviewed reports, actioned reports from the last seven days, and rulings with multiple open reports.
+- The workshop navigation now shows the current open-report count beside the private reports link.
 
 ## Visibility model, hide/restore, and deletion semantics
 
@@ -133,8 +146,8 @@ The public homepage, public ruling pages, submission flow, reporting flow, Santa
 
 ## Owner activity log
 
-- Workshop activity is private and currently records `login-success`, `login-failure`, `logout`, `ruling-hidden`, `ruling-restored`, and `ruling-deleted`.
-- Activity entries store the action type, optional ruling public identifier, optional short private details, and timestamp.
+- Workshop activity is private and currently records `login-success`, `login-failure`, `logout`, `ruling-hidden`, `ruling-restored`, `ruling-deleted`, `report-reviewed`, `report-dismissed`, `report-reopened`, `report-actioned`, `ruling-hidden-from-report`, and `related-reports-actioned`.
+- Activity entries store the action type, optional target public identifier, optional related public identifier, optional short private details, and timestamp.
 - Passwords, session tokens, raw IP addresses, and duplicated full request bodies are not stored in the activity log.
 
 ## Available npm scripts
@@ -257,7 +270,7 @@ Additional operational tables now store:
 
 - hashed submission-attempt records for rate limiting
 - submission idempotency records with expiration timestamps
-- public ruling reports with reason, optional note, hashed client key, status, and created timestamp
+- public ruling reports with an opaque private report identifier, reason, optional note, hashed client key, status, optional review and resolution timestamps, optional private resolution note, and created timestamp
 - workshop login-attempt records for rate limiting
 - workshop sessions with expiration and CSRF state
 - private owner-activity records

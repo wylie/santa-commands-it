@@ -1,7 +1,10 @@
 ---
 import WorkshopLayout from '@/layouts/WorkshopLayout.astro';
 import { requireWorkshopPageSession } from '@/server/workshop/auth';
-import { getWorkshopRulingsPageData } from '@/server/workshop/service';
+import {
+  getWorkshopOpenReportCount,
+  getWorkshopRulingsPageData,
+} from '@/server/workshop/service';
 import { formatRulingTimestamp, getDecisionLabel } from '@/utils/rulings';
 import { getVisibilityLabel } from '@/utils/workshop';
 
@@ -15,6 +18,7 @@ const data = await getWorkshopRulingsPageData(
   Astro.request.headers,
   Astro.url.searchParams,
 );
+const openReportCount = await getWorkshopOpenReportCount(Astro.request.headers);
 const status = Astro.url.searchParams.get('status');
 const error = Astro.url.searchParams.get('error');
 const bannerMessage =
@@ -123,6 +127,7 @@ function excerpt(value: string, maximum = 140) {
   description="Search, filter, hide, restore, and inspect persisted Santa rulings."
   currentPath={Astro.url.pathname}
   csrfToken={session.csrfToken}
+  openReportCount={openReportCount}
 >
   {
     bannerMessage && (
@@ -231,6 +236,7 @@ function excerpt(value: string, maximum = 140) {
                 <th scope="col">Decision</th>
                 <th scope="col">Visibility</th>
                 <th scope="col">Reports</th>
+                <th scope="col">Latest report</th>
                 <th scope="col">Created</th>
                 <th scope="col">Actions</th>
               </tr>
@@ -252,6 +258,20 @@ function excerpt(value: string, maximum = 140) {
                     </span>
                   </td>
                   <td data-label="Reports">{ruling.reportCount}</td>
+                  <td data-label="Latest report">
+                    {ruling.latestReportAt ? (
+                      <time datetime={ruling.latestReportAt}>
+                        {formatRulingTimestamp(ruling.latestReportAt)}
+                      </time>
+                    ) : (
+                      'None'
+                    )}
+                    {ruling.reportCount > 0 && (
+                      <p class="workshop-summary-list__meta">
+                        {ruling.openReportCount} open
+                      </p>
+                    )}
+                  </td>
                   <td data-label="Created">
                     <time datetime={ruling.createdAt}>
                       {formatRulingTimestamp(ruling.createdAt)}
@@ -265,6 +285,14 @@ function excerpt(value: string, maximum = 140) {
                       >
                         View
                       </a>
+                      {ruling.reportCount > 0 && (
+                        <a
+                          class="workshop-inline-link"
+                          href={`/workshop/reports?q=${encodeURIComponent(ruling.publicId)}`}
+                        >
+                          Reports
+                        </a>
+                      )}
                       {ruling.visibility === 'public' ? (
                         <form
                           method="post"
