@@ -25,7 +25,22 @@ export class SiteUrlConfigurationError extends Error {
   }
 }
 
-function readEnvValue(name: 'DATABASE_URL' | 'SITE_URL' | 'RATE_LIMIT_SECRET') {
+export class WorkshopConfigurationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'WorkshopConfigurationError';
+  }
+}
+
+function readEnvValue(
+  name:
+    | 'DATABASE_URL'
+    | 'SITE_URL'
+    | 'RATE_LIMIT_SECRET'
+    | 'WORKSHOP_USERNAME'
+    | 'WORKSHOP_PASSWORD_HASH'
+    | 'SESSION_SECRET',
+) {
   return import.meta.env[name] ?? process.env[name];
 }
 
@@ -91,5 +106,57 @@ export function isEndToEndTestMode(): boolean {
   return (
     import.meta.env.SANTA_TEST_MODE === 'e2e' ||
     process.env.SANTA_TEST_MODE === 'e2e'
+  );
+}
+
+export function getWorkshopUsername(options?: {
+  allowTestFallback?: boolean;
+}): string {
+  const value = readEnvValue('WORKSHOP_USERNAME');
+
+  if (value && value.trim()) {
+    return value.trim();
+  }
+
+  if (options?.allowTestFallback || isEndToEndTestMode()) {
+    return 'owner';
+  }
+
+  throw new WorkshopConfigurationError(
+    'WORKSHOP_USERNAME is required for Santa’s Workshop access.',
+  );
+}
+
+export function getWorkshopPasswordHash(options?: {
+  allowTestFallback?: boolean;
+}): string {
+  const value = readEnvValue('WORKSHOP_PASSWORD_HASH');
+
+  if (value && value.trim()) {
+    return value.trim();
+  }
+
+  if (options?.allowTestFallback || isEndToEndTestMode()) {
+    return 'scrypt$16384$8$1$VQtVf9aINseCC0S28nwZhQ$hBcteqZZNeLtQi97rVc0ZEz0gtg7q7_IjeKkIfdHmc-MLk0Mx14BeKOfulFi-XFqmz7395QTMAZjyL9licsYkg';
+  }
+
+  throw new WorkshopConfigurationError(
+    'WORKSHOP_PASSWORD_HASH is required for Santa’s Workshop access.',
+  );
+}
+
+export function getSessionSecret(): string {
+  const value = readEnvValue('SESSION_SECRET');
+
+  if (value && value.length >= 32) {
+    return value;
+  }
+
+  if (!isProductionEnvironment()) {
+    return 'local-development-session-secret-for-santa-workshop-only';
+  }
+
+  throw new WorkshopConfigurationError(
+    'SESSION_SECRET must be at least 32 characters in production.',
   );
 }

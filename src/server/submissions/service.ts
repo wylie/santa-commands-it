@@ -254,6 +254,20 @@ export async function submitSantaRequest(
     return duplicateResponse;
   }
 
+  const existingIdempotencyKey =
+    await dependencies.submissionRepository.hasActiveIdempotencyKey(
+      context.clientKeyHash,
+      context.idempotencyKey,
+      now,
+    );
+
+  if (existingIdempotencyKey) {
+    return {
+      status: 'duplicate',
+      message: DUPLICATE_SUBMISSION_MESSAGE,
+    };
+  }
+
   const normalizedName = normalizeForDuplicateComparison(validatedName.value);
   const normalizedRequest = normalizeForDuplicateComparison(
     validatedRequest.value,
@@ -273,6 +287,21 @@ export async function submitSantaRequest(
     return {
       status: 'duplicate',
       ruling: duplicateRuling,
+      message: DUPLICATE_SUBMISSION_MESSAGE,
+    };
+  }
+
+  const hiddenDuplicate =
+    await dependencies.submissionRepository.hasHiddenDuplicateRuling(
+      context.clientKeyHash,
+      normalizedName,
+      normalizedRequest,
+      duplicateWindowStart,
+    );
+
+  if (hiddenDuplicate) {
+    return {
+      status: 'duplicate',
       message: DUPLICATE_SUBMISSION_MESSAGE,
     };
   }
@@ -343,6 +372,20 @@ export async function submitSantaRequest(
       return {
         status: 'duplicate',
         ruling: replayedRuling,
+        message: DUPLICATE_SUBMISSION_MESSAGE,
+      };
+    }
+
+    const replayedHiddenIdempotency =
+      await dependencies.submissionRepository.hasActiveIdempotencyKey(
+        context.clientKeyHash,
+        context.idempotencyKey,
+        now,
+      );
+
+    if (replayedHiddenIdempotency) {
+      return {
+        status: 'duplicate',
         message: DUPLICATE_SUBMISSION_MESSAGE,
       };
     }

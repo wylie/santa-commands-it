@@ -1,0 +1,37 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import WorkshopNav from '@/components/WorkshopNav.astro';
+
+interface Props {
+  title: string;
+  description: string;
+  currentPath?: string;
+  csrfToken?: string;
+}
+
+const { title, description, currentPath = '', csrfToken } = Astro.props;
+---
+
+<BaseLayout
+  title={title}
+  description={description}
+  robots="noindex, nofollow"
+  canonicalUrl={null}
+>
+  <a class="skip-link" href="#workshop-main">Skip to workshop content</a>
+  <main id="workshop-main" class="workshop-shell">
+    <header class="workshop-header">
+      <div class="workshop-header__inner">
+        <p class="workshop-header__eyebrow">Santa&apos;s Workshop</p>
+        <h1 class="workshop-header__title">{title}</h1>
+        <p class="workshop-header__description">{description}</p>
+      </div>
+      {
+        csrfToken && (
+          <WorkshopNav currentPath={currentPath} csrfToken={csrfToken} />
+        )
+      }
+    </header>
+    <slot />
+  </main>
+</BaseLayout>

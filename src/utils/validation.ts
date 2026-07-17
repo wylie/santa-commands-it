@@ -66,6 +66,18 @@ export function validateOptionalNote(
   input: string,
   maximum: number,
 ): ValidationResult {
+  return validateOptionalText(
+    input,
+    maximum,
+    `Please keep report notes to ${maximum} characters or fewer.`,
+  );
+}
+
+export function validateOptionalText(
+  input: string,
+  maximum: number,
+  errorMessage: string,
+): ValidationResult {
   const value = input.trim();
 
   if (!value) {
@@ -79,7 +91,7 @@ export function validateOptionalNote(
     return {
       valid: false,
       value,
-      error: `Please keep report notes to ${maximum} characters or fewer.`,
+      error: errorMessage,
     };
   }
 

@@ -1,13 +1,13 @@
 # Santa Commands It!
 
-`Santa Commands It!` is a theatrical holiday web application from Argon Collective LLC. Visitors ask Santa for something, the server makes the authoritative decision, completed rulings are stored in Neon Postgres, and approved or coal outcomes receive permanent public pages that can be shared directly. Version `0.1.6` is the stabilization release for the full `v0.1.x` milestone, focused on accessibility, responsive polish, deployment readiness, operational documentation, and test reliability.
+`Santa Commands It!` is a theatrical holiday web application from Argon Collective LLC. Visitors ask Santa for something, the server makes the authoritative decision, completed rulings are stored in Neon Postgres, and approved or coal outcomes receive permanent public pages that can be shared directly. Version `0.2.0` begins the `v0.2.x` owner-administration milestone with a private workshop area for managing public rulings safely without working directly in Neon.
 
 ## Release
 
-- Current version: `v0.1.6`
-- Current scope: server-rendered homepage, authoritative submission and reporting endpoints, Neon persistence, moderation-first ruling decisions, permanent public ruling pages, abuse safeguards, share actions, accessibility refinements, and launch-readiness validation
+- Current version: `v0.2.0`
+- Current scope: the preserved public Santa experience plus a private `Santa's Workshop` owner area with secure single-owner authentication, server-side sessions, ruling visibility controls, permanent deletion, and private audit activity
 
-Completed rulings persist across refreshes and can be revisited at permanent public URLs. Blocked submissions are still rejected before any database write and never receive public pages, and public reports can now be submitted without exposing reporter details.
+Completed rulings persist across refreshes and can be revisited at permanent public URLs when they remain public. Blocked submissions are still rejected before any database write and never receive public pages, public reports can be submitted without exposing reporter details, and hidden rulings now return the same public not-found experience as unknown identifiers.
 
 ## Product concept
 
@@ -41,12 +41,16 @@ Completed approvals and coal rulings are public on the homepage and on their own
 4. Copy the Neon pooled connection string recommended for serverless HTTP access.
 5. Add it to a local `.env` file as `DATABASE_URL=...`.
 6. Add `RATE_LIMIT_SECRET=...` to the same `.env` file.
-7. Optionally add `SITE_URL=https://your-production-domain.example` for canonical URLs and production metadata.
-8. Generate and apply the schema migration:
-   - `npm run db:generate`
-   - `npm run db:migrate`
-9. Start the development server with `npm run dev`.
-10. Submit a request, confirm it appears in Santa's Latest Commands, open its permanent ruling page, and test the report flow locally.
+7. Add `WORKSHOP_USERNAME=...` and `SESSION_SECRET=...`.
+8. Generate a workshop password hash with `npm run workshop:hash`, then store it as `WORKSHOP_PASSWORD_HASH=...`.
+9. Optionally add `SITE_URL=https://your-production-domain.example` for canonical URLs and production metadata.
+10. Generate and apply the schema migration:
+
+- `npm run db:generate`
+- `npm run db:migrate`
+
+11. Start the development server with `npm run dev`.
+12. Submit a request, confirm it appears in Santa's Latest Commands, open its permanent ruling page, sign into `/workshop/login`, and test hide, restore, and delete behavior against local data.
 
 If `DATABASE_URL` is missing, the form remains usable but the server cannot persist rulings, recent public commands will be unavailable, and no permanent ruling pages can be created.
 
@@ -60,6 +64,18 @@ If `DATABASE_URL` is missing, the form remains usable but the server cannot pers
   - Required in production for hashed rate-limiting and reporting client keys
   - Should be a long random secret
   - Uses a documented local-development fallback only when omitted outside production
+- `WORKSHOP_USERNAME`
+  - Required for `Santa's Workshop` owner login
+  - Must remain server-only
+  - Should be a dedicated owner username rather than a public identifier
+- `WORKSHOP_PASSWORD_HASH`
+  - Required for `Santa's Workshop` owner login
+  - Must contain a server-only password hash, not a plaintext password
+  - The committed `npm run workshop:hash` helper emits the expected `scrypt$...` format
+- `SESSION_SECRET`
+  - Required in production for workshop session-token hashing
+  - Must be at least 32 characters in production
+  - Should be unique per environment
 - `SITE_URL`
   - Optional in local development because same-origin requests and local canonical URLs can fall back to the current request origin
   - Required in production for canonical URLs, Open Graph metadata, and share links
@@ -70,6 +86,56 @@ If `DATABASE_URL` is missing, the form remains usable but the server cannot pers
   - Must not be enabled for ordinary production traffic
 
 Use `.env.example` as the local template.
+
+## Santa's Workshop owner area
+
+Private owner routes now live under:
+
+- `/workshop`
+- `/workshop/login`
+- `/workshop/rulings`
+- `/workshop/rulings/[publicId]`
+
+The public homepage, public ruling pages, submission flow, reporting flow, Santa artwork, winter visual design, and latest-commands feed remain intact and operate independently of the owner area.
+
+## Workshop authentication and session behavior
+
+- The release uses a secure single-owner username and password flow backed by server-only environment variables.
+- Passwords are verified against a `scrypt` hash.
+- Successful login creates a server-side workshop session and sets an HTTP-only cookie.
+- Workshop cookies use `SameSite=Lax`, are marked `Secure` in production, and expire after `12` hours.
+- Each authenticated session carries a private CSRF token that is required for workshop mutations, including logout.
+- Login failures are generic by design and do not reveal whether the username or password was incorrect.
+- Failed login attempts are rate-limited per hashed client identifier at `5` failures per `15` minutes.
+- Workshop pages redirect unauthenticated visitors to `/workshop/login`.
+- Workshop API mutations reject unauthorized or cross-origin requests safely.
+
+## Workshop ruling management
+
+- Workshop search is server-side and matches display name, request text, Santa response, and public identifier.
+- Decision filters support all, approved, and coal rulings.
+- Visibility filters support all, public, and hidden rulings.
+- Sorting supports newest first and oldest first.
+- Pagination is server-side with a page size of `25`.
+- Workshop pages are private, `noindex`, `nofollow`, and excluded from public navigation.
+
+## Visibility model, hide/restore, and deletion semantics
+
+- Persisted rulings now have a separate `visibility` state: `public` or `hidden`.
+- Existing rulings migrate safely to `public`.
+- Hidden rulings remain stored in the database and continue to appear inside `Santa's Workshop`.
+- Public queries now require `visibility = public`, including the homepage feed, public ruling pages, report lookup, and duplicate replay behavior that would otherwise reveal a hidden ruling.
+- Hiding a ruling records `hidden_at` and an optional private `hidden_reason`.
+- Restoring a ruling returns it to `public` visibility and clears `hidden_at`. The prior `hidden_reason` is intentionally retained as private historical context.
+- Permanent deletion removes the ruling record itself.
+- Related `ruling_reports` and `submission_idempotency` rows are removed automatically by database cascade rules.
+- Owner activity entries are preserved because they reference the ruling's public identifier rather than a foreign key.
+
+## Owner activity log
+
+- Workshop activity is private and currently records `login-success`, `login-failure`, `logout`, `ruling-hidden`, `ruling-restored`, and `ruling-deleted`.
+- Activity entries store the action type, optional ruling public identifier, optional short private details, and timestamp.
+- Passwords, session tokens, raw IP addresses, and duplicated full request bodies are not stored in the activity log.
 
 ## Available npm scripts
 
@@ -83,6 +149,7 @@ Use `.env.example` as the local template.
 - `npm run db:generate` generates a Drizzle migration from schema changes.
 - `npm run db:migrate` applies generated migrations to the configured database.
 - `npm run db:studio` opens Drizzle Studio against the configured database.
+- `npm run workshop:hash` generates a new `scrypt` password hash for `WORKSHOP_PASSWORD_HASH`.
 - `npm run db:check` runs Drizzle's schema check command.
 - `npm run test` runs the Vitest suite.
 - `npm run test:watch` runs Vitest in watch mode.
@@ -166,7 +233,7 @@ These protections are intentionally lightweight. They reduce routine abuse and o
 
 ## What gets stored
 
-The `rulings` table stores only final public rulings:
+The `rulings` table stores final approved and coal rulings, including private visibility metadata when a ruling is hidden:
 
 - internal primary key
 - public identifier
@@ -174,6 +241,9 @@ The `rulings` table stores only final public rulings:
 - trimmed request text
 - final decision
 - rendered Santa response
+- visibility
+- optional hidden timestamp
+- optional private hidden reason
 - created timestamp
 
 Only these final decision values are stored:
@@ -188,6 +258,9 @@ Additional operational tables now store:
 - hashed submission-attempt records for rate limiting
 - submission idempotency records with expiration timestamps
 - public ruling reports with reason, optional note, hashed client key, status, and created timestamp
+- workshop login-attempt records for rate limiting
+- workshop sessions with expiration and CSRF state
+- private owner-activity records
 
 ## What is never stored
 
@@ -220,6 +293,7 @@ The initial coal percentage remains `5%`.
 ## Latest commands behavior
 
 - The homepage fetches the newest public rulings on the server during rendering.
+- Hidden rulings are excluded from homepage and public-page queries.
 - The latest-commands section shows a real semantic list when rulings exist.
 - Each latest-command item links to its permanent public ruling page.
 - The empty state still works for a brand-new database.
@@ -274,12 +348,18 @@ If the homepage can read recent rulings but valid submissions fail, run `npm run
 Local development:
 
 - Required: `DATABASE_URL`
+- Required: `WORKSHOP_USERNAME`
+- Required: `WORKSHOP_PASSWORD_HASH`
+- Required: `SESSION_SECRET`
 - Optional: `SITE_URL`
 - Optional with a documented development fallback: `RATE_LIMIT_SECRET`
 
 Vercel production and preview:
 
 - Required: `DATABASE_URL`
+- Required: `WORKSHOP_USERNAME`
+- Required: `WORKSHOP_PASSWORD_HASH`
+- Required: `SESSION_SECRET`
 - Required: `SITE_URL`
 - Required: `RATE_LIMIT_SECRET`
 
@@ -365,17 +445,19 @@ Test precautions:
 
 ## Current limitations
 
-- No admin review dashboard, removal workflow, or reporting triage interface exists yet.
+- Single-owner authentication only; there are no multiple staff accounts or role permissions yet.
+- No report-review queue or moderation triage workflow exists yet.
 - No platform firewall, CAPTCHA, or third-party anti-bot service is configured in this repository.
 - Client-side timing and honeypot checks are only lightweight abuse signals and can be bypassed.
 - Database-backed rate limiting is intended for low public traffic and should be revisited before large-scale launch.
 - Moderation rules still require code or configuration edits rather than an owner-facing editor.
+- No general settings editor exists yet for moderation rules, coal percentage, or response templates.
 - No automatic report-based removal or restore controls exist yet.
 - No automated data-retention policy exists yet for public rulings or reports.
 - `npm audit --omit=dev` currently reports a high-severity `drizzle-orm` advisory below `0.45.2`; resolving it requires a breaking dependency upgrade that should be handled deliberately after regression review.
 - No dynamic social image generation, downloadable share cards, or QR codes exist yet.
-- No authentication or user accounts exist yet.
-- Completed public rulings remain stored until manually removed through database tools.
+- No automatic owner alerts, email notifications, CSV export, or bulk actions exist yet.
+- Completed public rulings remain stored until removed through `Santa's Workshop` or direct database administration.
 - Infrastructure providers still process ordinary request metadata outside the application database.
 - Rule-based moderation cannot catch every harmful meaning or evasion pattern.
 
@@ -425,4 +507,8 @@ Use [PRELAUNCH.md](/Users/wylie/Repos/santa-commands-it/PRELAUNCH.md) for the co
 
 ## Roadmap
 
-- `v0.2.0`: Post-launch product planning after observing real moderation, reporting, and operational needs
+- `v0.2.1`: Report review and moderation queue
+- `v0.2.2`: Moderation-rule and Santa-settings manager
+- `v0.2.3`: Expanded dashboard and statistics
+- `v0.2.4`: Dynamic share images
+- `v0.2.5`: `v0.2.x` stabilization and launch polish

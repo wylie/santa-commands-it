@@ -1,0 +1,286 @@
+---
+import WorkshopLayout from '@/layouts/WorkshopLayout.astro';
+import { securitySettings } from '@/config/security';
+import { requireWorkshopPageSession } from '@/server/workshop/auth';
+import { getWorkshopRulingDetailData } from '@/server/workshop/service';
+import { formatRulingTimestamp, getDecisionLabel } from '@/utils/rulings';
+import { getOwnerActivityLabel, getVisibilityLabel } from '@/utils/workshop';
+import { buildRulingPath } from '@/utils/rulingPages';
+
+const session = await requireWorkshopPageSession(Astro);
+
+if (session instanceof Response) {
+  return session;
+}
+
+const publicId = Astro.params.publicId ?? '';
+const detail = await getWorkshopRulingDetailData(
+  publicId,
+  Astro.request.headers,
+);
+
+if (!detail) {
+  return Astro.redirect('/workshop/rulings?error=not-found');
+}
+
+const status = Astro.url.searchParams.get('status');
+const error = Astro.url.searchParams.get('error');
+const bannerMessage =
+  status === 'hidden'
+    ? {
+        tone: 'success',
+        message: 'The ruling is now hidden from the public site.',
+      }
+    : status === 'hidden-with-warning'
+      ? {
+          tone: 'warning',
+          message:
+            'The ruling was hidden, but the activity entry could not be recorded.',
+        }
+      : status === 'restored'
+        ? { tone: 'success', message: 'The ruling is public again.' }
+        : status === 'restored-with-warning'
+          ? {
+              tone: 'warning',
+              message:
+                'The ruling was restored, but the activity entry could not be recorded.',
+            }
+          : error === 'invalid-hide-reason'
+            ? {
+                tone: 'error',
+                message: 'Please keep hide notes to 300 characters or fewer.',
+              }
+            : error === 'invalid-confirmation'
+              ? {
+                  tone: 'error',
+                  message: 'Deletion requires the exact confirmation phrase.',
+                }
+              : error === 'already-hidden'
+                ? { tone: 'error', message: 'That ruling is already hidden.' }
+                : error === 'already-public'
+                  ? { tone: 'error', message: 'That ruling is already public.' }
+                  : null;
+
+const currentLocation = Astro.url.pathname;
+---
+
+<WorkshopLayout
+  title={`Ruling ${detail.ruling.publicId}`}
+  description="A private owner view of one persisted Santa ruling."
+  currentPath="/workshop/rulings"
+  csrfToken={session.csrfToken}
+>
+  {
+    bannerMessage && (
+      <p
+        class={`workshop-banner workshop-banner--${bannerMessage.tone}`}
+        role="status"
+      >
+        {bannerMessage.message}
+      </p>
+    )
+  }
+
+  <section class="workshop-grid workshop-grid--detail">
+    <article class="workshop-card">
+      <div class="workshop-card__header">
+        <h2>Ruling details</h2>
+        <a class="workshop-inline-link" href="/workshop/rulings">
+          Back to rulings
+        </a>
+      </div>
+
+      <dl class="workshop-detail-list">
+        <div>
+          <dt>Public ID</dt>
+          <dd>{detail.ruling.publicId}</dd>
+        </div>
+        <div>
+          <dt>Display name</dt>
+          <dd>{detail.ruling.displayName}</dd>
+        </div>
+        <div>
+          <dt>Decision</dt>
+          <dd>{getDecisionLabel(detail.ruling.decision)}</dd>
+        </div>
+        <div>
+          <dt>Visibility</dt>
+          <dd>{getVisibilityLabel(detail.ruling.visibility)}</dd>
+        </div>
+        <div>
+          <dt>Created</dt>
+          <dd>
+            <time datetime={detail.ruling.createdAt}>
+              {formatRulingTimestamp(detail.ruling.createdAt)}
+            </time>
+          </dd>
+        </div>
+        <div>
+          <dt>Reports</dt>
+          <dd>{detail.ruling.reportCount}</dd>
+        </div>
+        {
+          detail.ruling.hiddenAt && (
+            <div>
+              <dt>Hidden at</dt>
+              <dd>
+                <time datetime={detail.ruling.hiddenAt}>
+                  {formatRulingTimestamp(detail.ruling.hiddenAt)}
+                </time>
+              </dd>
+            </div>
+          )
+        }
+        {
+          detail.ruling.hiddenReason && (
+            <div>
+              <dt>Hidden reason</dt>
+              <dd>{detail.ruling.hiddenReason}</dd>
+            </div>
+          )
+        }
+      </dl>
+
+      <div class="workshop-card__section">
+        <h3>Request</h3>
+        <p class="workshop-prose">{detail.ruling.requestText}</p>
+      </div>
+
+      <div class="workshop-card__section">
+        <h3>Santa response</h3>
+        <p class="workshop-prose">{detail.ruling.santaResponse}</p>
+      </div>
+
+      {
+        detail.ruling.visibility === 'public' && (
+          <div class="workshop-card__section">
+            <h3>Public page</h3>
+            <p>
+              <a
+                class="workshop-inline-link"
+                href={buildRulingPath(detail.ruling.publicId)}
+                target="_self"
+              >
+                Open public ruling
+              </a>
+            </p>
+          </div>
+        )
+      }
+    </article>
+
+    <article class="workshop-card">
+      <h2>Actions</h2>
+
+      {
+        detail.ruling.visibility === 'public' ? (
+          <form
+            class="workshop-form"
+            method="post"
+            action={`/api/workshop/rulings/${detail.ruling.publicId}/hide`}
+          >
+            <input type="hidden" name="csrfToken" value={session.csrfToken} />
+            <input type="hidden" name="returnTo" value={currentLocation} />
+            <h3>Hide this ruling?</h3>
+            <p class="workshop-form__hint">
+              The ruling will no longer appear publicly, but it will remain
+              available in Santa&apos;s Workshop.
+            </p>
+            <div class="workshop-form__field">
+              <label for="hide-reason">
+                Optional private note explaining why this ruling was hidden.
+              </label>
+              <textarea
+                id="hide-reason"
+                name="reason"
+                rows="4"
+                maxlength="300"
+              />
+            </div>
+            <button type="submit" class="button-command">
+              Hide ruling
+            </button>
+          </form>
+        ) : (
+          <form
+            class="workshop-form"
+            method="post"
+            action={`/api/workshop/rulings/${detail.ruling.publicId}/restore`}
+          >
+            <input type="hidden" name="csrfToken" value={session.csrfToken} />
+            <input type="hidden" name="returnTo" value={currentLocation} />
+            <h3>Restore this ruling to the public site?</h3>
+            <p class="workshop-form__hint">
+              Restoring does not change the original decision or Santa response.
+            </p>
+            <button type="submit" class="button-command">
+              Restore ruling
+            </button>
+          </form>
+        )
+      }
+
+      <form
+        id="delete-ruling"
+        class="workshop-form workshop-form--danger"
+        method="post"
+        action={`/api/workshop/rulings/${detail.ruling.publicId}/delete`}
+      >
+        <input type="hidden" name="csrfToken" value={session.csrfToken} />
+        <input type="hidden" name="returnTo" value="/workshop/rulings" />
+        <h3>Delete permanently</h3>
+        <p class="workshop-form__hint">
+          The ruling will be permanently removed. Its public link will stop
+          working. Associated reports and duplicate-tracking records will be
+          removed by database cascade rules. This cannot be undone.
+        </p>
+        <div class="workshop-form__field">
+          <label for="delete-confirmation">
+            Type {securitySettings.workshop.auth.deleteConfirmationPhrase} to confirm
+          </label>
+          <input
+            id="delete-confirmation"
+            name="confirmation"
+            type="text"
+            inputmode="text"
+            autocomplete="off"
+            pattern={securitySettings.workshop.auth.deleteConfirmationPhrase}
+            required
+          />
+        </div>
+        <button type="submit" class="button-command button-command--danger">
+          Delete permanently
+        </button>
+      </form>
+    </article>
+  </section>
+
+  <section class="workshop-panel">
+    <h2>Recent activity for this ruling</h2>
+    {
+      detail.activity.length === 0 ? (
+        <p class="workshop-empty">
+          No owner activity has been recorded for this ruling yet.
+        </p>
+      ) : (
+        <ol class="workshop-summary-list">
+          {detail.activity.map((entry) => (
+            <li class="workshop-summary-list__item">
+              <div>
+                <p class="workshop-summary-list__title">
+                  {getOwnerActivityLabel(entry.action)}
+                </p>
+                <p class="workshop-summary-list__meta">
+                  {formatRulingTimestamp(entry.createdAt)}
+                </p>
+                {entry.details && (
+                  <p class="workshop-summary-list__detail">{entry.details}</p>
+                )}
+              </div>
+            </li>
+          ))}
+        </ol>
+      )
+    }
+  </section>
+</WorkshopLayout>

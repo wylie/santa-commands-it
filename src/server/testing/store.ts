@@ -1,5 +1,17 @@
 import type { PublicRuling } from '@/utils/rulings';
 import type { ReportReason } from '@/config/reports';
+import type {
+  OwnerActivityAction,
+  OwnerActivityTargetType,
+  RulingVisibility,
+} from '@/utils/workshop';
+
+export type TestStoredRuling = PublicRuling & {
+  id: number;
+  visibility: RulingVisibility;
+  hiddenAt: string | null;
+  hiddenReason: string | null;
+};
 
 export type TestSubmissionAttempt = {
   clientKeyHash: string;
@@ -26,11 +38,37 @@ export type TestReportRecord = {
   createdAt: string;
 };
 
+export type TestWorkshopSession = {
+  id: number;
+  tokenHash: string;
+  csrfToken: string;
+  expiresAt: string;
+  createdAt: string;
+};
+
+export type TestWorkshopLoginAttempt = {
+  clientKeyHash: string;
+  successful: boolean;
+  createdAt: string;
+};
+
+export type TestOwnerActivityRecord = {
+  id: number;
+  action: OwnerActivityAction;
+  targetType: OwnerActivityTargetType;
+  targetPublicId: string | null;
+  details: string | null;
+  createdAt: string;
+};
+
 export type TestRunStore = {
-  rulings: PublicRuling[];
+  rulings: TestStoredRuling[];
   submissionAttempts: TestSubmissionAttempt[];
   idempotencyRecords: TestIdempotencyRecord[];
   reports: TestReportRecord[];
+  workshopSessions: TestWorkshopSession[];
+  workshopLoginAttempts: TestWorkshopLoginAttempt[];
+  ownerActivity: TestOwnerActivityRecord[];
 };
 
 const stores = new Map<string, TestRunStore>();
@@ -47,6 +85,9 @@ export function getTestRunStore(runId: string): TestRunStore {
     submissionAttempts: [],
     idempotencyRecords: [],
     reports: [],
+    workshopSessions: [],
+    workshopLoginAttempts: [],
+    ownerActivity: [],
   };
 
   stores.set(runId, nextStore);

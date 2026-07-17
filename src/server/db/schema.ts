@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm';
 import {
   bigint,
   bigserial,
+  boolean,
   check,
   index,
   pgEnum,
@@ -15,6 +16,11 @@ import {
 export const rulingDecisionEnum = pgEnum('ruling_decision', [
   'approved',
   'random-coal',
+]);
+
+export const rulingVisibilityEnum = pgEnum('ruling_visibility', [
+  'public',
+  'hidden',
 ]);
 
 export const reportReasonEnum = pgEnum('report_reason', [
@@ -34,6 +40,20 @@ export const reportStatusEnum = pgEnum('report_status', [
   'actioned',
 ]);
 
+export const ownerActivityActionEnum = pgEnum('owner_activity_action', [
+  'login-success',
+  'login-failure',
+  'logout',
+  'ruling-hidden',
+  'ruling-restored',
+  'ruling-deleted',
+]);
+
+export const ownerActivityTargetTypeEnum = pgEnum(
+  'owner_activity_target_type',
+  ['auth', 'ruling'],
+);
+
 export const rulings = pgTable(
   'rulings',
   {
@@ -43,12 +63,19 @@ export const rulings = pgTable(
     requestText: text('request_text').notNull(),
     decision: rulingDecisionEnum('decision').notNull(),
     santaResponse: text('santa_response').notNull(),
+    visibility: rulingVisibilityEnum('visibility').default('public').notNull(),
+    hiddenAt: timestamp('hidden_at', { withTimezone: true }),
+    hiddenReason: text('hidden_reason'),
     createdAt: timestamp('created_at', { withTimezone: true })
       .defaultNow()
       .notNull(),
   },
   (table) => [
     index('rulings_created_at_idx').on(table.createdAt),
+    index('rulings_visibility_created_at_idx').on(
+      table.visibility,
+      table.createdAt,
+    ),
     check(
       'rulings_display_name_length_check',
       sql`char_length(${table.displayName}) between 1 and 40`,
@@ -56,6 +83,10 @@ export const rulings = pgTable(
     check(
       'rulings_request_text_length_check',
       sql`char_length(${table.requestText}) between 1 and 500`,
+    ),
+    check(
+      'rulings_hidden_reason_length_check',
+      sql`${table.hiddenReason} is null or char_length(${table.hiddenReason}) <= 300`,
     ),
   ],
 );
@@ -147,6 +178,60 @@ export const rulingReports = pgTable(
     check(
       'ruling_reports_note_length_check',
       sql`${table.note} is null or char_length(${table.note}) <= 300`,
+    ),
+  ],
+);
+
+export const workshopSessions = pgTable(
+  'workshop_sessions',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    tokenHash: text('token_hash').notNull().unique(),
+    csrfToken: text('csrf_token').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [index('workshop_sessions_expires_at_idx').on(table.expiresAt)],
+);
+
+export const workshopLoginAttempts = pgTable(
+  'workshop_login_attempts',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    clientKeyHash: text('client_key_hash').notNull(),
+    successful: boolean('successful').default(false).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index('workshop_login_attempts_client_created_idx').on(
+      table.clientKeyHash,
+      table.createdAt,
+    ),
+  ],
+);
+
+export const ownerActivity = pgTable(
+  'owner_activity',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    action: ownerActivityActionEnum('action').notNull(),
+    targetType: ownerActivityTargetTypeEnum('target_type').notNull(),
+    targetPublicId: text('target_public_id'),
+    details: text('details'),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index('owner_activity_created_at_idx').on(table.createdAt),
+    index('owner_activity_target_public_id_idx').on(table.targetPublicId),
+    check(
+      'owner_activity_details_length_check',
+      sql`${table.details} is null or char_length(${table.details}) <= 300`,
     ),
   ],
 );

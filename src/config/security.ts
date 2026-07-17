@@ -40,6 +40,27 @@ export const securitySettings = {
       },
     },
   },
+  workshop: {
+    search: {
+      maxQueryLength: 120,
+      pageSize: 25,
+      recentActivityLimit: 10,
+      recentRulingsLimit: 5,
+    },
+    auth: {
+      sessionDurationMs: 12 * 60 * 60 * 1000,
+      failedLoginMessage:
+        'Santa cannot open the workshop with those credentials.',
+      rateLimitMessage:
+        'Workshop access is temporarily limited. Please try again later.',
+      deleteConfirmationPhrase: 'DELETE',
+      loginRateLimit: {
+        maxAttempts: 5,
+        windowMs: 15 * 60 * 1000,
+      },
+    },
+    hideReasonMaxLength: 300,
+  },
 } as const;
 
 export function validateSecuritySettings(): void {
@@ -102,6 +123,38 @@ export function validateSecuritySettings(): void {
   assertPositiveInteger(
     securitySettings.reports.rateLimits.perRulingWindow.windowMs,
     'Per-ruling report duration must be a positive integer.',
+  );
+  assertPositiveInteger(
+    securitySettings.workshop.search.maxQueryLength,
+    'Workshop search query limit must be a positive integer.',
+  );
+  assertPositiveInteger(
+    securitySettings.workshop.search.pageSize,
+    'Workshop page size must be a positive integer.',
+  );
+  assertPositiveInteger(
+    securitySettings.workshop.search.recentActivityLimit,
+    'Workshop recent activity limit must be a positive integer.',
+  );
+  assertPositiveInteger(
+    securitySettings.workshop.search.recentRulingsLimit,
+    'Workshop recent rulings limit must be a positive integer.',
+  );
+  assertPositiveInteger(
+    securitySettings.workshop.auth.sessionDurationMs,
+    'Workshop session duration must be a positive integer.',
+  );
+  assertPositiveInteger(
+    securitySettings.workshop.auth.loginRateLimit.maxAttempts,
+    'Workshop login max attempts must be a positive integer.',
+  );
+  assertPositiveInteger(
+    securitySettings.workshop.auth.loginRateLimit.windowMs,
+    'Workshop login rate-limit window must be a positive integer.',
+  );
+  assertPositiveInteger(
+    securitySettings.workshop.hideReasonMaxLength,
+    'Workshop hide-reason limit must be a positive integer.',
   );
 }
 

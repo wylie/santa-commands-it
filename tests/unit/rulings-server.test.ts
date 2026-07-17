@@ -16,7 +16,9 @@ function createRepositoryMock() {
     countSubmissionAttemptsSince: vi.fn(async () => 0),
     recordSubmissionAttempt: vi.fn(async () => undefined),
     getRulingByIdempotencyKey: vi.fn(async () => null),
+    hasActiveIdempotencyKey: vi.fn(async () => false),
     findDuplicateRuling: vi.fn(async () => null),
+    hasHiddenDuplicateRuling: vi.fn(async () => false),
     createRulingWithIdempotency: vi.fn(async (input) => ({
       publicId: input.publicId,
       displayName: input.displayName,

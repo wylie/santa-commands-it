@@ -38,9 +38,17 @@ export type RulingsRepository = {
   ): Promise<RulingReference | null>;
 };
 
-type RulingRow = typeof rulings.$inferSelect;
+type PublicRulingRow = {
+  id: number;
+  publicId: string;
+  displayName: string;
+  requestText: string;
+  decision: PersistedRulingDecision;
+  santaResponse: string;
+  createdAt: Date | string;
+};
 
-export function mapRulingRowToPublicRuling(row: RulingRow): PublicRuling {
+export function mapRulingRowToPublicRuling(row: PublicRulingRow): PublicRuling {
   if (!isPersistedRulingDecision(row.decision)) {
     throw new Error('Only approved and random-coal rulings can be public.');
   }
@@ -72,6 +80,7 @@ export function createDatabaseRulingsRepository(): RulingsRepository {
           requestText: input.requestText,
           decision: input.decision,
           santaResponse: input.santaResponse,
+          visibility: 'public',
         })
         .returning();
 
@@ -85,7 +94,12 @@ export function createDatabaseRulingsRepository(): RulingsRepository {
       const rows = await database
         .select()
         .from(rulings)
-        .where(inArray(rulings.decision, ['approved', 'random-coal']))
+        .where(
+          and(
+            inArray(rulings.decision, ['approved', 'random-coal']),
+            eq(rulings.visibility, 'public'),
+          ),
+        )
         .orderBy(desc(rulings.createdAt), desc(rulings.id))
         .limit(limit);
 
@@ -100,6 +114,7 @@ export function createDatabaseRulingsRepository(): RulingsRepository {
           and(
             eq(rulings.publicId, publicId),
             inArray(rulings.decision, ['approved', 'random-coal']),
+            eq(rulings.visibility, 'public'),
           ),
         )
         .limit(1);
@@ -118,6 +133,7 @@ export function createDatabaseRulingsRepository(): RulingsRepository {
           and(
             eq(rulings.publicId, publicId),
             inArray(rulings.decision, ['approved', 'random-coal']),
+            eq(rulings.visibility, 'public'),
           ),
         )
         .limit(1);

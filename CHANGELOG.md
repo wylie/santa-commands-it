@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 The format is inspired by Keep a Changelog, and this project adheres to Semantic Versioning.
 
+## [0.2.0] - 2026-07-17
+
+### Added
+
+- A private `Santa's Workshop` owner area at `/workshop` with a secure single-owner login, server-side session cookie, logout flow, and private noindex pages
+- Owner dashboard summaries for total rulings, approved rulings, coal rulings, hidden rulings, open reports, recent rulings, and recent owner activity
+- Searchable, filterable, paginated ruling management with private detail pages and owner-only hide, restore, and permanent-delete actions
+- A persisted ruling-visibility model plus a private owner-activity audit log for login, logout, hide, restore, and delete events
+- CSRF protection for authenticated workshop mutations and automated coverage for workshop auth, visibility, and ruling-management behavior
+
+### Changed
+
+- Public ruling queries, feeds, pages, report lookups, and duplicate replay behavior now exclude hidden rulings consistently
+- Project configuration, environment templates, and operational scripts now cover workshop credentials, session secrets, and password-hash generation
+- Documentation now tracks the start of the `v0.2.x` owner-administration milestone while preserving the existing public `v0.1.x` experience
+
 ## [0.1.5] - 2026-07-16
 
 ### Added

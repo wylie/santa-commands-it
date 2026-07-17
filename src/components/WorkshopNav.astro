@@ -1,0 +1,46 @@
+---
+interface Props {
+  currentPath: string;
+  csrfToken: string;
+}
+
+const { currentPath, csrfToken } = Astro.props;
+
+const links = [
+  {
+    href: '/workshop',
+    label: 'Dashboard',
+    active: currentPath === '/workshop' || currentPath === '/workshop/',
+  },
+  {
+    href: '/workshop/rulings',
+    label: 'Rulings',
+    active: currentPath.startsWith('/workshop/rulings'),
+  },
+];
+---
+
+<nav class="workshop-nav" aria-label="Workshop">
+  <div class="workshop-nav__links">
+    {
+      links.map((link) => (
+        <a
+          class="workshop-nav__link"
+          href={link.href}
+          aria-current={link.active ? 'page' : undefined}
+        >
+          {link.label}
+        </a>
+      ))
+    }
+    <a class="workshop-nav__link" href="/" target="_self"> View public site </a>
+  </div>
+  <form
+    method="post"
+    action="/api/workshop/logout"
+    class="workshop-nav__logout"
+  >
+    <input type="hidden" name="csrfToken" value={csrfToken} />
+    <button type="submit" class="workshop-nav__button">Log out</button>
+  </form>
+</nav>

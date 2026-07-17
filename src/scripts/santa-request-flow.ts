@@ -506,7 +506,17 @@ export function initSantaRequestFlow(): void {
     }
 
     if (responseBody.status === 'duplicate') {
-      handleCreatedRuling(responseBody.ruling, responseBody.message);
+      if (responseBody.ruling) {
+        handleCreatedRuling(responseBody.ruling, responseBody.message);
+      } else {
+        activeSubmission = false;
+        currentSubmissionKey = null;
+        resetPanel();
+        setDisabledState(controls, false);
+        submitButton.textContent = SUBMIT_LABEL;
+        form.removeAttribute('aria-busy');
+        announce(responseBody.message);
+      }
       return;
     }
 

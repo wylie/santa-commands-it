@@ -1,0 +1,86 @@
+---
+import WorkshopLayout from '@/layouts/WorkshopLayout.astro';
+import {
+  readWorkshopSession,
+  sanitizeWorkshopNextPath,
+} from '@/server/workshop/auth';
+
+const session = await readWorkshopSession(Astro.cookies, Astro.request.headers);
+
+if (session) {
+  return Astro.redirect('/workshop');
+}
+
+const nextPath = sanitizeWorkshopNextPath(Astro.url.searchParams.get('next'));
+const error = Astro.url.searchParams.get('error');
+const status = Astro.url.searchParams.get('status');
+const errorMessage =
+  error === 'rate-limited'
+    ? 'Workshop access is temporarily limited. Please try again later.'
+    : error === 'expired'
+      ? 'Your workshop session has expired. Please sign in again.'
+      : error === 'invalid'
+        ? 'Santa cannot open the workshop with those credentials.'
+        : null;
+const statusMessage =
+  status === 'logged-out' ? 'You have left Santa’s Workshop.' : null;
+---
+
+<WorkshopLayout title="Enter Santa’s Workshop" description="Owner access only.">
+  <section class="workshop-panel workshop-login">
+    <form
+      class="workshop-form"
+      method="post"
+      action="/api/workshop/login"
+      aria-describedby={errorMessage ? 'workshop-login-error' : undefined}
+    >
+      <input type="hidden" name="next" value={nextPath} />
+
+      {
+        statusMessage && (
+          <p class="workshop-banner workshop-banner--success" role="status">
+            {statusMessage}
+          </p>
+        )
+      }
+
+      {
+        errorMessage && (
+          <p
+            id="workshop-login-error"
+            class="workshop-banner workshop-banner--error"
+            role="alert"
+          >
+            {errorMessage}
+          </p>
+        )
+      }
+
+      <div class="workshop-form__field">
+        <label for="workshop-username">Username</label>
+        <input
+          id="workshop-username"
+          name="username"
+          type="text"
+          autocomplete="username"
+          required
+        />
+      </div>
+
+      <div class="workshop-form__field">
+        <label for="workshop-password">Password</label>
+        <input
+          id="workshop-password"
+          name="password"
+          type="password"
+          autocomplete="current-password"
+          required
+        />
+      </div>
+
+      <div class="workshop-form__actions">
+        <button type="submit" class="button-command"> Enter workshop </button>
+      </div>
+    </form>
+  </section>
+</WorkshopLayout>

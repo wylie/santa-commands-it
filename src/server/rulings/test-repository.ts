@@ -4,7 +4,11 @@ import type {
   RulingsRepository,
   StoredRuling,
 } from '@/server/rulings/repository';
-import { clearTestRunStore, getTestRunStore } from '@/server/testing/store';
+import {
+  clearTestRunStore,
+  getTestRunStore,
+  type TestStoredRuling,
+} from '@/server/testing/store';
 import type { PublicRuling } from '@/utils/rulings';
 
 export function createTestRulingsRepository(runId: string): RulingsRepository {
@@ -16,47 +20,65 @@ export function createTestRulingsRepository(runId: string): RulingsRepository {
     },
     async createStoredRuling(input: CreateRulingInput): Promise<StoredRuling> {
       const store = getTestRunStore(runId);
-      const ruling: PublicRuling = {
+      const ruling = {
+        id: store.rulings.length + 1,
         publicId: input.publicId,
         displayName: input.displayName,
         requestText: input.requestText,
         decision: input.decision,
         santaResponse: input.santaResponse,
         createdAt: new Date().toISOString(),
+        visibility: 'public' as const,
+        hiddenAt: null,
+        hiddenReason: null,
       };
 
       store.rulings.unshift(ruling);
 
       return {
-        id: store.rulings.length,
-        publicRuling: ruling,
+        id: ruling.id,
+        publicRuling: toPublicRuling(ruling),
       };
     },
     async listRecentRulings(limit = santaSettings.recentRulings.visibleLimit) {
-      return getTestRunStore(runId).rulings.slice(0, limit);
+      return getTestRunStore(runId)
+        .rulings.filter((ruling) => ruling.visibility === 'public')
+        .slice(0, limit)
+        .map(toPublicRuling);
     },
     async getRulingByPublicId(publicId: string) {
-      return (
-        getTestRunStore(runId).rulings.find(
-          (ruling) => ruling.publicId === publicId,
-        ) ?? null
+      const ruling = getTestRunStore(runId).rulings.find(
+        (entry) => entry.publicId === publicId && entry.visibility === 'public',
       );
+
+      return ruling ? toPublicRuling(ruling) : null;
     },
     async getRulingReferenceByPublicId(publicId: string) {
       const store = getTestRunStore(runId);
-      const rulingIndex = store.rulings.findIndex(
-        (ruling) => ruling.publicId === publicId,
+      const ruling = store.rulings.find(
+        (entry) => entry.publicId === publicId && entry.visibility === 'public',
       );
 
-      if (rulingIndex === -1) {
+      if (!ruling) {
         return null;
       }
 
       return {
-        id: rulingIndex + 1,
+        id: ruling.id,
         publicId,
       };
     },
+  };
+}
+
+function toPublicRuling(ruling: TestStoredRuling): PublicRuling {
+  return {
+    publicId: ruling.publicId,
+    displayName: ruling.displayName,
+    requestText: ruling.requestText,
+    decision: ruling.decision,
+    santaResponse: ruling.santaResponse,
+    createdAt: ruling.createdAt,
   };
 }
 

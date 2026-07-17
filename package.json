@@ -1,6 +1,6 @@
 {
   "name": "santa-commands-it",
-  "version": "0.1.6",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "A bright theatrical holiday web app from Argon Collective LLC with hardened public Santa rulings, reporting, and launch-readiness refinements.",
@@ -9,6 +9,7 @@
   },
   "scripts": {
     "dev": "astro dev",
+    "stop": "astro dev stop",
     "build": "astro build",
     "preview": "env ASTRO_DEV_BACKGROUND=1 astro dev --mode production --host 127.0.0.1 --port 4321",
     "lint": "eslint .",
@@ -18,6 +19,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node --env-file=.env ./scripts/db-migrate.mjs",
     "db:studio": "node --env-file=.env ./scripts/db-studio.mjs",
+    "workshop:hash": "node ./scripts/generate-workshop-password-hash.mjs",
     "db:check": "drizzle-kit check",
     "test": "vitest run",
     "test:watch": "vitest",

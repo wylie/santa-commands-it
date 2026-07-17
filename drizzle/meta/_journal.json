@@ -15,6 +15,13 @@
       "when": 1784209092596,
       "tag": "0001_dark_nehzno",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1784306413095,
+      "tag": "0002_classy_preak",
+      "breakpoints": true
     }
   ]
 }

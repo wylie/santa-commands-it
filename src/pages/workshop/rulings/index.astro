@@ -1,0 +1,348 @@
+---
+import WorkshopLayout from '@/layouts/WorkshopLayout.astro';
+import { requireWorkshopPageSession } from '@/server/workshop/auth';
+import { getWorkshopRulingsPageData } from '@/server/workshop/service';
+import { formatRulingTimestamp, getDecisionLabel } from '@/utils/rulings';
+import { getVisibilityLabel } from '@/utils/workshop';
+
+const session = await requireWorkshopPageSession(Astro);
+
+if (session instanceof Response) {
+  return session;
+}
+
+const data = await getWorkshopRulingsPageData(
+  Astro.request.headers,
+  Astro.url.searchParams,
+);
+const status = Astro.url.searchParams.get('status');
+const error = Astro.url.searchParams.get('error');
+const bannerMessage =
+  status === 'hidden'
+    ? {
+        tone: 'success',
+        message: 'The ruling is now hidden from the public site.',
+      }
+    : status === 'hidden-with-warning'
+      ? {
+          tone: 'warning',
+          message:
+            'The ruling was hidden, but the activity entry could not be recorded.',
+        }
+      : status === 'restored'
+        ? { tone: 'success', message: 'The ruling is public again.' }
+        : status === 'restored-with-warning'
+          ? {
+              tone: 'warning',
+              message:
+                'The ruling was restored, but the activity entry could not be recorded.',
+            }
+          : status === 'deleted'
+            ? {
+                tone: 'success',
+                message: 'The ruling was deleted permanently.',
+              }
+            : status === 'deleted-with-warning'
+              ? {
+                  tone: 'warning',
+                  message:
+                    'The ruling was deleted, but the activity entry could not be recorded.',
+                }
+              : error === 'invalid-hide-reason'
+                ? {
+                    tone: 'error',
+                    message:
+                      'Please keep hide notes to 300 characters or fewer.',
+                  }
+                : error === 'invalid-confirmation'
+                  ? {
+                      tone: 'error',
+                      message:
+                        'Deletion requires the exact confirmation phrase.',
+                    }
+                  : error === 'already-hidden'
+                    ? {
+                        tone: 'error',
+                        message: 'That ruling is already hidden.',
+                      }
+                    : error === 'already-public'
+                      ? {
+                          tone: 'error',
+                          message: 'That ruling is already public.',
+                        }
+                      : error === 'not-found'
+                        ? {
+                            tone: 'error',
+                            message: 'That ruling could not be found.',
+                          }
+                        : null;
+
+const totalPages = Math.max(1, Math.ceil(data.total / data.pageSize));
+const startResult = data.total === 0 ? 0 : (data.page - 1) * data.pageSize + 1;
+const endResult = Math.min(data.total, data.page * data.pageSize);
+const currentLocation = `${Astro.url.pathname}${Astro.url.search}`;
+
+function buildQueryString(page: number) {
+  const next = new URLSearchParams();
+
+  if (data.filters.query) {
+    next.set('q', data.filters.query);
+  }
+
+  if (data.filters.decision !== 'all') {
+    next.set(
+      'decision',
+      data.filters.decision === 'random-coal' ? 'coal' : data.filters.decision,
+    );
+  }
+
+  if (data.filters.visibility !== 'all') {
+    next.set('visibility', data.filters.visibility);
+  }
+
+  if (data.filters.sort !== 'newest') {
+    next.set('sort', data.filters.sort);
+  }
+
+  if (page > 1) {
+    next.set('page', String(page));
+  }
+
+  const serialized = next.toString();
+
+  return serialized ? `?${serialized}` : '';
+}
+
+function excerpt(value: string, maximum = 140) {
+  return value.length > maximum ? `${value.slice(0, maximum - 1)}…` : value;
+}
+---
+
+<WorkshopLayout
+  title="Ruling Management"
+  description="Search, filter, hide, restore, and inspect persisted Santa rulings."
+  currentPath={Astro.url.pathname}
+  csrfToken={session.csrfToken}
+>
+  {
+    bannerMessage && (
+      <p
+        class={`workshop-banner workshop-banner--${bannerMessage.tone}`}
+        role="status"
+      >
+        {bannerMessage.message}
+      </p>
+    )
+  }
+
+  <section class="workshop-panel">
+    <form class="workshop-filters" method="get" action="/workshop/rulings">
+      <div class="workshop-form__field">
+        <label for="workshop-search">Search rulings</label>
+        <input
+          id="workshop-search"
+          name="q"
+          type="search"
+          value={data.filters.query}
+          maxlength="120"
+        />
+      </div>
+
+      <div class="workshop-form__field">
+        <label for="workshop-decision">Decision</label>
+        <select id="workshop-decision" name="decision">
+          <option value="all" selected={data.filters.decision === 'all'}>
+            All decisions
+          </option>
+          <option
+            value="approved"
+            selected={data.filters.decision === 'approved'}
+          >
+            Approved
+          </option>
+          <option
+            value="coal"
+            selected={data.filters.decision === 'random-coal'}
+          >
+            Coal
+          </option>
+        </select>
+      </div>
+
+      <div class="workshop-form__field">
+        <label for="workshop-visibility">Visibility</label>
+        <select id="workshop-visibility" name="visibility">
+          <option value="all" selected={data.filters.visibility === 'all'}>
+            All visibility
+          </option>
+          <option
+            value="public"
+            selected={data.filters.visibility === 'public'}
+          >
+            Public
+          </option>
+          <option
+            value="hidden"
+            selected={data.filters.visibility === 'hidden'}
+          >
+            Hidden
+          </option>
+        </select>
+      </div>
+
+      <div class="workshop-form__field">
+        <label for="workshop-sort">Sort</label>
+        <select id="workshop-sort" name="sort">
+          <option value="newest" selected={data.filters.sort === 'newest'}>
+            Newest
+          </option>
+          <option value="oldest" selected={data.filters.sort === 'oldest'}>
+            Oldest
+          </option>
+        </select>
+      </div>
+
+      <div class="workshop-form__actions">
+        <button type="submit" class="button-command">Apply</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="workshop-panel">
+    <div class="workshop-results-bar">
+      <p>
+        Page {data.page} of {totalPages}
+      </p>
+      <p>
+        {startResult}-{endResult} of {data.total} rulings
+      </p>
+    </div>
+
+    {
+      data.rulings.length === 0 ? (
+        <p class="workshop-empty">No rulings matched this search.</p>
+      ) : (
+        <div class="workshop-table-wrap">
+          <table class="workshop-table">
+            <thead>
+              <tr>
+                <th scope="col">Name</th>
+                <th scope="col">Request</th>
+                <th scope="col">Decision</th>
+                <th scope="col">Visibility</th>
+                <th scope="col">Reports</th>
+                <th scope="col">Created</th>
+                <th scope="col">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.rulings.map((ruling) => (
+                <tr>
+                  <td data-label="Name">{ruling.displayName}</td>
+                  <td data-label="Request">{excerpt(ruling.requestText)}</td>
+                  <td data-label="Decision">
+                    {getDecisionLabel(ruling.decision)}
+                  </td>
+                  <td data-label="Visibility">
+                    <span
+                      class="workshop-status-pill"
+                      data-visibility={ruling.visibility}
+                    >
+                      {getVisibilityLabel(ruling.visibility)}
+                    </span>
+                  </td>
+                  <td data-label="Reports">{ruling.reportCount}</td>
+                  <td data-label="Created">
+                    <time datetime={ruling.createdAt}>
+                      {formatRulingTimestamp(ruling.createdAt)}
+                    </time>
+                  </td>
+                  <td data-label="Actions">
+                    <div class="workshop-row-actions">
+                      <a
+                        class="workshop-inline-link"
+                        href={`/workshop/rulings/${ruling.publicId}`}
+                      >
+                        View
+                      </a>
+                      {ruling.visibility === 'public' ? (
+                        <form
+                          method="post"
+                          action={`/api/workshop/rulings/${ruling.publicId}/hide`}
+                        >
+                          <input
+                            type="hidden"
+                            name="csrfToken"
+                            value={session.csrfToken}
+                          />
+                          <input
+                            type="hidden"
+                            name="returnTo"
+                            value={currentLocation}
+                          />
+                          <button type="submit" class="workshop-inline-button">
+                            Hide
+                          </button>
+                        </form>
+                      ) : (
+                        <form
+                          method="post"
+                          action={`/api/workshop/rulings/${ruling.publicId}/restore`}
+                        >
+                          <input
+                            type="hidden"
+                            name="csrfToken"
+                            value={session.csrfToken}
+                          />
+                          <input
+                            type="hidden"
+                            name="returnTo"
+                            value={currentLocation}
+                          />
+                          <button type="submit" class="workshop-inline-button">
+                            Restore
+                          </button>
+                        </form>
+                      )}
+                      <a
+                        class="workshop-inline-link workshop-inline-link--danger"
+                        href={`/workshop/rulings/${ruling.publicId}#delete-ruling`}
+                      >
+                        Delete
+                      </a>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )
+    }
+
+    <nav class="workshop-pagination" aria-label="Ruling pages">
+      <a
+        class:list={[
+          'button-link-secondary',
+          { 'is-disabled': data.page <= 1 },
+        ]}
+        href={data.page <= 1 ? undefined : buildQueryString(data.page - 1)}
+        aria-disabled={data.page <= 1 ? 'true' : undefined}
+      >
+        Previous
+      </a>
+      <a
+        class:list={[
+          'button-link-secondary',
+          { 'is-disabled': data.page >= totalPages },
+        ]}
+        href={data.page >= totalPages
+          ? undefined
+          : buildQueryString(data.page + 1)}
+        aria-disabled={data.page >= totalPages ? 'true' : undefined}
+      >
+        Next
+      </a>
+    </nav>
+  </section>
+</WorkshopLayout>

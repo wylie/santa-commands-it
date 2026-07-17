@@ -34,12 +34,23 @@ export type SubmissionRepository = {
     idempotencyKey: string,
     now: Date,
   ): Promise<PublicRuling | null>;
+  hasActiveIdempotencyKey(
+    clientKeyHash: string,
+    idempotencyKey: string,
+    now: Date,
+  ): Promise<boolean>;
   findDuplicateRuling(
     clientKeyHash: string,
     normalizedName: string,
     normalizedRequest: string,
     since: Date,
   ): Promise<PublicRuling | null>;
+  hasHiddenDuplicateRuling(
+    clientKeyHash: string,
+    normalizedName: string,
+    normalizedRequest: string,
+    since: Date,
+  ): Promise<boolean>;
   createRulingWithIdempotency(
     input: CreateSubmissionRulingInput,
   ): Promise<PublicRuling>;
@@ -107,11 +118,30 @@ export function createDatabaseSubmissionRepository(): SubmissionRepository {
             eq(submissionIdempotency.clientKeyHash, clientKeyHash),
             eq(submissionIdempotency.idempotencyKey, idempotencyKey),
             gt(submissionIdempotency.expiresAt, now),
+            eq(rulings.visibility, 'public'),
           ),
         )
         .limit(1);
 
       return row ? mapRulingRowToPublicRuling(row.ruling) : null;
+    },
+    async hasActiveIdempotencyKey(clientKeyHash, idempotencyKey, now) {
+      const database = getDatabase();
+      const [row] = await database
+        .select({
+          id: submissionIdempotency.id,
+        })
+        .from(submissionIdempotency)
+        .where(
+          and(
+            eq(submissionIdempotency.clientKeyHash, clientKeyHash),
+            eq(submissionIdempotency.idempotencyKey, idempotencyKey),
+            gt(submissionIdempotency.expiresAt, now),
+          ),
+        )
+        .limit(1);
+
+      return Boolean(row);
     },
     async findDuplicateRuling(
       clientKeyHash,
@@ -132,12 +162,40 @@ export function createDatabaseSubmissionRepository(): SubmissionRepository {
             eq(submissionIdempotency.normalizedName, normalizedName),
             eq(submissionIdempotency.normalizedRequest, normalizedRequest),
             gte(submissionIdempotency.createdAt, since),
+            eq(rulings.visibility, 'public'),
           ),
         )
         .orderBy(desc(submissionIdempotency.createdAt))
         .limit(1);
 
       return row ? mapRulingRowToPublicRuling(row.ruling) : null;
+    },
+    async hasHiddenDuplicateRuling(
+      clientKeyHash,
+      normalizedName,
+      normalizedRequest,
+      since,
+    ) {
+      const database = getDatabase();
+      const [row] = await database
+        .select({
+          id: submissionIdempotency.id,
+        })
+        .from(submissionIdempotency)
+        .innerJoin(rulings, eq(submissionIdempotency.rulingId, rulings.id))
+        .where(
+          and(
+            eq(submissionIdempotency.clientKeyHash, clientKeyHash),
+            eq(submissionIdempotency.normalizedName, normalizedName),
+            eq(submissionIdempotency.normalizedRequest, normalizedRequest),
+            gte(submissionIdempotency.createdAt, since),
+            eq(rulings.visibility, 'hidden'),
+          ),
+        )
+        .orderBy(desc(submissionIdempotency.createdAt))
+        .limit(1);
+
+      return Boolean(row);
     },
     async createRulingWithIdempotency(input) {
       const database = getDatabase();
@@ -148,14 +206,16 @@ export function createDatabaseSubmissionRepository(): SubmissionRepository {
             display_name,
             request_text,
             decision,
-            santa_response
+            santa_response,
+            visibility
           )
           VALUES (
             ${input.publicId},
             ${input.displayName},
             ${input.requestText},
             ${input.decision}::ruling_decision,
-            ${input.santaResponse}
+            ${input.santaResponse},
+            'public'::ruling_visibility
           )
           RETURNING
             id,
@@ -241,8 +301,20 @@ export function createTestSubmissionRepository(
 
       return (
         store.rulings.find(
-          (ruling) => ruling.publicId === idempotencyRecord.rulingPublicId,
+          (ruling) =>
+            ruling.publicId === idempotencyRecord.rulingPublicId &&
+            ruling.visibility === 'public',
         ) ?? null
+      );
+    },
+    async hasActiveIdempotencyKey(clientKeyHash, idempotencyKey, now) {
+      const store = getTestRunStore(runId);
+
+      return store.idempotencyRecords.some(
+        (record) =>
+          record.clientKeyHash === clientKeyHash &&
+          record.idempotencyKey === idempotencyKey &&
+          new Date(record.expiresAt).getTime() > now.getTime(),
       );
     },
     async findDuplicateRuling(
@@ -269,20 +341,54 @@ export function createTestSubmissionRepository(
 
       return (
         store.rulings.find(
-          (ruling) => ruling.publicId === match.rulingPublicId,
+          (ruling) =>
+            ruling.publicId === match.rulingPublicId &&
+            ruling.visibility === 'public',
         ) ?? null
+      );
+    },
+    async hasHiddenDuplicateRuling(
+      clientKeyHash,
+      normalizedName,
+      normalizedRequest,
+      since,
+    ) {
+      const store = getTestRunStore(runId);
+      const threshold = since.getTime();
+      const match = [...store.idempotencyRecords]
+        .reverse()
+        .find(
+          (record) =>
+            record.clientKeyHash === clientKeyHash &&
+            record.normalizedName === normalizedName &&
+            record.normalizedRequest === normalizedRequest &&
+            new Date(record.createdAt).getTime() >= threshold,
+        );
+
+      if (!match) {
+        return false;
+      }
+
+      return store.rulings.some(
+        (ruling) =>
+          ruling.publicId === match.rulingPublicId &&
+          ruling.visibility === 'hidden',
       );
     },
     async createRulingWithIdempotency(input) {
       const store = getTestRunStore(runId);
       const createdAt = new Date().toISOString();
-      const ruling: PublicRuling = {
+      const ruling = {
+        id: store.rulings.length + 1,
         publicId: input.publicId,
         displayName: input.displayName,
         requestText: input.requestText,
         decision: input.decision,
         santaResponse: input.santaResponse,
         createdAt,
+        visibility: 'public' as const,
+        hiddenAt: null,
+        hiddenReason: null,
       };
 
       store.rulings.unshift(ruling);
@@ -296,7 +402,14 @@ export function createTestSubmissionRepository(
         expiresAt: input.expiresAt.toISOString(),
       });
 
-      return ruling;
+      return {
+        publicId: ruling.publicId,
+        displayName: ruling.displayName,
+        requestText: ruling.requestText,
+        decision: ruling.decision,
+        santaResponse: ruling.santaResponse,
+        createdAt: ruling.createdAt,
+      };
     },
   };
 }

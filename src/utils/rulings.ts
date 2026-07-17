@@ -19,7 +19,7 @@ export type CreatedRulingResponse = {
 
 export type DuplicateRulingResponse = {
   status: 'duplicate';
-  ruling: PublicRuling;
+  ruling?: PublicRuling;
   message: string;
 };
 
@@ -125,7 +125,10 @@ export function isSubmitRulingResponse(
   }
 
   if (value.status === 'duplicate') {
-    return isPublicRuling(value.ruling) && typeof value.message === 'string';
+    return (
+      (value.ruling === undefined || isPublicRuling(value.ruling)) &&
+      typeof value.message === 'string'
+    );
   }
 
   if (value.status === 'blocked') {

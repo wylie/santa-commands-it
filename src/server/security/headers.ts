@@ -29,6 +29,10 @@ export function applySecurityHeaders(
     isApiRoute: boolean;
   },
 ): Response {
+  const pathname = new URL(options.requestUrl).pathname;
+  const isWorkshopRoute =
+    pathname.startsWith('/workshop') || pathname.startsWith('/api/workshop');
+
   response.headers.set('Content-Security-Policy', buildContentSecurityPolicy());
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   response.headers.set('X-Content-Type-Options', 'nosniff');
@@ -47,8 +51,12 @@ export function applySecurityHeaders(
     );
   }
 
-  if (options.isApiRoute || response.status >= 400) {
+  if (options.isApiRoute || response.status >= 400 || isWorkshopRoute) {
     response.headers.set('Cache-Control', 'no-store');
+  }
+
+  if (isWorkshopRoute) {
+    response.headers.set('X-Robots-Tag', 'noindex, nofollow');
   }
 
   return response;

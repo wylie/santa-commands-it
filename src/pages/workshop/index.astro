@@ -1,0 +1,104 @@
+---
+import WorkshopLayout from '@/layouts/WorkshopLayout.astro';
+import { requireWorkshopPageSession } from '@/server/workshop/auth';
+import { getWorkshopDashboardData } from '@/server/workshop/service';
+import { formatRulingTimestamp, getDecisionLabel } from '@/utils/rulings';
+import { getOwnerActivityLabel, getVisibilityLabel } from '@/utils/workshop';
+
+const session = await requireWorkshopPageSession(Astro);
+
+if (session instanceof Response) {
+  return session;
+}
+
+const { metrics, recentRulings, recentActivity } =
+  await getWorkshopDashboardData(Astro.request.headers);
+---
+
+<WorkshopLayout
+  title="Workshop Dashboard"
+  description="A private operational view of public Santa rulings and owner activity."
+  currentPath={Astro.url.pathname}
+  csrfToken={session.csrfToken}
+>
+  <section class="workshop-grid workshop-grid--metrics" aria-label="Overview">
+    <article class="workshop-card">
+      <h2>Total public rulings</h2>
+      <p class="workshop-metric">{metrics.totalRulings}</p>
+    </article>
+    <article class="workshop-card">
+      <h2>Approved rulings</h2>
+      <p class="workshop-metric">{metrics.approvedRulings}</p>
+    </article>
+    <article class="workshop-card">
+      <h2>Coal rulings</h2>
+      <p class="workshop-metric">{metrics.coalRulings}</p>
+    </article>
+    <article class="workshop-card">
+      <h2>Hidden rulings</h2>
+      <p class="workshop-metric">{metrics.hiddenRulings}</p>
+    </article>
+    <article class="workshop-card">
+      <h2>Open reports</h2>
+      <p class="workshop-metric">{metrics.openReports}</p>
+    </article>
+  </section>
+
+  <section class="workshop-grid workshop-grid--columns">
+    <article class="workshop-card">
+      <div class="workshop-card__header">
+        <h2>Most recent rulings</h2>
+        <a class="workshop-inline-link" href="/workshop/rulings">
+          View all rulings
+        </a>
+      </div>
+
+      <ol class="workshop-summary-list">
+        {
+          recentRulings.map((ruling) => (
+            <li class="workshop-summary-list__item">
+              <div>
+                <p class="workshop-summary-list__title">{ruling.displayName}</p>
+                <p class="workshop-summary-list__meta">
+                  {getDecisionLabel(ruling.decision)} ·{' '}
+                  {getVisibilityLabel(ruling.visibility)} ·{' '}
+                  {formatRulingTimestamp(ruling.createdAt)}
+                </p>
+              </div>
+              <a
+                class="workshop-inline-link"
+                href={`/workshop/rulings/${ruling.publicId}`}
+              >
+                View
+              </a>
+            </li>
+          ))
+        }
+      </ol>
+    </article>
+
+    <article class="workshop-card">
+      <h2>Recent owner activity</h2>
+      <ol class="workshop-summary-list">
+        {
+          recentActivity.map((entry) => (
+            <li class="workshop-summary-list__item">
+              <div>
+                <p class="workshop-summary-list__title">
+                  {getOwnerActivityLabel(entry.action)}
+                </p>
+                <p class="workshop-summary-list__meta">
+                  {formatRulingTimestamp(entry.createdAt)}
+                  {entry.targetPublicId ? ` · ${entry.targetPublicId}` : ''}
+                </p>
+                {entry.details && (
+                  <p class="workshop-summary-list__detail">{entry.details}</p>
+                )}
+              </div>
+            </li>
+          ))
+        }
+      </ol>
+    </article>
+  </section>
+</WorkshopLayout>
