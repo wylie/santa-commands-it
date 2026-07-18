@@ -84,6 +84,7 @@ describe('workshop authentication', () => {
 
   it('rate-limits repeated failed login attempts for the same client', async () => {
     stubWorkshopEnv();
+    vi.stubEnv('NODE_ENV', 'production');
     const authRepository = createTestWorkshopAuthRepository('auth-rate-limit');
     const workshopRepository = createTestWorkshopRepository('auth-rate-limit');
 
@@ -108,6 +109,31 @@ describe('workshop authentication', () => {
       status: 'rate-limited',
       message: securitySettings.workshop.auth.rateLimitMessage,
     });
+  });
+
+  it('does not rate-limit repeated failed login attempts in local development', async () => {
+    stubWorkshopEnv();
+    const authRepository = createTestWorkshopAuthRepository('auth-local-dev');
+    const workshopRepository = createTestWorkshopRepository('auth-local-dev');
+
+    for (
+      let attempt = 0;
+      attempt < securitySettings.workshop.auth.loginRateLimit.maxAttempts;
+      attempt += 1
+    ) {
+      await authRepository.recordLoginAttempt('client-a', false);
+    }
+
+    const result = await performWorkshopLogin({
+      username: 'owner',
+      password: 'northpole-sleigh',
+      clientKeyHash: 'client-a',
+      authRepository,
+      workshopRepository,
+      now: new Date('2026-07-17T12:00:00.000Z'),
+    });
+
+    expect(result.status).toBe('success');
   });
 });
 

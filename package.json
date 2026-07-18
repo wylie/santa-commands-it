@@ -21,6 +21,7 @@
     "db:seed:configuration": "node --env-file=.env ./scripts/seed-configuration.mjs",
     "db:studio": "node --env-file=.env ./scripts/db-studio.mjs",
     "workshop:hash": "node ./scripts/generate-workshop-password-hash.mjs",
+    "workshop:verify": "node --env-file=.env ./scripts/verify-workshop-credentials.mjs",
     "db:check": "drizzle-kit check",
     "test": "vitest run",
     "test:watch": "vitest",

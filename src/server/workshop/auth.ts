@@ -48,6 +48,10 @@ export type WorkshopLoginResult =
       message: string;
     };
 
+function isWorkshopLoginRateLimitEnabled(): boolean {
+  return isProductionEnvironment();
+}
+
 function safeEquals(left: string, right: string): boolean {
   const leftBuffer = Buffer.from(left);
   const rightBuffer = Buffer.from(right);
@@ -235,22 +239,25 @@ export async function performWorkshopLogin(input: {
   now?: Date;
 }): Promise<WorkshopLoginResult> {
   const now = input.now ?? new Date();
-  const rateLimitWindowStart = new Date(
-    now.getTime() - securitySettings.workshop.auth.loginRateLimit.windowMs,
-  );
-  const recentFailures =
-    await input.authRepository.countFailedLoginAttemptsSince(
-      input.clientKeyHash,
-      rateLimitWindowStart,
+  if (isWorkshopLoginRateLimitEnabled()) {
+    const rateLimitWindowStart = new Date(
+      now.getTime() - securitySettings.workshop.auth.loginRateLimit.windowMs,
     );
+    const recentFailures =
+      await input.authRepository.countFailedLoginAttemptsSince(
+        input.clientKeyHash,
+        rateLimitWindowStart,
+      );
 
-  if (
-    recentFailures >= securitySettings.workshop.auth.loginRateLimit.maxAttempts
-  ) {
-    return {
-      status: 'rate-limited',
-      message: securitySettings.workshop.auth.rateLimitMessage,
-    };
+    if (
+      recentFailures >=
+      securitySettings.workshop.auth.loginRateLimit.maxAttempts
+    ) {
+      return {
+        status: 'rate-limited',
+        message: securitySettings.workshop.auth.rateLimitMessage,
+      };
+    }
   }
 
   const storedHash = getWorkshopPasswordHash({

@@ -235,8 +235,6 @@ a {
 .portrait-frame__image {
   width: 100%;
   height: auto;
-  border-radius: var(--radius-image);
-  box-shadow: var(--shadow-image);
 }
 
 .hero__content {

@@ -158,7 +158,8 @@ The public homepage, public ruling pages, submission flow, reporting flow, Santa
 - Workshop cookies use `SameSite=Lax`, are marked `Secure` in production, and expire after `12` hours.
 - Each authenticated session carries a private CSRF token that is required for workshop mutations, including logout.
 - Login failures are generic by design and do not reveal whether the username or password was incorrect.
-- Failed login attempts are rate-limited per hashed client identifier at `5` failures per `15` minutes.
+- Failed login attempts are rate-limited per hashed client identifier at `5` failures per `15` minutes` in production.
+- Local development skips the Workshop login rate limiter so owners can recover from bad credentials without waiting out the production lockout window.
 - Workshop pages redirect unauthenticated visitors to `/workshop/login`.
 - Workshop API mutations reject unauthorized or cross-origin requests safely.
 - Configuration mutations also require supported form content types, bounded request bodies, and CSRF tokens before a rule, setting, or template can change.
@@ -214,6 +215,7 @@ The public homepage, public ruling pages, submission flow, reporting flow, Santa
 - `npm run db:migrate` applies generated migrations to the configured database.
 - `npm run db:studio` opens Drizzle Studio against the configured database.
 - `npm run workshop:hash` generates a new `scrypt` password hash for `WORKSHOP_PASSWORD_HASH`.
+- `npm run workshop:verify` checks a plaintext username and password against the current local `.env` Workshop credentials without exposing the stored hash.
 - `npm run db:check` runs Drizzle's schema check command.
 - `npm run test` runs the Vitest suite.
 - `npm run test:watch` runs Vitest in watch mode.

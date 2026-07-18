@@ -242,6 +242,11 @@ describe('workshop login route', () => {
   });
 
   it('keeps login rate limiting active through the route', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv(
+      'SESSION_SECRET',
+      'production-session-secret-for-rate-limit-test-1234567890',
+    );
     const { route } = await loadLoginRoute('login-rate-limit');
 
     for (let attempt = 0; attempt < 5; attempt += 1) {

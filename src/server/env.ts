@@ -1,3 +1,5 @@
+import process from 'node:process';
+
 export class DatabaseConfigurationError extends Error {
   constructor(
     message = 'DATABASE_URL is required for Santa rulings persistence.',
@@ -41,6 +43,28 @@ export class WorkshopConfigurationError extends Error {
   }
 }
 
+let localEnvLoaded = false;
+
+function ensureLocalEnvLoaded(): void {
+  if (localEnvLoaded) {
+    return;
+  }
+
+  localEnvLoaded = true;
+
+  if (typeof process.loadEnvFile !== 'function') {
+    return;
+  }
+
+  for (const fileName of ['.env.local', '.env']) {
+    try {
+      process.loadEnvFile(fileName);
+    } catch {
+      // Local env files are optional here and should not crash the server.
+    }
+  }
+}
+
 function readEnvValue(
   name:
     | 'DATABASE_URL'
@@ -51,7 +75,9 @@ function readEnvValue(
     | 'WORKSHOP_PASSWORD_HASH'
     | 'SESSION_SECRET',
 ) {
-  return import.meta.env[name] ?? process.env[name];
+  ensureLocalEnvLoaded();
+
+  return process.env[name] ?? import.meta.env[name];
 }
 
 function normalizeAbsoluteUrl(value: string): string | null {
@@ -144,14 +170,14 @@ export function isEndToEndTestMode(): boolean {
 export function getWorkshopUsername(options?: {
   allowTestFallback?: boolean;
 }): string {
+  if (options?.allowTestFallback || isEndToEndTestMode()) {
+    return 'owner';
+  }
+
   const value = readEnvValue('WORKSHOP_USERNAME');
 
   if (value && value.trim()) {
     return value.trim();
-  }
-
-  if (options?.allowTestFallback || isEndToEndTestMode()) {
-    return 'owner';
   }
 
   throw new WorkshopConfigurationError(
@@ -162,14 +188,14 @@ export function getWorkshopUsername(options?: {
 export function getWorkshopPasswordHash(options?: {
   allowTestFallback?: boolean;
 }): string {
+  if (options?.allowTestFallback || isEndToEndTestMode()) {
+    return 'scrypt$16384$8$1$VQtVf9aINseCC0S28nwZhQ$hBcteqZZNeLtQi97rVc0ZEz0gtg7q7_IjeKkIfdHmc-MLk0Mx14BeKOfulFi-XFqmz7395QTMAZjyL9licsYkg';
+  }
+
   const value = readEnvValue('WORKSHOP_PASSWORD_HASH');
 
   if (value && value.trim()) {
     return value.trim();
-  }
-
-  if (options?.allowTestFallback || isEndToEndTestMode()) {
-    return 'scrypt$16384$8$1$VQtVf9aINseCC0S28nwZhQ$hBcteqZZNeLtQi97rVc0ZEz0gtg7q7_IjeKkIfdHmc-MLk0Mx14BeKOfulFi-XFqmz7395QTMAZjyL9licsYkg';
   }
 
   throw new WorkshopConfigurationError(
