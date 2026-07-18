@@ -1,6 +1,8 @@
 import type { APIRoute } from 'astro';
 
+import { methodNotAllowed } from '@/server/api/responses';
 import {
+  buildWorkshopLoginPath,
   destroyWorkshopSession,
   ensureWorkshopMutationRequest,
   getWorkshopSessionCookieOptions,
@@ -10,11 +12,21 @@ import {
 import { getWorkshopAuthRepositoryForHeaders } from '@/server/workshop/test-mode';
 import { getWorkshopRepositoryForHeaders } from '@/server/workshop/test-mode';
 
+function redirectSeeOther(
+  redirect: (path: string, status?: 301 | 302 | 303 | 307 | 308) => Response,
+  path: string,
+): Response {
+  return redirect(path, 303);
+}
+
 export const POST: APIRoute = async (context) => {
   const session = await requireWorkshopApiSession(context);
 
   if (session instanceof Response) {
-    return context.redirect('/workshop/login?error=expired');
+    return redirectSeeOther(
+      context.redirect,
+      buildWorkshopLoginPath({ error: 'expired' }),
+    );
   }
 
   const formData = await context.request.formData();
@@ -26,7 +38,10 @@ export const POST: APIRoute = async (context) => {
   );
 
   if (!verification.ok) {
-    return context.redirect('/workshop/login?error=expired');
+    return redirectSeeOther(
+      context.redirect,
+      buildWorkshopLoginPath({ error: 'expired' }),
+    );
   }
 
   await destroyWorkshopSession({
@@ -43,5 +58,10 @@ export const POST: APIRoute = async (context) => {
     getWorkshopSessionCookieOptions(),
   );
 
-  return context.redirect('/workshop/login?status=logged-out');
+  return redirectSeeOther(
+    context.redirect,
+    buildWorkshopLoginPath({ status: 'logged-out' }),
+  );
 };
+
+export const ALL: APIRoute = async () => methodNotAllowed('POST');

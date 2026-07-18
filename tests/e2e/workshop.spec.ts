@@ -18,14 +18,19 @@ test.describe('Santa Workshop owner area', () => {
       'content',
       'noindex, nofollow',
     );
+    await expect(
+      page.locator('form[action="/api/workshop/login"]'),
+    ).toHaveAttribute('method', /post/i);
 
     await page.getByLabel('Username').fill('owner');
     await page.getByLabel('Password').fill('wrong-password');
     await page.getByRole('button', { name: 'Enter workshop' }).click();
 
+    await expect(page).toHaveURL(/\/workshop\/login\?error=credentials/);
     await expect(
       page.getByText('Santa cannot open the workshop with those credentials.'),
     ).toBeVisible();
+    expect(page.url()).not.toContain('/api/workshop/login');
 
     await page.getByLabel('Username').fill('owner');
     await page.getByLabel('Password').fill('northpole-sleigh');
@@ -35,6 +40,7 @@ test.describe('Santa Workshop owner area', () => {
     await expect(
       page.getByRole('heading', { name: 'Workshop Dashboard' }),
     ).toBeVisible();
+    expect(page.url()).not.toContain('/api/workshop/login');
   });
 
   test('hides, restores, and permanently deletes rulings from the owner UI', async ({

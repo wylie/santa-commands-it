@@ -43,7 +43,7 @@ Completed approvals and coal rulings are public on the homepage and on their own
 6. Add `RATE_LIMIT_SECRET=...` to the same `.env` file.
 7. Add `WORKSHOP_USERNAME=...` and `SESSION_SECRET=...`.
 8. Generate a workshop password hash with `npm run workshop:hash`, then store it as `WORKSHOP_PASSWORD_HASH=...`.
-9. Optionally add `SITE_URL=https://your-production-domain.example` for canonical URLs and production metadata.
+9. For local production-like checks you may omit `SITE_URL`, but production should use `SITE_URL=https://santa-commands-it.vercel.app` for canonical URLs, Workshop origin validation, and public metadata.
 10. Optionally add `SITE_TIMEZONE=America/New_York` or another valid IANA time zone for workshop dashboard grouping. When omitted, the dashboard groups in `UTC`.
 11. Generate and apply the schema migration:
 
@@ -115,6 +115,21 @@ Private owner routes now live under:
 - `/workshop/reports/[reportId]`
 
 The public homepage, public ruling pages, submission flow, reporting flow, Santa artwork, winter visual design, and latest-commands feed remain intact and operate independently of the owner area.
+
+## Workshop login flow
+
+- Owners should visit `/workshop/login`, not `/api/workshop/login`.
+- The HTML form submits with `method="POST"` to `/api/workshop/login`.
+- Successful logins follow a conventional POST/Redirect/GET flow:
+  - `POST /api/workshop/login`
+  - create the Workshop session
+  - return `303 See Other`
+  - redirect to `/workshop` or a validated internal Workshop return path
+- Failed logins do not create a session and return `303 See Other` back to `/workshop/login?error=credentials`.
+- Login error handling is allow-listed. Supported values are currently `credentials`, `rate-limited`, `expired`, and `unavailable`.
+- `GET /api/workshop/login` is only a recovery path for accidental navigation and immediately redirects back to `/workshop/login`.
+- External or malformed return URLs are rejected. Allowed return paths stay under `/workshop`.
+- Workshop logout remains a protected `POST /api/workshop/logout` flow and redirects back to `/workshop/login?status=logged-out`.
 
 ## Workshop dashboard
 
@@ -448,7 +463,7 @@ Completed approved and coal rulings are public and accessible to anyone with the
 - Database access exists only in server-side modules under `src/server/`.
 - `DATABASE_URL` is never exposed to client-side code.
 - `RATE_LIMIT_SECRET` is read only on the server and should be configured distinctly in production.
-- `SITE_URL` should be configured in production so ruling pages emit stable canonical metadata.
+- `SITE_URL` should be configured in production as `https://santa-commands-it.vercel.app` so ruling pages emit stable canonical metadata and Workshop login origin checks accept the canonical production origin.
 - Production builds output Vercel-compatible server artifacts rather than a static site.
 - This release uses database-backed safeguards because a serverless deployment cannot rely on process memory as the sole production limiter.
 - The Vercel adapter does not support Astro's native preview server, so the local `preview` script intentionally runs a production-mode server approximation instead.
@@ -486,6 +501,22 @@ Vercel production and preview:
 
 Do not place secrets in `vercel.json`. Configure them through the Vercel project environment settings instead.
 
+Workshop-specific production variables:
+
+- `WORKSHOP_USERNAME`
+- `WORKSHOP_PASSWORD_HASH`
+- `SESSION_SECRET`
+- `RATE_LIMIT_SECRET`
+- `SITE_URL=https://santa-commands-it.vercel.app`
+
+Generate a replacement Workshop password hash with:
+
+- `npm run workshop:hash`
+
+Generate a strong session secret with a local tool such as:
+
+- `openssl rand -base64 48`
+
 ## Migrations and deployment verification
 
 - Apply local schema updates with `npm run db:migrate`.
@@ -494,6 +525,7 @@ Do not place secrets in `vercel.json`. Configure them through the Vercel project
 - Run the configuration seed once per environment after the new tables exist. Re-running it later is safe and will skip already-seeded rows.
 - After deployment, verify the ruling flow and open `/images/santa.png` directly to confirm the deployed asset path is correct.
 - Remember that `public/images/santa.png` is the repository filesystem path, while `/images/santa.png` is the browser URL.
+- Any Vercel environment-variable change requires a new deployment before the new login or session configuration is live.
 
 ## Production readiness
 
@@ -511,12 +543,28 @@ Recommended production setup:
 - Keep `RATE_LIMIT_SECRET` unique per environment.
 - Review CSP behavior after every third-party asset change.
 - Review seeded moderation fixtures before launch so any test-oriented rules are categorized appropriately for the environment.
+- After changing `WORKSHOP_USERNAME`, `WORKSHOP_PASSWORD_HASH`, `SESSION_SECRET`, `RATE_LIMIT_SECRET`, or `SITE_URL`, trigger a fresh Vercel deployment and retest `/workshop/login`.
 
 Preview deployment considerations:
 
 - Preview URLs work because the same-origin check allows the current request origin in addition to the configured `SITE_URL`.
 - Do not weaken origin validation beyond configured and request-local origins.
 - Use preview deployments to validate CSP, Google Fonts loading, and database connectivity before promoting a release.
+
+## Workshop login troubleshooting
+
+- Open `/workshop/login`, not `/api/workshop/login`.
+- After a valid login, the browser should finish on `/workshop`.
+- After an invalid login, the browser should finish on `/workshop/login?error=credentials`.
+- If the browser visibly ends on `/api/workshop/login`, inspect the deployment logs for that function invocation and verify the Workshop environment variables are set for the environment you are testing.
+- If Workshop authentication works locally but not on Vercel, verify `WORKSHOP_USERNAME`, `WORKSHOP_PASSWORD_HASH`, `SESSION_SECRET`, `RATE_LIMIT_SECRET`, `DATABASE_URL`, and `SITE_URL` are configured for the correct Vercel environment and redeploy after any change.
+- If `WORKSHOP_PASSWORD_HASH` needs to be regenerated, run `npm run workshop:hash` and update only the hash value in Vercel or your local `.env`.
+
+Safe Vercel log inspection:
+
+- Review only the `/api/workshop/login` function logs for the affected deployment.
+- Keep diagnostics at the level of error class, status, or failing stage.
+- Do not print submitted usernames, passwords, password hashes, session tokens, or secrets into logs or screenshots.
 
 ## Migrations
 

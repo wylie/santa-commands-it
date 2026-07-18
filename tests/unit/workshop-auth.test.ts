@@ -5,6 +5,7 @@ import {
   ensureWorkshopMutationRequest,
   getWorkshopSessionCookieOptions,
   performWorkshopLogin,
+  sanitizeWorkshopNextPath,
 } from '@/server/workshop/auth';
 import {
   createTestWorkshopAuthRepository,
@@ -122,6 +123,39 @@ describe('workshop session hardening', () => {
       path: '/',
       secure: false,
     });
+  });
+
+  it('uses Secure cookies in production', () => {
+    vi.stubEnv('NODE_ENV', 'production');
+
+    const options = getWorkshopSessionCookieOptions(
+      new Date('2026-07-18T00:00:00.000Z'),
+    );
+
+    expect(options).toMatchObject({
+      httpOnly: true,
+      sameSite: 'lax',
+      path: '/',
+      secure: true,
+    });
+  });
+
+  it('accepts a valid internal workshop return path', () => {
+    expect(sanitizeWorkshopNextPath('/workshop/reports?page=2')).toBe(
+      '/workshop/reports?page=2',
+    );
+  });
+
+  it('rejects absolute, protocol-relative, and non-workshop return paths', () => {
+    expect(sanitizeWorkshopNextPath('https://evil.example/steal')).toBe(
+      '/workshop',
+    );
+    expect(sanitizeWorkshopNextPath('//evil.example/steal')).toBe('/workshop');
+    expect(sanitizeWorkshopNextPath('/elsewhere')).toBe('/workshop');
+    expect(
+      sanitizeWorkshopNextPath('/workshop/login?next=/workshop/reports'),
+    ).toBe('/workshop');
+    expect(sanitizeWorkshopNextPath('/workshopevil')).toBe('/workshop');
   });
 
   it('rejects invalid CSRF tokens on same-origin mutations', () => {

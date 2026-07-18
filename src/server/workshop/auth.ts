@@ -21,6 +21,11 @@ import {
 } from '@/server/workshop/password';
 
 export const WORKSHOP_SESSION_COOKIE = 'workshop_session';
+export const WORKSHOP_ROOT_PATH = '/workshop';
+export const WORKSHOP_LOGIN_PATH = '/workshop/login';
+
+export type WorkshopLoginErrorCode =
+  'credentials' | 'rate-limited' | 'expired' | 'unavailable';
 
 export type WorkshopSession = {
   token: string;
@@ -79,15 +84,33 @@ export function getWorkshopSessionCookieOptions(expiresAt?: Date) {
 }
 
 export function sanitizeWorkshopNextPath(value: string | null): string {
-  if (!value || !value.startsWith('/workshop')) {
-    return '/workshop';
+  if (!value || !value.startsWith('/')) {
+    return WORKSHOP_ROOT_PATH;
   }
 
-  if (value.startsWith('/workshop/login')) {
-    return '/workshop';
-  }
+  try {
+    const url = new URL(value, 'http://localhost');
 
-  return value;
+    if (url.origin !== 'http://localhost') {
+      return WORKSHOP_ROOT_PATH;
+    }
+
+    const pathname = url.pathname;
+    const isWorkshopPath =
+      pathname === WORKSHOP_ROOT_PATH ||
+      pathname.startsWith(`${WORKSHOP_ROOT_PATH}/`);
+    const isLoginPath =
+      pathname === WORKSHOP_LOGIN_PATH ||
+      pathname.startsWith(`${WORKSHOP_LOGIN_PATH}/`);
+
+    if (!isWorkshopPath || isLoginPath) {
+      return WORKSHOP_ROOT_PATH;
+    }
+
+    return `${pathname}${url.search}${url.hash}`;
+  } catch {
+    return WORKSHOP_ROOT_PATH;
+  }
 }
 
 export function appendWorkshopRedirectParam(
@@ -97,6 +120,29 @@ export function appendWorkshopRedirectParam(
 ): string {
   const url = new URL(path, 'http://localhost');
   url.searchParams.set(key, value);
+
+  return `${url.pathname}${url.search}`;
+}
+
+export function buildWorkshopLoginPath(options?: {
+  error?: WorkshopLoginErrorCode;
+  status?: 'logged-out';
+  next?: string | null;
+}): string {
+  const url = new URL(WORKSHOP_LOGIN_PATH, 'http://localhost');
+  const nextPath = sanitizeWorkshopNextPath(options?.next ?? null);
+
+  if (options?.error) {
+    url.searchParams.set('error', options.error);
+  }
+
+  if (options?.status) {
+    url.searchParams.set('status', options.status);
+  }
+
+  if (nextPath !== WORKSHOP_ROOT_PATH) {
+    url.searchParams.set('next', nextPath);
+  }
 
   return `${url.pathname}${url.search}`;
 }
@@ -145,9 +191,7 @@ export async function requireWorkshopPageSession(
   });
 
   const nextPath = `${context.url.pathname}${context.url.search}`;
-  return context.redirect(
-    `/workshop/login?next=${encodeURIComponent(nextPath)}`,
-  );
+  return context.redirect(buildWorkshopLoginPath({ next: nextPath }));
 }
 
 export async function requireWorkshopApiSession(

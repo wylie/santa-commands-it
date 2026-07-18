@@ -19,9 +19,11 @@ const errorMessage =
     ? 'Workshop access is temporarily limited. Please try again later.'
     : error === 'expired'
       ? 'Your workshop session has expired. Please sign in again.'
-      : error === 'invalid'
+      : error === 'credentials'
         ? 'Santa cannot open the workshop with those credentials.'
-        : null;
+        : error === 'unavailable'
+          ? 'Santa cannot open the workshop right now. Please try again later.'
+          : null;
 const statusMessage =
   status === 'logged-out' ? 'You have left Santa’s Workshop.' : null;
 ---
