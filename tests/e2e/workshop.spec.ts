@@ -241,4 +241,139 @@ test.describe('Santa Workshop owner area', () => {
       }),
     ).toBeVisible();
   });
+
+  test('manages moderation rules, Santa settings, and response templates end to end', async ({
+    page,
+  }) => {
+    const { headers } = await configureSantaTestPage(page, {
+      randomValue: 0.99,
+      consideringDelayMs: 0,
+    });
+
+    await page.goto('/workshop/login');
+    await page.getByLabel('Username').fill('owner');
+    await page.getByLabel('Password').fill('northpole-sleigh');
+    await page.getByRole('button', { name: 'Enter workshop' }).click();
+
+    await page.getByRole('link', { name: 'Moderation', exact: true }).click();
+    await expect(page).toHaveURL(/\/workshop\/moderation/);
+    await expect(
+      page.getByRole('heading', { name: 'Moderation Rules' }),
+    ).toBeVisible();
+
+    await page.getByRole('link', { name: 'Add rule' }).click();
+    await expect(page).toHaveURL('/workshop/moderation/new');
+    await page.getByLabel('Rule type').selectOption('blocked-word');
+    await page.getByLabel('Rule value').fill('FrostZap');
+    await page.getByLabel('Category').selectOption('spam');
+    await page.getByRole('button', { name: 'Create rule' }).click();
+
+    await expect(page).toHaveURL(/\/workshop\/moderation\/rule_/);
+    await expect(
+      page.getByText('The moderation rule was created.'),
+    ).toBeVisible();
+
+    const blockedSubmission = await createRulingViaApi(page, headers, {
+      name: 'Holly',
+      request: 'Please frostzap the bells.',
+    });
+
+    expect(blockedSubmission).toMatchObject({
+      status: 'blocked',
+      focusField: 'request',
+    });
+
+    await page.goto('/workshop/moderation');
+    await page.getByLabel('Sample request').fill('Please frostzap the bells.');
+    await page.getByRole('button', { name: 'Run test' }).click();
+    await expect(
+      page.getByText(/Request: blocked by Blocked word/i),
+    ).toBeVisible();
+
+    await page.getByRole('link', { name: 'Edit', exact: true }).first().click();
+    await expect(page).toHaveURL(/\/workshop\/moderation\/rule_/);
+    await page.getByRole('button', { name: 'Disable rule' }).click();
+    await expect(
+      page.getByText('The moderation rule is now inactive.'),
+    ).toBeVisible();
+
+    const allowedSubmission = await createRulingViaApi(page, headers, {
+      name: 'Holly',
+      request: 'Please frostzap the choir bells.',
+    });
+
+    expect(allowedSubmission).toMatchObject({
+      status: 'created',
+      ruling: {
+        decision: 'approved',
+      },
+    });
+
+    await page
+      .getByRole('link', { name: 'Santa Settings', exact: true })
+      .click();
+    await expect(page).toHaveURL('/workshop/settings');
+    await page.getByLabel('Random coal percentage').fill('100');
+    await page.getByRole('button', { name: 'Save settings' }).click();
+    await expect(page.getByText('Santa settings were updated.')).toBeVisible();
+
+    const coalSubmission = await createRulingViaApi(page, headers, {
+      name: 'Juniper',
+      request: 'A moonlit observatory',
+    });
+
+    expect(coalSubmission).toMatchObject({
+      status: 'created',
+      ruling: {
+        decision: 'random-coal',
+      },
+    });
+
+    await page.getByLabel('Allow Santa to give random coal').uncheck();
+    await page.getByRole('button', { name: 'Save settings' }).click();
+    await expect(page.getByText('Santa settings were updated.')).toBeVisible();
+
+    const approvedSubmission = await createRulingViaApi(page, headers, {
+      name: 'Juniper',
+      request: 'A brass astrolabe',
+    });
+
+    expect(approvedSubmission).toMatchObject({
+      status: 'created',
+      ruling: {
+        decision: 'approved',
+      },
+    });
+
+    await page.getByRole('link', { name: 'Manage responses' }).click();
+    await expect(page).toHaveURL('/workshop/settings/responses');
+    const createTemplateForm = page.locator(
+      'form[action="/api/workshop/settings/responses/create"]',
+    );
+    await createTemplateForm
+      .getByLabel('Template group')
+      .selectOption('approved');
+    await createTemplateForm
+      .getByLabel('Template text')
+      .fill('CERTAINLY, {name}.');
+    await createTemplateForm.getByLabel('Sort order').fill('999');
+    await createTemplateForm
+      .getByRole('button', { name: 'Create template' })
+      .click();
+    await expect(
+      page.getByText('The response template was created.'),
+    ).toBeVisible();
+
+    const templateSubmission = await createRulingViaApi(page, headers, {
+      name: 'Holly',
+      request: 'A silver trumpet',
+    });
+
+    expect(templateSubmission).toMatchObject({
+      status: 'created',
+      ruling: {
+        santaResponse: 'CERTAINLY, Holly.',
+      },
+    });
+  });
 });

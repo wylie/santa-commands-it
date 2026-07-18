@@ -1,4 +1,4 @@
-import { santaSettings } from '@/config/santa-settings';
+import { publicSantaUiSettings } from '@/config/public-santa-ui';
 
 export type PersistedRulingDecision = 'approved' | 'random-coal';
 export type FocusField = 'name' | 'request' | 'both';
@@ -85,7 +85,7 @@ export type SubmitRulingResponse =
 const timestampFormatter = new Intl.DateTimeFormat('en-US', {
   dateStyle: 'long',
   timeStyle: 'short',
-  timeZone: santaSettings.recentRulings.timeZone,
+  timeZone: publicSantaUiSettings.recentRulings.timeZone,
 });
 
 function isRecord(value: unknown): value is Record<string, unknown> {

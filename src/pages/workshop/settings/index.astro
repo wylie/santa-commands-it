@@ -1,0 +1,199 @@
+---
+import WorkshopLayout from '@/layouts/WorkshopLayout.astro';
+import { securitySettings } from '@/config/security';
+import { requireWorkshopPageSession } from '@/server/workshop/auth';
+import { getWorkshopSantaSettingsPageData } from '@/server/config/service';
+import { getWorkshopOpenReportCount } from '@/server/workshop/service';
+import { formatRulingTimestamp } from '@/utils/rulings';
+import { getOwnerActivityLabel } from '@/utils/workshop';
+
+const session = await requireWorkshopPageSession(Astro);
+
+if (session instanceof Response) {
+  return session;
+}
+
+const data = await getWorkshopSantaSettingsPageData(Astro.request.headers);
+const openReportCount = await getWorkshopOpenReportCount(Astro.request.headers);
+
+if (!data.settings) {
+  return Astro.redirect('/workshop?error=settings-unavailable');
+}
+
+const status = Astro.url.searchParams.get('status');
+const error = Astro.url.searchParams.get('error');
+const bannerMessage =
+  status === 'saved'
+    ? {
+        tone: 'success',
+        message: 'Santa settings were updated.',
+      }
+    : status === 'saved-with-warning'
+      ? {
+          tone: 'warning',
+          message:
+            'Santa settings were updated, but the owner activity entry could not be recorded.',
+        }
+      : error === 'invalid-percentage'
+        ? {
+            tone: 'error',
+            message:
+              'Random coal percentage must be a whole number from 0 to 100.',
+          }
+        : error === 'conflict'
+          ? {
+              tone: 'warning',
+              message:
+                'Those settings changed in another tab. The latest saved values are shown below.',
+            }
+          : error === 'not-found'
+            ? {
+                tone: 'error',
+                message: 'Santa settings could not be loaded.',
+              }
+            : null;
+---
+
+<WorkshopLayout
+  title="Santa Settings"
+  description="Adjust the current database-backed random coal behavior and review recent settings activity."
+  currentPath="/workshop/settings"
+  csrfToken={session.csrfToken}
+  openReportCount={openReportCount}
+>
+  {
+    bannerMessage && (
+      <p
+        class={`workshop-banner workshop-banner--${bannerMessage.tone}`}
+        role="status"
+      >
+        {bannerMessage.message}
+      </p>
+    )
+  }
+
+  <section class="workshop-grid workshop-grid--detail">
+    <article class="workshop-card">
+      <div class="workshop-card__header">
+        <h2>Random coal</h2>
+        <a class="workshop-inline-link" href="/workshop/settings/responses">
+          Manage responses
+        </a>
+      </div>
+
+      <form
+        class="workshop-form"
+        method="post"
+        action="/api/workshop/settings/update"
+      >
+        <input type="hidden" name="csrfToken" value={session.csrfToken} />
+        <input type="hidden" name="returnTo" value="/workshop/settings" />
+        <input
+          type="hidden"
+          name="expectedVersion"
+          value={String(data.settings.version)}
+        />
+
+        <label class="workshop-checkbox">
+          <input
+            type="checkbox"
+            name="randomCoalEnabled"
+            value="true"
+            checked={data.settings.randomCoalEnabled}
+          />
+          <span>Allow Santa to give random coal</span>
+        </label>
+        <p class="workshop-form__hint">
+          When enabled, Santa may give coal to an otherwise acceptable request.
+        </p>
+
+        <div class="workshop-form__field">
+          <label for="random-coal-percentage">Random coal percentage</label>
+          <input
+            id="random-coal-percentage"
+            name="randomCoalPercentage"
+            type="number"
+            min="0"
+            max="100"
+            step="1"
+            value={String(data.settings.randomCoalPercentage)}
+            inputmode="numeric"
+            required
+          />
+          <p class="workshop-form__hint">
+            The approximate percentage of acceptable requests that will receive
+            coal. Current server-side cache TTL: {
+              Math.round(
+                securitySettings.workshop.configuration.cacheTtlMs / 1000,
+              )
+            }{' '}
+            seconds.
+          </p>
+        </div>
+
+        <div class="workshop-form__actions">
+          <button type="submit" class="button-command">Save settings</button>
+        </div>
+      </form>
+    </article>
+
+    <article class="workshop-card">
+      <div class="workshop-card__section">
+        <h3>Current state</h3>
+        <dl class="workshop-detail-list">
+          <div>
+            <dt>Enabled</dt>
+            <dd>{data.settings.randomCoalEnabled ? 'Yes' : 'No'}</dd>
+          </div>
+          <div>
+            <dt>Saved percentage</dt>
+            <dd>{data.settings.randomCoalPercentage}%</dd>
+          </div>
+          <div>
+            <dt>Version</dt>
+            <dd>{data.settings.version}</dd>
+          </div>
+          <div>
+            <dt>Updated</dt>
+            <dd>
+              <time datetime={data.settings.updatedAt}>
+                {formatRulingTimestamp(data.settings.updatedAt)}
+              </time>
+            </dd>
+          </div>
+        </dl>
+      </div>
+
+      <div class="workshop-card__section">
+        <h3>Recent settings activity</h3>
+        {
+          data.recentActivity.length === 0 ? (
+            <p class="workshop-empty">
+              No Santa settings changes are recorded yet.
+            </p>
+          ) : (
+            <ol class="workshop-summary-list">
+              {data.recentActivity.map((entry) => (
+                <li class="workshop-summary-list__item">
+                  <div>
+                    <p class="workshop-summary-list__title">
+                      {getOwnerActivityLabel(entry.action)}
+                    </p>
+                    <p class="workshop-summary-list__meta">
+                      {formatRulingTimestamp(entry.createdAt)}
+                    </p>
+                    {entry.details && (
+                      <p class="workshop-summary-list__detail">
+                        {entry.details}
+                      </p>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          )
+        }
+      </div>
+    </article>
+  </section>
+</WorkshopLayout>

@@ -1,0 +1,30 @@
+{
+  "moderationRules": {
+    "blockedWords": ["blocked-example"],
+    "blockedPhrases": ["coal for my enemy", "hurt someone"],
+    "allowedExceptions": ["blocked-example parade"]
+  },
+  "santaSettings": {
+    "randomCoalEnabled": true,
+    "randomCoalPercentage": 5
+  },
+  "responseTemplates": {
+    "approved": [
+      "VERY WELL, {name}.",
+      "SO IT SHALL BE.",
+      "AN EXCELLENT IDEA.",
+      "SANTA HAS CONSIDERED IT."
+    ],
+    "coal": [
+      "SANTA HAS DECIDED THAT TODAY IS A COAL DAY.",
+      "A PERFECTLY REASONABLE REQUEST. DENIED ANYWAY.",
+      "SANTA IS FEELING CAPRICIOUS.",
+      "NOT THIS TIME, {name}.",
+      "SANTA HAS SPOKEN. YOU GET COAL."
+    ],
+    "blockedWarning": [
+      "THAT IS UNACCEPTABLE. ASK FOR SOMETHING ELSE OR RECEIVE COAL!",
+      "SANTA WILL NOT COMMAND THAT. TRY SOMETHING KINDER."
+    ]
+  }
+}

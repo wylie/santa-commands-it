@@ -1,0 +1,475 @@
+---
+import WorkshopLayout from '@/layouts/WorkshopLayout.astro';
+import { requireWorkshopPageSession } from '@/server/workshop/auth';
+import { getWorkshopResponseTemplatesPageData } from '@/server/config/service';
+import { getWorkshopOpenReportCount } from '@/server/workshop/service';
+import {
+  getResponseTemplateGroupLabel,
+  responseTemplateGroups,
+} from '@/utils/configuration';
+import { formatRulingTimestamp } from '@/utils/rulings';
+import { getOwnerActivityLabel } from '@/utils/workshop';
+
+const session = await requireWorkshopPageSession(Astro);
+
+if (session instanceof Response) {
+  return session;
+}
+
+const data = await getWorkshopResponseTemplatesPageData(Astro.request.headers);
+const openReportCount = await getWorkshopOpenReportCount(Astro.request.headers);
+const status = Astro.url.searchParams.get('status');
+const error = Astro.url.searchParams.get('error');
+const bannerMessage =
+  status === 'created'
+    ? {
+        tone: 'success',
+        message: 'The response template was created.',
+      }
+    : status === 'created-with-warning'
+      ? {
+          tone: 'warning',
+          message:
+            'The response template was created, but the owner activity entry could not be recorded.',
+        }
+      : status === 'updated'
+        ? {
+            tone: 'success',
+            message: 'The response template was updated.',
+          }
+        : status === 'updated-with-warning'
+          ? {
+              tone: 'warning',
+              message:
+                'The response template was updated, but the owner activity entry could not be recorded.',
+            }
+          : status === 'enabled'
+            ? {
+                tone: 'success',
+                message: 'The response template is active again.',
+              }
+            : status === 'enabled-with-warning'
+              ? {
+                  tone: 'warning',
+                  message:
+                    'The response template was enabled, but the owner activity entry could not be recorded.',
+                }
+              : status === 'disabled'
+                ? {
+                    tone: 'success',
+                    message: 'The response template is now inactive.',
+                  }
+                : status === 'disabled-with-warning'
+                  ? {
+                      tone: 'warning',
+                      message:
+                        'The response template was disabled, but the owner activity entry could not be recorded.',
+                    }
+                  : status === 'deleted'
+                    ? {
+                        tone: 'success',
+                        message: 'The response template was deleted.',
+                      }
+                    : status === 'deleted-with-warning'
+                      ? {
+                          tone: 'warning',
+                          message:
+                            'The response template was deleted, but the owner activity entry could not be recorded.',
+                        }
+                      : error === 'invalid-group'
+                        ? {
+                            tone: 'error',
+                            message: 'Please choose a response template group.',
+                          }
+                        : error === 'invalid-text'
+                          ? {
+                              tone: 'error',
+                              message:
+                                'That response template text is not valid for the selected group.',
+                            }
+                          : error === 'invalid-sort-order'
+                            ? {
+                                tone: 'error',
+                                message:
+                                  'Sort order must be a whole number of 0 or greater.',
+                              }
+                            : error === 'invalid-note'
+                              ? {
+                                  tone: 'error',
+                                  message:
+                                    'Please keep private notes to 500 characters or fewer.',
+                                }
+                              : error === 'required-template-conflict'
+                                ? {
+                                    tone: 'error',
+                                    message:
+                                      'That change would leave Santa without a required active response template.',
+                                  }
+                                : error === 'not-found'
+                                  ? {
+                                      tone: 'error',
+                                      message:
+                                        'That response template could not be found.',
+                                    }
+                                  : error === 'no-op'
+                                    ? {
+                                        tone: 'warning',
+                                        message:
+                                          'That response template was already in the requested state.',
+                                      }
+                                    : null;
+
+function getPlaceholderHint(group: 'approved' | 'coal' | 'blocked-warning') {
+  if (group === 'blocked-warning') {
+    return 'Allowed placeholders: none. Keep blocked warnings plain text.';
+  }
+
+  return 'Allowed placeholders: {name}, {request}.';
+}
+
+const groupedTemplates = responseTemplateGroups.map((group) => ({
+  ...group,
+  templates: data.templates.filter(
+    (template) => template.group === group.value,
+  ),
+}));
+---
+
+<WorkshopLayout
+  title="Response Templates"
+  description="Manage the active approved, coal, and blocked warning messages used by the server-side decision engine."
+  currentPath="/workshop/settings"
+  csrfToken={session.csrfToken}
+  openReportCount={openReportCount}
+>
+  {
+    bannerMessage && (
+      <p
+        class={`workshop-banner workshop-banner--${bannerMessage.tone}`}
+        role="status"
+      >
+        {bannerMessage.message}
+      </p>
+    )
+  }
+
+  <section class="workshop-grid workshop-grid--detail">
+    <article class="workshop-card">
+      <div class="workshop-card__header">
+        <h2>Add template</h2>
+        <a class="workshop-inline-link" href="/workshop/settings">
+          Back to settings
+        </a>
+      </div>
+
+      <form
+        class="workshop-form"
+        method="post"
+        action="/api/workshop/settings/responses/create"
+      >
+        <input type="hidden" name="csrfToken" value={session.csrfToken} />
+        <input
+          type="hidden"
+          name="returnTo"
+          value="/workshop/settings/responses"
+        />
+
+        <div class="workshop-form__field">
+          <label for="new-template-group">Template group</label>
+          <select id="new-template-group" name="group" required>
+            <option value="">Choose a template group</option>
+            {
+              responseTemplateGroups.map((group) => (
+                <option value={group.value}>{group.label}</option>
+              ))
+            }
+          </select>
+        </div>
+
+        <div class="workshop-form__field">
+          <label for="new-template-text">Template text</label>
+          <textarea
+            id="new-template-text"
+            name="templateText"
+            maxlength="500"
+            required></textarea>
+          <p class="workshop-form__hint">
+            Template text is stored and rendered as plain text only.
+          </p>
+        </div>
+
+        <div class="workshop-form__field">
+          <label for="new-template-sort-order">Sort order</label>
+          <input
+            id="new-template-sort-order"
+            name="sortOrder"
+            type="number"
+            min="0"
+            step="1"
+            value="0"
+            required
+          />
+        </div>
+
+        <div class="workshop-form__field">
+          <label for="new-template-note">Optional private note</label>
+          <textarea id="new-template-note" name="privateNote" maxlength="500"
+          ></textarea>
+        </div>
+
+        <label class="workshop-checkbox">
+          <input type="checkbox" name="active" value="true" checked />
+          <span>Make this template active immediately</span>
+        </label>
+
+        <div class="workshop-form__actions">
+          <button type="submit" class="button-command">Create template</button>
+        </div>
+      </form>
+    </article>
+
+    <article class="workshop-card">
+      <div class="workshop-card__section">
+        <h3>Template rules</h3>
+        <p class="workshop-prose">
+          Approved and coal templates may use {'{name}'} and {'{request}'}.
+          Blocked warning templates must stay plain text and at least one active
+          blocked warning must keep the core warning message intact.
+        </p>
+      </div>
+
+      <div class="workshop-card__section">
+        <h3>Recent template activity</h3>
+        {
+          data.recentActivity.length === 0 ? (
+            <p class="workshop-empty">
+              No response template changes are recorded yet.
+            </p>
+          ) : (
+            <ol class="workshop-summary-list">
+              {data.recentActivity.map((entry) => (
+                <li class="workshop-summary-list__item">
+                  <div>
+                    <p class="workshop-summary-list__title">
+                      {getOwnerActivityLabel(entry.action)}
+                    </p>
+                    <p class="workshop-summary-list__meta">
+                      {formatRulingTimestamp(entry.createdAt)}
+                      {entry.targetPublicId ? ` · ${entry.targetPublicId}` : ''}
+                    </p>
+                    {entry.details && (
+                      <p class="workshop-summary-list__detail">
+                        {entry.details}
+                      </p>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          )
+        }
+      </div>
+    </article>
+  </section>
+
+  <section class="workshop-config-stack">
+    {
+      groupedTemplates.map((group) => (
+        <article class="workshop-panel">
+          <div class="workshop-card__header">
+            <div>
+              <h2>{group.label}</h2>
+              <p class="workshop-form__hint">
+                {getPlaceholderHint(group.value)}
+              </p>
+            </div>
+            <p class="workshop-summary-list__meta">
+              {group.templates.filter((template) => template.active).length}/
+              {group.templates.length} active
+            </p>
+          </div>
+
+          {group.templates.length === 0 ? (
+            <p class="workshop-empty">
+              No {group.label.toLowerCase()} templates have been created yet.
+            </p>
+          ) : (
+            <div class="workshop-template-grid">
+              {group.templates.map((template) => (
+                <article class="workshop-template-card">
+                  <div class="workshop-card__section">
+                    <div class="workshop-card__header">
+                      <p class="workshop-summary-list__title">
+                        {getResponseTemplateGroupLabel(template.group)}
+                      </p>
+                      <span
+                        class="workshop-status-pill"
+                        data-active={template.active ? 'true' : 'false'}
+                      >
+                        {template.active ? 'Active' : 'Inactive'}
+                      </span>
+                    </div>
+                    <p class="workshop-summary-list__meta">
+                      {template.publicId} · Sort {template.sortOrder} · Updated{' '}
+                      {formatRulingTimestamp(template.updatedAt)}
+                    </p>
+                    <p class="workshop-prose">{template.templateText}</p>
+                    {template.privateNote && (
+                      <p class="workshop-summary-list__detail">
+                        Note: {template.privateNote}
+                      </p>
+                    )}
+                  </div>
+
+                  <details class="workshop-card__section">
+                    <summary class="workshop-inline-link">
+                      Edit template
+                    </summary>
+                    <form
+                      class="workshop-form"
+                      method="post"
+                      action={`/api/workshop/settings/responses/${template.publicId}/update`}
+                    >
+                      <input
+                        type="hidden"
+                        name="csrfToken"
+                        value={session.csrfToken}
+                      />
+                      <input
+                        type="hidden"
+                        name="returnTo"
+                        value="/workshop/settings/responses"
+                      />
+
+                      <div class="workshop-form__field">
+                        <label for={`template-text-${template.publicId}`}>
+                          Template text
+                        </label>
+                        <textarea
+                          id={`template-text-${template.publicId}`}
+                          name="templateText"
+                          maxlength="500"
+                          required
+                        >
+                          {template.templateText}
+                        </textarea>
+                      </div>
+
+                      <div class="workshop-form__field">
+                        <label for={`template-order-${template.publicId}`}>
+                          Sort order
+                        </label>
+                        <input
+                          id={`template-order-${template.publicId}`}
+                          name="sortOrder"
+                          type="number"
+                          min="0"
+                          step="1"
+                          value={String(template.sortOrder)}
+                          required
+                        />
+                      </div>
+
+                      <div class="workshop-form__field">
+                        <label for={`template-note-${template.publicId}`}>
+                          Optional private note
+                        </label>
+                        <textarea
+                          id={`template-note-${template.publicId}`}
+                          name="privateNote"
+                          maxlength="500"
+                        >
+                          {template.privateNote ?? ''}
+                        </textarea>
+                      </div>
+
+                      <label class="workshop-checkbox">
+                        <input
+                          type="checkbox"
+                          name="active"
+                          value="true"
+                          checked={template.active}
+                        />
+                        <span>Keep this template active</span>
+                      </label>
+
+                      <div class="workshop-form__actions">
+                        <button type="submit" class="button-command">
+                          Save template
+                        </button>
+                      </div>
+                    </form>
+                  </details>
+
+                  <div class="workshop-row-actions">
+                    {template.active ? (
+                      <form
+                        method="post"
+                        action={`/api/workshop/settings/responses/${template.publicId}/disable`}
+                      >
+                        <input
+                          type="hidden"
+                          name="csrfToken"
+                          value={session.csrfToken}
+                        />
+                        <input
+                          type="hidden"
+                          name="returnTo"
+                          value="/workshop/settings/responses"
+                        />
+                        <button type="submit" class="workshop-inline-button">
+                          Disable
+                        </button>
+                      </form>
+                    ) : (
+                      <form
+                        method="post"
+                        action={`/api/workshop/settings/responses/${template.publicId}/enable`}
+                      >
+                        <input
+                          type="hidden"
+                          name="csrfToken"
+                          value={session.csrfToken}
+                        />
+                        <input
+                          type="hidden"
+                          name="returnTo"
+                          value="/workshop/settings/responses"
+                        />
+                        <button type="submit" class="workshop-inline-button">
+                          Enable
+                        </button>
+                      </form>
+                    )}
+
+                    <form
+                      method="post"
+                      action={`/api/workshop/settings/responses/${template.publicId}/delete`}
+                    >
+                      <input
+                        type="hidden"
+                        name="csrfToken"
+                        value={session.csrfToken}
+                      />
+                      <input
+                        type="hidden"
+                        name="returnTo"
+                        value="/workshop/settings/responses"
+                      />
+                      <button
+                        type="submit"
+                        class="workshop-inline-button workshop-inline-link--danger"
+                      >
+                        Delete
+                      </button>
+                    </form>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </article>
+      ))
+    }
+  </section>
+</WorkshopLayout>

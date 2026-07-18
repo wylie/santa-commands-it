@@ -1,8 +1,8 @@
-import { santaSettings } from '@/config/santa-settings';
+import { publicSantaUiSettings } from '@/config/public-santa-ui';
 
 export const REQUEST_LIMITS = {
-  nameMaxLength: santaSettings.limits.name,
-  requestMaxLength: santaSettings.limits.request,
+  nameMaxLength: publicSantaUiSettings.limits.name,
+  requestMaxLength: publicSantaUiSettings.limits.request,
 } as const;
 
 export type RequestLimits = typeof REQUEST_LIMITS;

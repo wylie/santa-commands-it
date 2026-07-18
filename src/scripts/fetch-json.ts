@@ -1,4 +1,4 @@
-import { santaSettings } from '@/config/santa-settings';
+import { publicSantaUiSettings } from '@/config/public-santa-ui';
 
 export class TimedRequestError extends Error {
   constructor(message = "Santa's workshop took too long to answer.") {
@@ -11,7 +11,7 @@ export async function fetchJsonWithTimeout(
   input: RequestInfo | URL,
   init: RequestInit = {},
   timeoutMs = window.__SANTA_TEST__?.requestTimeoutMs ??
-    santaSettings.network.requestTimeoutMs,
+    publicSantaUiSettings.network.requestTimeoutMs,
 ): Promise<Response> {
   const controller = new AbortController();
   const timeoutId = window.setTimeout(() => {

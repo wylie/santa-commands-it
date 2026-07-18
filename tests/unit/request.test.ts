@@ -195,7 +195,7 @@ describe('moderation matching', () => {
       type: 'blocked',
       field: 'both',
     });
-    expect(decision.response.title).toBe(
+    expect(decision.response).toBe(
       'THAT IS UNACCEPTABLE. ASK FOR SOMETHING ELSE OR RECEIVE COAL!',
     );
   });

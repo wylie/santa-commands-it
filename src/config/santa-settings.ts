@@ -1,21 +1,11 @@
+import { publicSantaUiSettings } from '@/config/public-santa-ui';
+import { configurationSeedDefaults } from '@/utils/configuration';
+
 export const santaSettings = {
-  randomCoalEnabled: true,
-  randomCoalPercentage: 5,
-  consideringDelay: {
-    minimum: 900,
-    maximum: 1400,
-  },
-  limits: {
-    name: 40,
-    request: 500,
-  },
-  recentRulings: {
-    visibleLimit: 10,
-    timeZone: 'America/New_York',
-  },
-  network: {
-    requestTimeoutMs: 12000,
-  },
+  randomCoalEnabled: configurationSeedDefaults.santaSettings.randomCoalEnabled,
+  randomCoalPercentage:
+    configurationSeedDefaults.santaSettings.randomCoalPercentage,
+  ...publicSantaUiSettings,
 } as const;
 
 export function assertCoalPercentage(percentage: number): number {

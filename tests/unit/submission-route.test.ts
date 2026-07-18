@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { classifySubmissionRouteError } from '@/server/api/submission-errors';
+import { RuntimeConfigurationUnavailableError } from '@/server/config/service';
 import { DatabaseConfigurationError } from '@/server/env';
 import { SubmissionPersistenceError } from '@/server/submissions/service';
 
@@ -80,6 +81,24 @@ describe('submission route error classification', () => {
         causeName: undefined,
         causeCode: undefined,
         causeDetail: undefined,
+      },
+    });
+  });
+
+  it('treats missing runtime configuration as a temporary configuration failure', () => {
+    const result = classifySubmissionRouteError(
+      new RuntimeConfigurationUnavailableError(
+        'Santa settings could not be loaded.',
+      ),
+    );
+
+    expect(result).toEqual({
+      statusCode: 503,
+      log: {
+        operation: 'submit-ruling',
+        category: 'configuration',
+        name: 'RuntimeConfigurationUnavailableError',
+        detail: 'Santa settings could not be loaded.',
       },
     });
   });

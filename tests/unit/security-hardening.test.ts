@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { moderationRules } from '@/config/moderation';
 import { createTestRulingReportsRepository } from '@/server/reports/repository';
 import {
   REPORT_DUPLICATE_MESSAGE,
@@ -16,6 +17,7 @@ import { clearTestRunStore } from '@/server/testing/store';
 import { parseJsonRequest } from '@/server/api/request-body';
 import { hashClientIdentifier } from '@/server/security/client-key';
 import { isAllowedOrigin } from '@/server/security/origin';
+import { configurationSeedDefaults } from '@/utils/configuration';
 
 afterEach(() => {
   clearTestRunStore();
@@ -24,6 +26,11 @@ afterEach(() => {
 function createSubmissionDependencies(runId: string) {
   return {
     submissionRepository: createTestSubmissionRepository(runId),
+    loadRuntimeConfiguration: vi.fn(async () => ({
+      moderationRules,
+      santaSettings: configurationSeedDefaults.santaSettings,
+      responseTemplates: configurationSeedDefaults.responseTemplates,
+    })),
     randomProvider: vi
       .fn<() => number>()
       .mockReturnValueOnce(0.5)

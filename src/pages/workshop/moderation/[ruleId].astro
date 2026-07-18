@@ -1,0 +1,299 @@
+---
+import WorkshopLayout from '@/layouts/WorkshopLayout.astro';
+import { moderationRuleCategories } from '@/utils/configuration';
+import {
+  getModerationRuleCategoryLabel,
+  getModerationRuleTypeLabel,
+} from '@/utils/configuration';
+import { requireWorkshopPageSession } from '@/server/workshop/auth';
+import { getWorkshopModerationRuleDetailData } from '@/server/config/service';
+import { getWorkshopOpenReportCount } from '@/server/workshop/service';
+import { formatRulingTimestamp } from '@/utils/rulings';
+
+const session = await requireWorkshopPageSession(Astro);
+
+if (session instanceof Response) {
+  return session;
+}
+
+const ruleId = Astro.params.ruleId ?? '';
+const rule = await getWorkshopModerationRuleDetailData(
+  ruleId,
+  Astro.request.headers,
+);
+const openReportCount = await getWorkshopOpenReportCount(Astro.request.headers);
+
+if (!rule) {
+  return Astro.redirect('/workshop/moderation?error=not-found');
+}
+
+const status = Astro.url.searchParams.get('status');
+const error = Astro.url.searchParams.get('error');
+const existingRuleId = Astro.url.searchParams.get('existing');
+const existingRulePath = existingRuleId
+  ? `/workshop/moderation/${encodeURIComponent(existingRuleId)}`
+  : null;
+const bannerMessage =
+  status === 'created'
+    ? {
+        tone: 'success',
+        message: 'The moderation rule was created.',
+      }
+    : status === 'created-with-warning'
+      ? {
+          tone: 'warning',
+          message:
+            'The moderation rule was created, but the owner activity entry could not be recorded.',
+        }
+      : status === 'updated'
+        ? {
+            tone: 'success',
+            message: 'The moderation rule was updated.',
+          }
+        : status === 'updated-with-warning'
+          ? {
+              tone: 'warning',
+              message:
+                'The moderation rule was updated, but the owner activity entry could not be recorded.',
+            }
+          : status === 'enabled'
+            ? {
+                tone: 'success',
+                message: 'The moderation rule is active again.',
+              }
+            : status === 'enabled-with-warning'
+              ? {
+                  tone: 'warning',
+                  message:
+                    'The moderation rule was enabled, but the owner activity entry could not be recorded.',
+                }
+              : status === 'disabled'
+                ? {
+                    tone: 'success',
+                    message: 'The moderation rule is now inactive.',
+                  }
+                : status === 'disabled-with-warning'
+                  ? {
+                      tone: 'warning',
+                      message:
+                        'The moderation rule was disabled, but the owner activity entry could not be recorded.',
+                    }
+                  : error === 'invalid-value'
+                    ? {
+                        tone: 'error',
+                        message:
+                          'That rule value is not valid for this moderation rule type.',
+                      }
+                    : error === 'invalid-note'
+                      ? {
+                          tone: 'error',
+                          message:
+                            'Please keep private notes to 500 characters or fewer.',
+                        }
+                      : error === 'duplicate'
+                        ? {
+                            tone: 'error',
+                            message:
+                              'That normalized moderation rule already exists.',
+                          }
+                        : error === 'no-op'
+                          ? {
+                              tone: 'warning',
+                              message:
+                                'That moderation rule was already in the requested state.',
+                            }
+                          : null;
+
+const currentLocation = Astro.url.pathname;
+---
+
+<WorkshopLayout
+  title={`Moderation Rule ${rule.publicId}`}
+  description="Edit a private moderation rule, change its active state, or delete it."
+  currentPath="/workshop/moderation"
+  csrfToken={session.csrfToken}
+  openReportCount={openReportCount}
+>
+  {
+    bannerMessage && (
+      <p
+        class={`workshop-banner workshop-banner--${bannerMessage.tone}`}
+        role="status"
+      >
+        {bannerMessage.message}
+        {error === 'duplicate' && existingRulePath && (
+          <>
+            {' '}
+            <a class="workshop-inline-link" href={existingRulePath}>
+              Open existing rule
+            </a>
+          </>
+        )}
+      </p>
+    )
+  }
+
+  <section class="workshop-grid workshop-grid--detail">
+    <article class="workshop-card">
+      <div class="workshop-card__header">
+        <h2>Rule details</h2>
+        <a class="workshop-inline-link" href="/workshop/moderation">
+          Back to moderation
+        </a>
+      </div>
+
+      <dl class="workshop-detail-list">
+        <div>
+          <dt>Rule ID</dt>
+          <dd>{rule.publicId}</dd>
+        </div>
+        <div>
+          <dt>Rule type</dt>
+          <dd>{getModerationRuleTypeLabel(rule.ruleType)}</dd>
+        </div>
+        <div>
+          <dt>Category</dt>
+          <dd>{getModerationRuleCategoryLabel(rule.category)}</dd>
+        </div>
+        <div>
+          <dt>Status</dt>
+          <dd>{rule.active ? 'Active' : 'Inactive'}</dd>
+        </div>
+        <div>
+          <dt>Normalized value</dt>
+          <dd>{rule.normalizedValue}</dd>
+        </div>
+        <div>
+          <dt>Created</dt>
+          <dd>
+            <time datetime={rule.createdAt}>
+              {formatRulingTimestamp(rule.createdAt)}
+            </time>
+          </dd>
+        </div>
+        <div>
+          <dt>Updated</dt>
+          <dd>
+            <time datetime={rule.updatedAt}>
+              {formatRulingTimestamp(rule.updatedAt)}
+            </time>
+          </dd>
+        </div>
+      </dl>
+
+      <form
+        class="workshop-form"
+        method="post"
+        action={`/api/workshop/moderation/${rule.publicId}/update`}
+      >
+        <input type="hidden" name="csrfToken" value={session.csrfToken} />
+        <input type="hidden" name="returnTo" value={currentLocation} />
+
+        <div class="workshop-form__field">
+          <label for="rule-value">Rule value</label>
+          <input
+            id="rule-value"
+            name="value"
+            type="text"
+            value={rule.value}
+            required
+          />
+        </div>
+
+        <div class="workshop-form__field">
+          <label for="rule-category">Category</label>
+          <select id="rule-category" name="category">
+            <option value="">No category</option>
+            {
+              moderationRuleCategories.map((category) => (
+                <option
+                  value={category.value}
+                  selected={rule.category === category.value}
+                >
+                  {category.label}
+                </option>
+              ))
+            }
+          </select>
+        </div>
+
+        <div class="workshop-form__field">
+          <label for="rule-note">Optional private note</label>
+          <textarea id="rule-note" name="privateNote" maxlength="500"
+            >{rule.privateNote ?? ''}</textarea
+          >
+        </div>
+
+        <label class="workshop-checkbox">
+          <input
+            type="checkbox"
+            name="active"
+            value="true"
+            checked={rule.active}
+          />
+          <span>Keep this rule active</span>
+        </label>
+
+        <div class="workshop-form__actions">
+          <button type="submit" class="button-command">Save changes</button>
+        </div>
+      </form>
+    </article>
+
+    <article class="workshop-card">
+      <div class="workshop-card__section">
+        <h3>State controls</h3>
+        <p class="workshop-form__hint">
+          Enabling or disabling this rule affects future submissions and future
+          moderation tests only.
+        </p>
+        {
+          rule.active ? (
+            <form
+              class="workshop-form"
+              method="post"
+              action={`/api/workshop/moderation/${rule.publicId}/disable`}
+            >
+              <input type="hidden" name="csrfToken" value={session.csrfToken} />
+              <input type="hidden" name="returnTo" value={currentLocation} />
+              <button type="submit" class="button-command">
+                Disable rule
+              </button>
+            </form>
+          ) : (
+            <form
+              class="workshop-form"
+              method="post"
+              action={`/api/workshop/moderation/${rule.publicId}/enable`}
+            >
+              <input type="hidden" name="csrfToken" value={session.csrfToken} />
+              <input type="hidden" name="returnTo" value={currentLocation} />
+              <button type="submit" class="button-command">
+                Enable rule
+              </button>
+            </form>
+          )
+        }
+      </div>
+
+      <div class="workshop-card__section" id="delete-rule">
+        <h3>Delete rule</h3>
+        <p class="workshop-form__hint">
+          Deleting this rule stops it from affecting future submissions. It does
+          not change historical rulings or reports.
+        </p>
+        <form
+          class="workshop-form workshop-form--danger"
+          method="post"
+          action={`/api/workshop/moderation/${rule.publicId}/delete`}
+        >
+          <input type="hidden" name="csrfToken" value={session.csrfToken} />
+          <input type="hidden" name="returnTo" value="/workshop/moderation" />
+          <button type="submit" class="button-command button-command--danger">
+            Delete rule
+          </button>
+        </form>
+      </div>
+    </article>
+  </section>
+</WorkshopLayout>

@@ -1,9 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { moderationRules } from '@/config/moderation';
 import { mapRulingRowToPublicRuling } from '@/server/rulings/repository';
 import { GENERIC_ERROR_MESSAGE } from '@/server/submissions/service';
 import { submitSantaRequest } from '@/server/submissions/service';
 import type { SubmissionRepository } from '@/server/submissions/repository';
+import { configurationSeedDefaults } from '@/utils/configuration';
 import {
   formatRulingTimestamp,
   getDecisionPanelTitle,
@@ -33,6 +35,11 @@ function createRepositoryMock() {
 function createDependencies(repository = createRepositoryMock()) {
   return {
     submissionRepository: repository,
+    loadRuntimeConfiguration: vi.fn(async () => ({
+      moderationRules,
+      santaSettings: configurationSeedDefaults.santaSettings,
+      responseTemplates: configurationSeedDefaults.responseTemplates,
+    })),
     randomProvider: vi.fn(() => 0.5),
     publicIdGenerator: vi.fn(() => 'public-ruling-id'),
     nowProvider: vi.fn(() => new Date('2026-07-15T23:30:00.000Z')),

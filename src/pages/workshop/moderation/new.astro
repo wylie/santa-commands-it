@@ -1,0 +1,170 @@
+---
+import WorkshopLayout from '@/layouts/WorkshopLayout.astro';
+import {
+  moderationRuleCategories,
+  moderationRuleTypes,
+} from '@/utils/configuration';
+import { requireWorkshopPageSession } from '@/server/workshop/auth';
+import { getWorkshopOpenReportCount } from '@/server/workshop/service';
+
+const session = await requireWorkshopPageSession(Astro);
+
+if (session instanceof Response) {
+  return session;
+}
+
+const openReportCount = await getWorkshopOpenReportCount(Astro.request.headers);
+const error = Astro.url.searchParams.get('error');
+const existingRuleId = Astro.url.searchParams.get('existing');
+const existingRulePath = existingRuleId
+  ? `/workshop/moderation/${encodeURIComponent(existingRuleId)}`
+  : null;
+const bannerMessage =
+  error === 'invalid-type'
+    ? {
+        tone: 'error',
+        message: 'Please choose a moderation rule type.',
+      }
+    : error === 'invalid-value'
+      ? {
+          tone: 'error',
+          message:
+            'That rule value is not valid for the selected moderation rule type.',
+        }
+      : error === 'invalid-note'
+        ? {
+            tone: 'error',
+            message: 'Please keep private notes to 500 characters or fewer.',
+          }
+        : error === 'duplicate'
+          ? {
+              tone: 'error',
+              message:
+                'That normalized moderation rule already exists. Open the existing rule instead of creating a duplicate.',
+            }
+          : null;
+---
+
+<WorkshopLayout
+  title="Add Moderation Rule"
+  description="Create a blocked word, blocked phrase, or allowed exception without editing source files."
+  currentPath="/workshop/moderation"
+  csrfToken={session.csrfToken}
+  openReportCount={openReportCount}
+>
+  {
+    bannerMessage && (
+      <p
+        class={`workshop-banner workshop-banner--${bannerMessage.tone}`}
+        role="status"
+      >
+        {bannerMessage.message}
+        {existingRulePath && (
+          <>
+            {' '}
+            <a class="workshop-inline-link" href={existingRulePath}>
+              Open existing rule
+            </a>
+          </>
+        )}
+      </p>
+    )
+  }
+
+  <section class="workshop-grid workshop-grid--detail">
+    <article class="workshop-card">
+      <div class="workshop-card__header">
+        <h2>New rule</h2>
+        <a class="workshop-inline-link" href="/workshop/moderation">
+          Back to moderation
+        </a>
+      </div>
+
+      <form
+        class="workshop-form"
+        method="post"
+        action="/api/workshop/moderation/create"
+      >
+        <input type="hidden" name="csrfToken" value={session.csrfToken} />
+        <input type="hidden" name="returnTo" value="/workshop/moderation/new" />
+
+        <div class="workshop-form__field">
+          <label for="new-rule-type">Rule type</label>
+          <select id="new-rule-type" name="ruleType" required>
+            <option value="">Choose a rule type</option>
+            {
+              moderationRuleTypes.map((ruleType) => (
+                <option value={ruleType.value}>{ruleType.label}</option>
+              ))
+            }
+          </select>
+          <p class="workshop-form__hint">
+            Rule type is fixed after creation. Create a new rule if the type
+            ever needs to change.
+          </p>
+        </div>
+
+        <div class="workshop-form__field">
+          <label for="new-rule-value">Rule value</label>
+          <input id="new-rule-value" name="value" type="text" required />
+          <p class="workshop-form__hint">
+            The server trims and normalizes this value with the same logic used
+            for live moderation and duplicate detection.
+          </p>
+        </div>
+
+        <div class="workshop-form__field">
+          <label for="new-rule-category">Category</label>
+          <select id="new-rule-category" name="category">
+            <option value="">No category</option>
+            {
+              moderationRuleCategories.map((category) => (
+                <option value={category.value}>{category.label}</option>
+              ))
+            }
+          </select>
+        </div>
+
+        <div class="workshop-form__field">
+          <label for="new-rule-note">Optional private note</label>
+          <textarea id="new-rule-note" name="privateNote" maxlength="500"
+          ></textarea>
+        </div>
+
+        <label class="workshop-checkbox">
+          <input type="checkbox" name="active" value="true" checked />
+          <span>Make this rule active immediately</span>
+        </label>
+
+        <div class="workshop-form__actions">
+          <button type="submit" class="button-command">Create rule</button>
+        </div>
+      </form>
+    </article>
+
+    <article class="workshop-card">
+      <h2>Rule guidance</h2>
+      <div class="workshop-card__section">
+        <h3>Blocked word</h3>
+        <p class="workshop-prose">
+          Use for one token that should trigger moderation even across
+          punctuation variants and mixed casing.
+        </p>
+      </div>
+      <div class="workshop-card__section">
+        <h3>Blocked phrase</h3>
+        <p class="workshop-prose">
+          Use for multi-word phrases that should be matched after whitespace and
+          punctuation normalization.
+        </p>
+      </div>
+      <div class="workshop-card__section">
+        <h3>Allowed exception</h3>
+        <p class="workshop-prose">
+          Use only for specific false positives. Exceptions must stay narrow
+          enough to avoid weakening moderation broadly.
+        </p>
+      </div>
+    </article>
+  </section>
+</WorkshopLayout>

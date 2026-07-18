@@ -4,6 +4,7 @@ import {
   bigserial,
   boolean,
   check,
+  integer,
   index,
   pgEnum,
   pgTable,
@@ -53,12 +54,56 @@ export const ownerActivityActionEnum = pgEnum('owner_activity_action', [
   'report-actioned',
   'ruling-hidden-from-report',
   'related-reports-actioned',
+  'moderation-rule-created',
+  'moderation-rule-updated',
+  'moderation-rule-enabled',
+  'moderation-rule-disabled',
+  'moderation-rule-deleted',
+  'santa-settings-updated',
+  'response-template-created',
+  'response-template-updated',
+  'response-template-enabled',
+  'response-template-disabled',
+  'response-template-deleted',
 ]);
 
 export const ownerActivityTargetTypeEnum = pgEnum(
   'owner_activity_target_type',
-  ['auth', 'ruling', 'report'],
+  [
+    'auth',
+    'ruling',
+    'report',
+    'moderation-rule',
+    'setting',
+    'response-template',
+  ],
 );
+
+export const moderationRuleTypeEnum = pgEnum('moderation_rule_type', [
+  'blocked-word',
+  'blocked-phrase',
+  'allowed-exception',
+]);
+
+export const moderationRuleCategoryEnum = pgEnum('moderation_rule_category', [
+  'bullying',
+  'harassment',
+  'hate',
+  'violence',
+  'sexual-content',
+  'personal-information',
+  'dangerous-content',
+  'spam',
+  'profanity',
+  'general',
+  'test-fixture',
+]);
+
+export const responseTemplateGroupEnum = pgEnum('response_template_group', [
+  'approved',
+  'coal',
+  'blocked-warning',
+]);
 
 export const rulings = pgTable(
   'rulings',
@@ -254,6 +299,121 @@ export const ownerActivity = pgTable(
     check(
       'owner_activity_details_length_check',
       sql`${table.details} is null or char_length(${table.details}) <= 500`,
+    ),
+  ],
+);
+
+export const moderationRules = pgTable(
+  'moderation_rules',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    publicId: text('public_id').notNull().unique(),
+    ruleType: moderationRuleTypeEnum('rule_type').notNull(),
+    value: text('value').notNull(),
+    normalizedValue: text('normalized_value').notNull(),
+    category: moderationRuleCategoryEnum('category'),
+    privateNote: text('private_note'),
+    active: boolean('active').default(true).notNull(),
+    createdSource: text('created_source'),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index('moderation_rules_type_active_updated_idx').on(
+      table.ruleType,
+      table.active,
+      table.updatedAt,
+    ),
+    index('moderation_rules_category_active_updated_idx').on(
+      table.category,
+      table.active,
+      table.updatedAt,
+    ),
+    index('moderation_rules_active_updated_idx').on(
+      table.active,
+      table.updatedAt,
+    ),
+    index('moderation_rules_public_id_idx').on(table.publicId),
+    uniqueIndex('moderation_rules_type_normalized_value_idx').on(
+      table.ruleType,
+      table.normalizedValue,
+    ),
+    check(
+      'moderation_rules_value_length_check',
+      sql`char_length(${table.value}) between 1 and 200`,
+    ),
+    check(
+      'moderation_rules_normalized_value_length_check',
+      sql`char_length(${table.normalizedValue}) between 1 and 200`,
+    ),
+    check(
+      'moderation_rules_private_note_length_check',
+      sql`${table.privateNote} is null or char_length(${table.privateNote}) <= 500`,
+    ),
+  ],
+);
+
+export const santaSettings = pgTable(
+  'santa_settings',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    singletonKey: text('singleton_key').notNull().unique(),
+    randomCoalEnabled: boolean('random_coal_enabled').default(true).notNull(),
+    randomCoalPercentage: integer('random_coal_percentage').notNull(),
+    version: integer('version').default(1).notNull(),
+    createdSource: text('created_source'),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    check(
+      'santa_settings_random_coal_percentage_check',
+      sql`${table.randomCoalPercentage} between 0 and 100`,
+    ),
+    check('santa_settings_version_check', sql`${table.version} >= 1`),
+  ],
+);
+
+export const responseTemplates = pgTable(
+  'response_templates',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    publicId: text('public_id').notNull().unique(),
+    group: responseTemplateGroupEnum('group').notNull(),
+    templateText: text('template_text').notNull(),
+    active: boolean('active').default(true).notNull(),
+    sortOrder: integer('sort_order').default(0).notNull(),
+    privateNote: text('private_note'),
+    createdSource: text('created_source'),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index('response_templates_group_active_updated_idx').on(
+      table.group,
+      table.active,
+      table.updatedAt,
+    ),
+    index('response_templates_public_id_idx').on(table.publicId),
+    check(
+      'response_templates_text_length_check',
+      sql`char_length(${table.templateText}) between 1 and 500`,
+    ),
+    check(
+      'response_templates_private_note_length_check',
+      sql`${table.privateNote} is null or char_length(${table.privateNote}) <= 500`,
     ),
   ],
 );

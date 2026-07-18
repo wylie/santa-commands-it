@@ -1,4 +1,8 @@
 import type { ModerationRules } from '@/config/moderation';
+import type {
+  ModerationRuleType,
+  RuntimeModerationRule,
+} from '@/utils/configuration';
 
 function stripCombiningMarks(value: string): string {
   return value.normalize('NFKD').replace(/\p{Mark}+/gu, '');
@@ -10,6 +14,17 @@ function lowercaseNormalized(value: string): string {
 
 export function normalizeForModeration(value: string): string {
   return lowercaseNormalized(value).trim().replace(/\s+/g, ' ');
+}
+
+export function normalizeModerationRuleValue(
+  ruleType: ModerationRuleType,
+  value: string,
+): string {
+  if (ruleType === 'blocked-word') {
+    return normalizeForModeration(value).replace(/[^\p{L}\p{N}]+/gu, '');
+  }
+
+  return tokenizeForPhrases(value).join(' ');
 }
 
 function escapePattern(value: string): string {
@@ -32,7 +47,10 @@ function compactWhitespaceSegments(value: string): string[] {
 }
 
 function matchesBlockedWord(value: string, blockedWord: string): boolean {
-  const blockedCompact = blockedWord.replace(/[^\p{L}\p{N}]+/gu, '');
+  const blockedCompact = normalizeForModeration(blockedWord).replace(
+    /[^\p{L}\p{N}]+/gu,
+    '',
+  );
 
   if (!blockedCompact) {
     return false;
@@ -74,6 +92,80 @@ function matchesException(value: string, exception: string): boolean {
   return exception.includes(' ')
     ? matchesBlockedPhrase(value, exception)
     : matchesBlockedWord(value, exception);
+}
+
+export type ModerationMatchResult = {
+  blocked: boolean;
+  normalizedValue: string;
+  sanitizedValue: string;
+  matchingRule: RuntimeModerationRule | null;
+};
+
+export function buildModerationRulesFromRuntime(
+  rules: readonly RuntimeModerationRule[],
+): ModerationRules {
+  return {
+    blockedWords: rules
+      .filter((rule) => rule.ruleType === 'blocked-word')
+      .map((rule) => rule.value),
+    blockedPhrases: rules
+      .filter((rule) => rule.ruleType === 'blocked-phrase')
+      .map((rule) => rule.value),
+    allowedExceptions: rules
+      .filter((rule) => rule.ruleType === 'allowed-exception')
+      .map((rule) => rule.value),
+  };
+}
+
+export function findMatchingModerationRule(
+  value: string,
+  rules: readonly RuntimeModerationRule[],
+): ModerationMatchResult {
+  const normalizedValue = normalizeForModeration(value);
+
+  if (!normalizedValue) {
+    return {
+      blocked: false,
+      normalizedValue,
+      sanitizedValue: normalizedValue,
+      matchingRule: null,
+    };
+  }
+
+  const allowedExceptions = rules
+    .filter((rule) => rule.ruleType === 'allowed-exception')
+    .map((rule) => rule.value);
+  const sanitizedValue = stripAllowedExceptions(
+    normalizedValue,
+    allowedExceptions,
+  );
+
+  for (const rule of rules) {
+    if (rule.ruleType === 'allowed-exception') {
+      continue;
+    }
+
+    const matches =
+      rule.ruleType === 'blocked-word'
+        ? matchesBlockedWord(sanitizedValue, rule.value)
+        : matchesBlockedPhrase(sanitizedValue, rule.value);
+
+    if (matches) {
+      return {
+        blocked: true,
+        normalizedValue,
+        sanitizedValue,
+        matchingRule: rule,
+      };
+    }
+  }
+
+  return {
+    blocked: false,
+    normalizedValue,
+    sanitizedValue,
+    matchingRule: null,
+  };
 }
 
 function stripAllowedExceptions(

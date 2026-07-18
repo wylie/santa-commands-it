@@ -1,3 +1,5 @@
+import { configurationSeedDefaults } from '@/utils/configuration';
+
 export type ModerationRules = {
   blockedWords: readonly string[];
   blockedPhrases: readonly string[];
@@ -5,8 +7,8 @@ export type ModerationRules = {
 };
 
 export const moderationRules: ModerationRules = {
-  // Replace these placeholder entries before launch with reviewed production rules.
-  blockedWords: ['blocked-example'],
-  blockedPhrases: ['coal for my enemy', 'hurt someone'],
-  allowedExceptions: ['blocked-example parade'],
+  blockedWords: configurationSeedDefaults.moderationRules.blockedWords,
+  blockedPhrases: configurationSeedDefaults.moderationRules.blockedPhrases,
+  allowedExceptions:
+    configurationSeedDefaults.moderationRules.allowedExceptions,
 } as const;

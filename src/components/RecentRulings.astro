@@ -1,5 +1,5 @@
 ---
-import { santaSettings } from '@/config/santa-settings';
+import { publicSantaUiSettings } from '@/config/public-santa-ui';
 import { buildRulingPath } from '@/utils/rulingPages';
 import {
   formatRulingTimestamp,
@@ -20,7 +20,7 @@ const hasRulings = rulings.length > 0;
   class="recent-rulings"
   aria-labelledby="recent-rulings-title"
   data-recent-rulings
-  data-limit={santaSettings.recentRulings.visibleLimit}
+  data-limit={publicSantaUiSettings.recentRulings.visibleLimit}
 >
   <div class="section-heading">
     <h2 id="recent-rulings-title">Santa&apos;s Latest Commands</h2>

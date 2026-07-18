@@ -1,11 +1,12 @@
 import type { ModerationRules } from '@/config/moderation';
-import { santaResponses, type SantaResponseTemplate } from '@/config/responses';
 import {
   assertCoalPercentage,
   assertRandomValue,
   santaSettings,
 } from '@/config/santa-settings';
+import { configurationSeedDefaults } from '@/utils/configuration';
 import { isBlockedByModeration } from '@/utils/moderation';
+import type { RuntimeSantaSettings } from '@/utils/configuration';
 
 export type BlockedField = 'name' | 'request' | 'both';
 
@@ -13,22 +14,28 @@ export type SantaDecision =
   | {
       type: 'blocked';
       field: BlockedField;
-      response: SantaResponseTemplate;
+      response: string;
       name: string;
       request: string;
     }
   | {
       type: 'random-coal';
-      response: SantaResponseTemplate;
+      response: string;
       name: string;
       request: string;
     }
   | {
       type: 'approved';
-      response: SantaResponseTemplate;
+      response: string;
       name: string;
       request: string;
     };
+
+export type RuntimeResponseTemplateSet = {
+  approved: readonly string[];
+  coal: readonly string[];
+  blockedWarning: readonly string[];
+};
 
 export function getBlockedField(
   name: string,
@@ -97,18 +104,27 @@ export function evaluateSantaRequest({
   moderation,
   randomValue,
   templateValue = randomValue,
+  templates = configurationSeedDefaults.responseTemplates,
 }: {
   name: string;
   request: string;
-  settings?: typeof santaSettings;
+  settings?: Pick<
+    RuntimeSantaSettings | typeof santaSettings,
+    'randomCoalEnabled' | 'randomCoalPercentage'
+  >;
   moderation: ModerationRules;
   randomValue: number;
   templateValue?: number;
+  templates?: RuntimeResponseTemplateSet;
 }): SantaDecision {
   const blockedField = getBlockedField(name, request, moderation);
 
   if (blockedField) {
-    const [response] = santaResponses.blocked;
+    const [response] = templates.blockedWarning;
+
+    if (!response) {
+      throw new Error('At least one blocked warning template is required.');
+    }
 
     return {
       type: 'blocked',
@@ -125,10 +141,10 @@ export function evaluateSantaRequest({
     settings.randomCoalEnabled,
   );
 
-  const templates: readonly SantaResponseTemplate[] = coal
-    ? santaResponses.coal
-    : santaResponses.approved;
-  const response = selectResponseTemplate(templates, templateValue);
+  const response = selectResponseTemplate(
+    coal ? templates.coal : templates.approved,
+    templateValue,
+  );
 
   return {
     type: coal ? 'random-coal' : 'approved',

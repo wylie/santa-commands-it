@@ -1,9 +1,9 @@
 {
   "name": "santa-commands-it",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "private": true,
   "type": "module",
-  "description": "A bright theatrical holiday web app from Argon Collective LLC with hardened public Santa rulings, reporting, and a private workshop moderation queue.",
+  "description": "A bright theatrical holiday web app from Argon Collective LLC with hardened public Santa rulings, reporting, and a private workshop configuration area.",
   "engines": {
     "node": ">=22.22.3"
   },
@@ -18,6 +18,7 @@
     "typecheck": "astro check",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node --env-file=.env ./scripts/db-migrate.mjs",
+    "db:seed:configuration": "node --env-file=.env ./scripts/seed-configuration.mjs",
     "db:studio": "node --env-file=.env ./scripts/db-studio.mjs",
     "workshop:hash": "node ./scripts/generate-workshop-password-hash.mjs",
     "db:check": "drizzle-kit check",

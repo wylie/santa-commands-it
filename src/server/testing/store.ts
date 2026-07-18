@@ -6,6 +6,13 @@ import type {
   RulingVisibility,
   WorkshopReportStatus,
 } from '@/utils/workshop';
+import type {
+  ModerationRuleCategory,
+  ModerationRuleType,
+  ResponseTemplateGroup,
+} from '@/utils/configuration';
+import { configurationSeedDefaults } from '@/utils/configuration';
+import { normalizeModerationRuleValue } from '@/utils/moderation';
 
 export type TestStoredRuling = PublicRuling & {
   id: number;
@@ -67,6 +74,44 @@ export type TestOwnerActivityRecord = {
   createdAt: string;
 };
 
+export type TestModerationRuleRecord = {
+  id: number;
+  publicId: string;
+  ruleType: ModerationRuleType;
+  value: string;
+  normalizedValue: string;
+  category: ModerationRuleCategory | null;
+  privateNote: string | null;
+  active: boolean;
+  createdSource: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type TestSantaSettingsRecord = {
+  id: number;
+  singletonKey: string;
+  randomCoalEnabled: boolean;
+  randomCoalPercentage: number;
+  version: number;
+  createdSource: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type TestResponseTemplateRecord = {
+  id: number;
+  publicId: string;
+  group: ResponseTemplateGroup;
+  templateText: string;
+  active: boolean;
+  sortOrder: number;
+  privateNote: string | null;
+  createdSource: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type TestRunStore = {
   rulings: TestStoredRuling[];
   submissionAttempts: TestSubmissionAttempt[];
@@ -75,6 +120,9 @@ export type TestRunStore = {
   workshopSessions: TestWorkshopSession[];
   workshopLoginAttempts: TestWorkshopLoginAttempt[];
   ownerActivity: TestOwnerActivityRecord[];
+  moderationRules: TestModerationRuleRecord[];
+  santaSettings: TestSantaSettingsRecord;
+  responseTemplates: TestResponseTemplateRecord[];
 };
 
 const stores = new Map<string, TestRunStore>();
@@ -86,6 +134,117 @@ export function getTestRunStore(runId: string): TestRunStore {
     return existingStore;
   }
 
+  const seededAt = new Date('2026-07-18T00:00:00.000Z').toISOString();
+  const moderationRules: TestModerationRuleRecord[] = [
+    ...configurationSeedDefaults.moderationRules.blockedWords.map(
+      (value, index) => ({
+        id: index + 1,
+        publicId: `rule_seed-blocked-word-${String(index + 1).padStart(12, '0')}`,
+        ruleType: 'blocked-word' as const,
+        value,
+        normalizedValue: normalizeModerationRuleValue('blocked-word', value),
+        category: null,
+        privateNote: null,
+        active: true,
+        createdSource: 'source-migration',
+        createdAt: seededAt,
+        updatedAt: seededAt,
+      }),
+    ),
+    ...configurationSeedDefaults.moderationRules.blockedPhrases.map(
+      (value, index) => ({
+        id:
+          configurationSeedDefaults.moderationRules.blockedWords.length +
+          index +
+          1,
+        publicId: `rule_seed-blocked-phrase-${String(index + 1).padStart(10, '0')}`,
+        ruleType: 'blocked-phrase' as const,
+        value,
+        normalizedValue: normalizeModerationRuleValue('blocked-phrase', value),
+        category: null,
+        privateNote: null,
+        active: true,
+        createdSource: 'source-migration',
+        createdAt: seededAt,
+        updatedAt: seededAt,
+      }),
+    ),
+    ...configurationSeedDefaults.moderationRules.allowedExceptions.map(
+      (value, index) => ({
+        id:
+          configurationSeedDefaults.moderationRules.blockedWords.length +
+          configurationSeedDefaults.moderationRules.blockedPhrases.length +
+          index +
+          1,
+        publicId: `rule_seed-allowed-exception-${String(index + 1).padStart(7, '0')}`,
+        ruleType: 'allowed-exception' as const,
+        value,
+        normalizedValue: normalizeModerationRuleValue(
+          'allowed-exception',
+          value,
+        ),
+        category: null,
+        privateNote: null,
+        active: true,
+        createdSource: 'source-migration',
+        createdAt: seededAt,
+        updatedAt: seededAt,
+      }),
+    ),
+  ];
+
+  const responseTemplates: TestResponseTemplateRecord[] = [
+    ...configurationSeedDefaults.responseTemplates.approved.map(
+      (templateText, index) => ({
+        id: index + 1,
+        publicId: `template_seed-approved-${String(index + 1).padStart(12, '0')}`,
+        group: 'approved' as const,
+        templateText,
+        active: true,
+        sortOrder: index,
+        privateNote: null,
+        createdSource: 'source-migration',
+        createdAt: seededAt,
+        updatedAt: seededAt,
+      }),
+    ),
+    ...configurationSeedDefaults.responseTemplates.coal.map(
+      (templateText, index) => ({
+        id:
+          configurationSeedDefaults.responseTemplates.approved.length +
+          index +
+          1,
+        publicId: `template_seed-coal-${String(index + 1).padStart(16, '0')}`,
+        group: 'coal' as const,
+        templateText,
+        active: true,
+        sortOrder: index,
+        privateNote: null,
+        createdSource: 'source-migration',
+        createdAt: seededAt,
+        updatedAt: seededAt,
+      }),
+    ),
+    ...configurationSeedDefaults.responseTemplates.blockedWarning.map(
+      (templateText, index) => ({
+        id:
+          configurationSeedDefaults.responseTemplates.approved.length +
+          configurationSeedDefaults.responseTemplates.coal.length +
+          index +
+          1,
+        publicId: `template_seed-blocked-warning-${String(index + 1).padStart(5, '0')}`,
+        group: 'blocked-warning' as const,
+        templateText,
+        active: true,
+        sortOrder: index,
+        privateNote: null,
+        createdSource: 'source-migration',
+        createdAt: seededAt,
+        updatedAt: seededAt,
+      }),
+    ),
+  ];
+
   const nextStore: TestRunStore = {
     rulings: [],
     submissionAttempts: [],
@@ -94,6 +253,20 @@ export function getTestRunStore(runId: string): TestRunStore {
     workshopSessions: [],
     workshopLoginAttempts: [],
     ownerActivity: [],
+    moderationRules,
+    santaSettings: {
+      id: 1,
+      singletonKey: 'primary',
+      randomCoalEnabled:
+        configurationSeedDefaults.santaSettings.randomCoalEnabled,
+      randomCoalPercentage:
+        configurationSeedDefaults.santaSettings.randomCoalPercentage,
+      version: 1,
+      createdSource: 'source-migration',
+      createdAt: seededAt,
+      updatedAt: seededAt,
+    },
+    responseTemplates,
   };
 
   stores.set(runId, nextStore);

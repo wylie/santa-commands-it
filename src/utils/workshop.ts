@@ -22,9 +22,26 @@ export type OwnerActivityAction =
   | 'report-reopened'
   | 'report-actioned'
   | 'ruling-hidden-from-report'
-  | 'related-reports-actioned';
+  | 'related-reports-actioned'
+  | 'moderation-rule-created'
+  | 'moderation-rule-updated'
+  | 'moderation-rule-enabled'
+  | 'moderation-rule-disabled'
+  | 'moderation-rule-deleted'
+  | 'santa-settings-updated'
+  | 'response-template-created'
+  | 'response-template-updated'
+  | 'response-template-enabled'
+  | 'response-template-disabled'
+  | 'response-template-deleted';
 
-export type OwnerActivityTargetType = 'auth' | 'ruling' | 'report';
+export type OwnerActivityTargetType =
+  | 'auth'
+  | 'ruling'
+  | 'report'
+  | 'moderation-rule'
+  | 'setting'
+  | 'response-template';
 
 export type OwnerActivityEntry = {
   action: OwnerActivityAction;
@@ -160,6 +177,28 @@ export function getOwnerActivityLabel(action: OwnerActivityAction): string {
       return 'Ruling hidden from report';
     case 'related-reports-actioned':
       return 'Related reports actioned';
+    case 'moderation-rule-created':
+      return 'Moderation rule created';
+    case 'moderation-rule-updated':
+      return 'Moderation rule updated';
+    case 'moderation-rule-enabled':
+      return 'Moderation rule enabled';
+    case 'moderation-rule-disabled':
+      return 'Moderation rule disabled';
+    case 'moderation-rule-deleted':
+      return 'Moderation rule deleted';
+    case 'santa-settings-updated':
+      return 'Santa settings updated';
+    case 'response-template-created':
+      return 'Response template created';
+    case 'response-template-updated':
+      return 'Response template updated';
+    case 'response-template-enabled':
+      return 'Response template enabled';
+    case 'response-template-disabled':
+      return 'Response template disabled';
+    case 'response-template-deleted':
+      return 'Response template deleted';
   }
 }
 

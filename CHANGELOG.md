@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 
 The format is inspired by Keep a Changelog, and this project adheres to Semantic Versioning.
 
+## [0.2.2] - 2026-07-18
+
+### Added
+
+- A private workshop configuration area with moderation-rule management at `/workshop/moderation`, `/workshop/moderation/new`, and `/workshop/moderation/[ruleId]`
+- Database-backed Santa settings at `/workshop/settings` with optimistic-concurrency protection for random coal changes
+- Database-backed response-template management at `/workshop/settings/responses` for approved, coal, and blocked warning messages
+- A private moderation tester that evaluates active rules without storing test content or creating rulings
+- Additive schema support for `moderation_rules`, `santa_settings`, and `response_templates`
+- An explicit idempotent configuration seed command at `npm run db:seed:configuration`
+- Automated coverage for configuration caching, duplicate rule normalization, stale settings conflicts, template safeguards, and fail-closed runtime configuration errors
+
+### Changed
+
+- Public ruling submissions now load active moderation rules, current Santa settings, and active response templates from the server-side configuration service instead of source-edited production config
+- Workshop navigation now includes dedicated Moderation and Santa Settings entries without exposing any configuration tools publicly
+- Owner activity now records moderation-rule, Santa-settings, and response-template changes alongside the existing workshop audit history
+- Runtime configuration now uses short-lived server-side caching with mutation-side invalidation and fail-closed behavior when required configuration cannot be loaded
+
 ## [0.2.1] - 2026-07-17
 
 ### Added

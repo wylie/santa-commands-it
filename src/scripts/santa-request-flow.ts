@@ -1,6 +1,6 @@
 import { santaResponses } from '@/config/responses';
+import { publicSantaUiSettings } from '@/config/public-santa-ui';
 import { REQUEST_LIMITS } from '@/config/request';
-import { santaSettings } from '@/config/santa-settings';
 import { TimedRequestError, fetchJsonWithTimeout } from '@/scripts/fetch-json';
 import {
   formatCharacterCount,
@@ -59,7 +59,7 @@ function getDelayOverride(): number | undefined {
 }
 
 function getMinimumConsideringDelay(): number {
-  return getDelayOverride() ?? santaSettings.consideringDelay.minimum;
+  return getDelayOverride() ?? publicSantaUiSettings.consideringDelay.minimum;
 }
 
 function setDisabledState(
@@ -185,7 +185,7 @@ export function initSantaRequestFlow(): void {
   const controls = [nameInput, requestInput, submitButton];
   const recentLimit = Number(
     recentRulingsSection.dataset.limit ??
-      santaSettings.recentRulings.visibleLimit,
+      publicSantaUiSettings.recentRulings.visibleLimit,
   );
   let successfulRuling: CreatedRulingResponse['ruling'] | null = null;
   let activeSubmission = false;

@@ -3,6 +3,7 @@ import {
   RateLimitSecretConfigurationError,
   SiteUrlConfigurationError,
 } from '@/server/env';
+import { RuntimeConfigurationUnavailableError } from '@/server/config/service';
 import { SubmissionPersistenceError } from '@/server/submissions/service';
 
 export type SubmissionErrorSummary = {
@@ -63,7 +64,8 @@ function getSafeDetail(value: unknown): string | undefined {
   if (
     value instanceof DatabaseConfigurationError ||
     value instanceof RateLimitSecretConfigurationError ||
-    value instanceof SiteUrlConfigurationError
+    value instanceof SiteUrlConfigurationError ||
+    value instanceof RuntimeConfigurationUnavailableError
   ) {
     return value.message;
   }
@@ -103,7 +105,8 @@ function isConfigurationError(error: unknown): boolean {
   return (
     error instanceof DatabaseConfigurationError ||
     error instanceof RateLimitSecretConfigurationError ||
-    error instanceof SiteUrlConfigurationError
+    error instanceof SiteUrlConfigurationError ||
+    error instanceof RuntimeConfigurationUnavailableError
   );
 }
 

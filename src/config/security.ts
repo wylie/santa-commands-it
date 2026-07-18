@@ -48,6 +48,12 @@ export const securitySettings = {
       recentRulingsLimit: 5,
       relatedReportsLimit: 20,
     },
+    configuration: {
+      ruleValueMaxLength: 200,
+      responseTemplateMaxLength: 500,
+      testerInputMaxLength: 500,
+      cacheTtlMs: 30 * 1000,
+    },
     auth: {
       sessionDurationMs: 12 * 60 * 60 * 1000,
       failedLoginMessage:
@@ -146,6 +152,22 @@ export function validateSecuritySettings(): void {
   assertPositiveInteger(
     securitySettings.workshop.search.relatedReportsLimit,
     'Workshop related-reports limit must be a positive integer.',
+  );
+  assertPositiveInteger(
+    securitySettings.workshop.configuration.ruleValueMaxLength,
+    'Workshop rule value limit must be a positive integer.',
+  );
+  assertPositiveInteger(
+    securitySettings.workshop.configuration.responseTemplateMaxLength,
+    'Workshop response-template limit must be a positive integer.',
+  );
+  assertPositiveInteger(
+    securitySettings.workshop.configuration.testerInputMaxLength,
+    'Workshop moderation-tester input limit must be a positive integer.',
+  );
+  assertPositiveInteger(
+    securitySettings.workshop.configuration.cacheTtlMs,
+    'Workshop configuration cache TTL must be a positive integer.',
   );
   assertPositiveInteger(
     securitySettings.workshop.auth.sessionDurationMs,

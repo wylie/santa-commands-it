@@ -1,6 +1,4 @@
-import { moderationRules } from '@/config/moderation';
 import { REQUEST_LIMITS } from '@/config/request';
-import { santaResponses } from '@/config/responses';
 import { securitySettings } from '@/config/security';
 import type {
   BlockedRulingResponse,
@@ -31,6 +29,8 @@ export const RATE_LIMITED_SUPPORTING_MESSAGE =
 export const DUPLICATE_SUBMISSION_MESSAGE =
   'Santa has already answered that request.';
 export const BOT_REJECTED_MESSAGE = RATE_LIMITED_MESSAGE;
+export const BLOCKED_SUPPORTING_MESSAGE =
+  'Santa will give you another chance to choose something kinder.';
 
 export class SubmissionPersistenceError extends Error {
   constructor(
@@ -51,6 +51,18 @@ type SubmissionPayload = {
 
 export type SubmitRulingDependencies = {
   submissionRepository: SubmissionRepository;
+  loadRuntimeConfiguration: () => Promise<{
+    moderationRules: import('@/config/moderation').ModerationRules;
+    santaSettings: {
+      randomCoalEnabled: boolean;
+      randomCoalPercentage: number;
+    };
+    responseTemplates: {
+      approved: string[];
+      coal: string[];
+      blockedWarning: string[];
+    };
+  }>;
   randomProvider: () => number;
   publicIdGenerator: () => string;
   nowProvider: () => Date;
@@ -100,14 +112,13 @@ function buildInvalidResponse(
 
 function buildBlockedResponse(
   blockedField: 'name' | 'request' | 'both',
+  blockedTemplate: string,
 ): BlockedRulingResponse {
-  const [response] = santaResponses.blocked;
-
   return {
     status: 'blocked',
     focusField: blockedField,
-    message: response.title,
-    supportingMessage: response.supporting,
+    message: blockedTemplate,
+    supportingMessage: BLOCKED_SUPPORTING_MESSAGE,
   };
 }
 
@@ -135,9 +146,7 @@ function getPersistedDecisionResponse(
     { type: 'approved' | 'random-coal' }
   >,
 ): string {
-  const template = decision.response.supporting ?? decision.response.title;
-
-  return formatResponseTemplate(template, {
+  return formatResponseTemplate(decision.response, {
     name: decision.name,
     request: decision.request,
   });
@@ -319,27 +328,33 @@ export async function submitSantaRequest(
   await dependencies.submissionRepository.recordSubmissionAttempt(
     context.clientKeyHash,
   );
-
+  const runtimeConfiguration = await dependencies.loadRuntimeConfiguration();
   const blockedField = getBlockedField(
     validatedName.value,
     validatedRequest.value,
-    moderationRules,
+    runtimeConfiguration.moderationRules,
   );
 
   if (blockedField) {
-    return buildBlockedResponse(blockedField);
+    return buildBlockedResponse(
+      blockedField,
+      runtimeConfiguration.responseTemplates.blockedWarning[0] ??
+        'THAT IS UNACCEPTABLE. ASK FOR SOMETHING ELSE OR RECEIVE COAL!',
+    );
   }
 
   const decision = evaluateSantaRequest({
     name: validatedName.value,
     request: validatedRequest.value,
-    moderation: moderationRules,
+    moderation: runtimeConfiguration.moderationRules,
+    settings: runtimeConfiguration.santaSettings,
+    templates: runtimeConfiguration.responseTemplates,
     randomValue: dependencies.randomProvider(),
     templateValue: dependencies.randomProvider(),
   });
 
   if (decision.type === 'blocked') {
-    throw new Error('Blocked decisions must return before persistence.');
+    return buildBlockedResponse(decision.field, decision.response);
   }
 
   let createdRuling;

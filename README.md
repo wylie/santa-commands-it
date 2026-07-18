@@ -1,11 +1,11 @@
 # Santa Commands It!
 
-`Santa Commands It!` is a theatrical holiday web application from Argon Collective LLC. Visitors ask Santa for something, the server makes the authoritative decision, completed rulings are stored in Neon Postgres, and approved or coal outcomes receive permanent public pages that can be shared directly. Version `0.2.1` continues the `v0.2.x` owner-administration milestone with a private workshop moderation queue for reviewing public reports safely without working directly in Neon.
+`Santa Commands It!` is a theatrical holiday web application from Argon Collective LLC. Visitors ask Santa for something, the server makes the authoritative decision, completed rulings are stored in Neon Postgres, and approved or coal outcomes receive permanent public pages that can be shared directly. Version `0.2.2` continues the `v0.2.x` owner-administration milestone with a private workshop configuration area for moderation rules, Santa settings, and response templates without editing source files for ordinary operational changes.
 
 ## Release
 
-- Current version: `v0.2.1`
-- Current scope: the preserved public Santa experience plus a private `Santa's Workshop` owner area with secure single-owner authentication, server-side sessions, ruling visibility controls, a report-review queue, permanent deletion, and private audit activity
+- Current version: `v0.2.2`
+- Current scope: the preserved public Santa experience plus a private `Santa's Workshop` owner area with secure single-owner authentication, server-side sessions, ruling visibility controls, a report-review queue, database-backed moderation rules, editable Santa settings, response-template management, and private audit activity
 
 Completed rulings persist across refreshes and can be revisited at permanent public URLs when they remain public. Blocked submissions are still rejected before any database write and never receive public pages, public reports can be submitted without exposing reporter details, and hidden rulings now return the same public not-found experience as unknown identifiers.
 
@@ -49,8 +49,12 @@ Completed approvals and coal rulings are public on the homepage and on their own
 - `npm run db:generate`
 - `npm run db:migrate`
 
-11. Start the development server with `npm run dev`.
-12. Submit a request, confirm it appears in Santa's Latest Commands, open its permanent ruling page, submit one or more reports, sign into `/workshop/login`, and test report review, hide, restore, and delete behavior against local data.
+11. Seed the initial database-backed moderation and Santa configuration once:
+
+- `npm run db:seed:configuration`
+
+12. Start the development server with `npm run dev`.
+13. Submit a request, confirm it appears in Santa's Latest Commands, open its permanent ruling page, submit one or more reports, sign into `/workshop/login`, and test moderation rules, Santa settings, response templates, report review, hide, restore, and delete behavior against local data.
 
 If `DATABASE_URL` is missing, the form remains usable but the server cannot persist rulings, recent public commands will be unavailable, and no permanent ruling pages can be created.
 
@@ -93,6 +97,11 @@ Private owner routes now live under:
 
 - `/workshop`
 - `/workshop/login`
+- `/workshop/moderation`
+- `/workshop/moderation/new`
+- `/workshop/moderation/[ruleId]`
+- `/workshop/settings`
+- `/workshop/settings/responses`
 - `/workshop/rulings`
 - `/workshop/rulings/[publicId]`
 - `/workshop/reports`
@@ -111,6 +120,7 @@ The public homepage, public ruling pages, submission flow, reporting flow, Santa
 - Failed login attempts are rate-limited per hashed client identifier at `5` failures per `15` minutes.
 - Workshop pages redirect unauthenticated visitors to `/workshop/login`.
 - Workshop API mutations reject unauthorized or cross-origin requests safely.
+- Configuration mutations also require supported form content types, bounded request bodies, and CSRF tokens before a rule, setting, or template can change.
 
 ## Workshop ruling management
 
@@ -274,12 +284,16 @@ Additional operational tables now store:
 - workshop login-attempt records for rate limiting
 - workshop sessions with expiration and CSRF state
 - private owner-activity records
+- moderation rules, Santa settings, and response templates used only by authenticated workshop tooling and server-side submission decisions
 
 ## What is never stored
 
 - blocked submissions
 - moderation-match details
 - internal database IDs in browser responses
+- full blocked-word, blocked-phrase, or allowed-exception lists in public browser bundles
+- full response-template collections in public browser bundles
+- owner-only configuration notes, configuration history, or moderation test text
 - email addresses
 - account data
 - raw IP addresses in the application database
@@ -288,20 +302,69 @@ Additional operational tables now store:
 
 Blocked content is rejected before any database write.
 
-## Moderation and random coal
+## Database-backed configuration
 
-Moderation rules remain editable in `src/config/moderation.ts`, but they are now enforced authoritatively on the server.
+The production source of truth for moderation and editable Santa behavior is now the database, not a deployed source-file edit.
 
-Santa settings remain editable in `src/config/santa-settings.ts`, including:
+### Moderation rules
 
-- random coal enabled state
-- random coal percentage
-- considering delay range
-- recent-ruling list limit
-- configured display timezone for recent ruling timestamps
-- client request timeout
+- Rules live in the `moderation_rules` table.
+- Supported rule types are `blocked-word`, `blocked-phrase`, and `allowed-exception`.
+- Supported private categories are `bullying`, `harassment`, `hate`, `violence`, `sexual-content`, `personal-information`, `dangerous-content`, `spam`, `profanity`, `general`, and `test-fixture`.
+- Rule-management URLs use opaque workshop identifiers such as `rule_...`; internal numeric ids are never exposed in owner URLs or public responses.
+- The moderation list is server-side searchable by rule value, category, private note, and opaque rule id, plus server-side filterable by rule type, status, and category.
+- Rule pagination is server-side with a page size of `25`.
+- Rules can be enabled, disabled, edited, and deleted from `Santa's Workshop`.
+- Inactive rules remain searchable and editable but do not affect submissions or moderation tests.
 
-The initial coal percentage remains `5%`.
+### Moderation tester
+
+- The private moderation tester lives on `/workshop/moderation`.
+- Test content is evaluated against the current active rules on the server.
+- Test input is never persisted, never logged intentionally, and never creates a ruling.
+- The tester reveals private match metadata such as matching rule type, opaque rule id, category, and normalized input only to authenticated owners.
+
+### Santa settings
+
+- Editable Santa settings live in the `santa_settings` table.
+- `v0.2.2` exposes `randomCoalEnabled` and `randomCoalPercentage` for editing.
+- The stored coal percentage is retained even when random coal is disabled.
+- Settings updates use a version field for optimistic concurrency so stale tabs do not silently overwrite newer values.
+- The default coal percentage remains `5%`.
+
+### Response templates
+
+- Templates live in the `response_templates` table.
+- Template groups are `approved`, `coal`, and `blocked-warning`.
+- Approved and coal templates may use `{name}` and `{request}` placeholders.
+- Blocked warning templates allow no placeholders.
+- Templates are stored and rendered as plain text only; they are never evaluated as code and never rendered through `innerHTML`.
+- Equal random selection is used within each active template group.
+- Persisted rulings keep the exact final rendered Santa response even after later template edits.
+
+### Required template safeguards
+
+- Approved responses must keep at least one active template.
+- Coal responses must keep at least one active template while random coal is enabled.
+- Blocked warning responses must keep at least one active template.
+- The active blocked-warning set must retain the core warning text `THAT IS UNACCEPTABLE. ASK FOR SOMETHING ELSE OR RECEIVE COAL!`.
+
+### Caching and fail-closed behavior
+
+- Active moderation rules, current Santa settings, and active response templates are loaded through a focused server-side configuration service.
+- The runtime cache TTL is `30` seconds.
+- Owner mutations invalidate the current instance cache immediately after successful changes.
+- Other serverless instances may continue serving older configuration until their local TTL expires, so cross-instance propagation can take up to `30` seconds.
+- The cache is only an optimization; the database remains authoritative.
+- If required runtime configuration cannot be loaded, public submissions fail closed with the existing generic workshop error rather than accepting unmoderated content.
+
+### Source defaults and migration
+
+- Source files now provide safe seed defaults and test recovery values rather than equal production authority.
+- The committed seed source lives in `src/config/configuration-seed-defaults.json`.
+- The one-time seed command is `npm run db:seed:configuration`.
+- The seed is intentionally idempotent: it inserts missing rules, settings, and templates, skips existing rows, and does not overwrite later owner changes.
+- Startup does not synchronize source defaults into the database automatically.
 
 ## Latest commands behavior
 
@@ -354,7 +417,7 @@ Completed approved and coal rulings are public and accessible to anyone with the
 - Safe diagnostics include the failing submission stage, sanitized error class, and database error code.
 - Diagnostics must not include submitted names, submitted requests, raw request bodies, secrets, or raw IP addresses.
 
-If the homepage can read recent rulings but valid submissions fail, run `npm run db:migrate` against the same database the app is using and then retry the submission. Reads only require the `rulings` table, while submissions also require the `submission_attempts` and `submission_idempotency` tables.
+If the homepage can read recent rulings but valid submissions fail, run `npm run db:migrate` and `npm run db:seed:configuration` against the same database the app is using and then retry the submission. Reads only require the `rulings` table, while submissions also require the moderation, settings, template, submission-attempt, and idempotency tables.
 
 ## Local and Vercel environment setup
 
@@ -381,7 +444,9 @@ Do not place secrets in `vercel.json`. Configure them through the Vercel project
 ## Migrations and deployment verification
 
 - Apply local schema updates with `npm run db:migrate`.
+- Seed initial configuration with `npm run db:seed:configuration`.
 - Apply the same migration command against the production or preview database before expecting new submission or reporting code paths to work.
+- Run the configuration seed once per environment after the new tables exist. Re-running it later is safe and will skip already-seeded rows.
 - After deployment, verify the ruling flow and open `/images/santa.png` directly to confirm the deployed asset path is correct.
 - Remember that `public/images/santa.png` is the repository filesystem path, while `/images/santa.png` is the browser URL.
 
@@ -397,9 +462,10 @@ Recommended production setup:
 
 - Set `DATABASE_URL`, `RATE_LIMIT_SECRET`, and `SITE_URL` explicitly in the deployment environment.
 - Apply migrations before switching production traffic to a new release.
+- Apply the configuration seed after the migration the first time `v0.2.2` reaches an environment.
 - Keep `RATE_LIMIT_SECRET` unique per environment.
 - Review CSP behavior after every third-party asset change.
-- Review moderation fixtures before launch so test-only blocked phrases are not shipped unintentionally.
+- Review seeded moderation fixtures before launch so any test-oriented rules are categorized appropriately for the environment.
 
 Preview deployment considerations:
 
@@ -417,11 +483,15 @@ Apply migrations locally or to Neon:
 
 - `npm run db:migrate`
 
+Seed or re-check the initial database-backed configuration:
+
+- `npm run db:seed:configuration`
+
 Open Drizzle Studio for local inspection:
 
 - `npm run db:studio`
 
-The committed initial migration lives under `drizzle/`. Ordinary application startup does not mutate the schema automatically.
+The committed migrations live under `drizzle/`. Ordinary application startup does not mutate the schema or synchronize configuration defaults automatically.
 
 ## Design and layout
 
@@ -445,8 +515,8 @@ The committed initial migration lives under `drizzle/`. Ordinary application sta
 
 ## Testing
 
-- `npm run test` covers validation, moderation normalization, coal decisions, repository-safe public-ruling mapping, canonical URL helpers, share payload utilities, environment validation, and safety-oriented edge cases without requiring a live database.
-- `npm run test:e2e` uses a dedicated test-mode server strategy instead of a real Neon database, and now includes automated accessibility checks with Axe.
+- `npm run test` covers validation, moderation normalization, rule duplication behavior, runtime configuration caching, stale settings conflicts, response-template safeguards, repository-safe public-ruling mapping, canonical URL helpers, share payload utilities, environment validation, and safety-oriented edge cases without requiring a live database.
+- `npm run test:e2e` uses a dedicated test-mode server strategy instead of a real Neon database, includes automated accessibility checks with Axe, and now exercises workshop moderation, settings, template, ruling, and report flows in the browser.
 - `npm run test:lighthouse` provides a local production-style Lighthouse audit for the homepage and a representative ruling page.
 - `npm run build` verifies the server-rendered production output and public ruling route.
 
@@ -459,13 +529,15 @@ Test precautions:
 ## Current limitations
 
 - Single-owner authentication only; there are no multiple staff accounts or role permissions yet.
-- No report-review queue or moderation triage workflow exists yet.
+- No configuration rollback UI exists yet.
+- No scheduled rule activation or scheduled settings changes exist yet.
+- No bulk moderation-rule import or export exists yet.
+- No automatic rule suggestions or external moderation classifier exists yet.
+- No multiple moderation profiles exist yet.
 - No platform firewall, CAPTCHA, or third-party anti-bot service is configured in this repository.
 - Client-side timing and honeypot checks are only lightweight abuse signals and can be bypassed.
 - Database-backed rate limiting is intended for low public traffic and should be revisited before large-scale launch.
-- Moderation rules still require code or configuration edits rather than an owner-facing editor.
-- No general settings editor exists yet for moderation rules, coal percentage, or response templates.
-- No automatic report-based removal or restore controls exist yet.
+- Cache propagation across serverless instances may take up to the configured `30` second TTL.
 - No automated data-retention policy exists yet for public rulings or reports.
 - `npm audit --omit=dev` currently reports a high-severity `drizzle-orm` advisory below `0.45.2`; resolving it requires a breaking dependency upgrade that should be handled deliberately after regression review.
 - No dynamic social image generation, downloadable share cards, or QR codes exist yet.
@@ -520,8 +592,6 @@ Use [PRELAUNCH.md](/Users/wylie/Repos/santa-commands-it/PRELAUNCH.md) for the co
 
 ## Roadmap
 
-- `v0.2.1`: Report review and moderation queue
-- `v0.2.2`: Moderation-rule and Santa-settings manager
 - `v0.2.3`: Expanded dashboard and statistics
 - `v0.2.4`: Dynamic share images
 - `v0.2.5`: `v0.2.x` stabilization and launch polish

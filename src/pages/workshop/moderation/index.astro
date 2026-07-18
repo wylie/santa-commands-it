@@ -1,0 +1,561 @@
+---
+import WorkshopLayout from '@/layouts/WorkshopLayout.astro';
+import {
+  moderationRuleCategories,
+  moderationRuleTypes,
+} from '@/utils/configuration';
+import { requireWorkshopPageSession } from '@/server/workshop/auth';
+import { getWorkshopModerationPageData } from '@/server/config/service';
+import { getWorkshopOpenReportCount } from '@/server/workshop/service';
+import { formatRulingTimestamp } from '@/utils/rulings';
+import {
+  getModerationRuleCategoryLabel,
+  getModerationRuleTypeLabel,
+} from '@/utils/configuration';
+import { getOwnerActivityLabel } from '@/utils/workshop';
+
+const session = await requireWorkshopPageSession(Astro);
+
+if (session instanceof Response) {
+  return session;
+}
+
+const data = await getWorkshopModerationPageData(
+  Astro.request.headers,
+  Astro.url.searchParams,
+);
+const openReportCount = await getWorkshopOpenReportCount(Astro.request.headers);
+const status = Astro.url.searchParams.get('status');
+const error = Astro.url.searchParams.get('error');
+const existingRuleId = Astro.url.searchParams.get('existing');
+const existingRulePath = existingRuleId
+  ? `/workshop/moderation/${encodeURIComponent(existingRuleId)}`
+  : null;
+const bannerMessage =
+  status === 'created'
+    ? {
+        tone: 'success',
+        message: 'The moderation rule was created.',
+      }
+    : status === 'created-with-warning'
+      ? {
+          tone: 'warning',
+          message:
+            'The moderation rule was created, but the owner activity entry could not be recorded.',
+        }
+      : status === 'updated'
+        ? {
+            tone: 'success',
+            message: 'The moderation rule was updated.',
+          }
+        : status === 'updated-with-warning'
+          ? {
+              tone: 'warning',
+              message:
+                'The moderation rule was updated, but the owner activity entry could not be recorded.',
+            }
+          : status === 'enabled'
+            ? {
+                tone: 'success',
+                message: 'The moderation rule is active again.',
+              }
+            : status === 'enabled-with-warning'
+              ? {
+                  tone: 'warning',
+                  message:
+                    'The moderation rule was enabled, but the owner activity entry could not be recorded.',
+                }
+              : status === 'disabled'
+                ? {
+                    tone: 'success',
+                    message: 'The moderation rule is now inactive.',
+                  }
+                : status === 'disabled-with-warning'
+                  ? {
+                      tone: 'warning',
+                      message:
+                        'The moderation rule was disabled, but the owner activity entry could not be recorded.',
+                    }
+                  : status === 'deleted'
+                    ? {
+                        tone: 'success',
+                        message:
+                          'The moderation rule was deleted. Historical rulings were not changed.',
+                      }
+                    : status === 'deleted-with-warning'
+                      ? {
+                          tone: 'warning',
+                          message:
+                            'The moderation rule was deleted, but the owner activity entry could not be recorded.',
+                        }
+                      : error === 'invalid-type'
+                        ? {
+                            tone: 'error',
+                            message: 'Please choose a moderation rule type.',
+                          }
+                        : error === 'invalid-value'
+                          ? {
+                              tone: 'error',
+                              message:
+                                'That rule value is not valid for the selected rule type.',
+                            }
+                          : error === 'invalid-note'
+                            ? {
+                                tone: 'error',
+                                message:
+                                  'Please keep private notes to 500 characters or fewer.',
+                              }
+                            : error === 'duplicate'
+                              ? {
+                                  tone: 'error',
+                                  message:
+                                    'That normalized moderation rule already exists.',
+                                }
+                              : error === 'not-found'
+                                ? {
+                                    tone: 'error',
+                                    message:
+                                      'That moderation rule could not be found.',
+                                  }
+                                : error === 'tester-invalid'
+                                  ? {
+                                      tone: 'error',
+                                      message:
+                                        'Enter a sample name or request to test moderation.',
+                                    }
+                                  : null;
+
+const totalPages = Math.max(1, Math.ceil(data.total / data.pageSize));
+const startResult = data.total === 0 ? 0 : (data.page - 1) * data.pageSize + 1;
+const endResult = Math.min(data.total, data.page * data.pageSize);
+
+function buildQueryString(page: number) {
+  const next = new URLSearchParams();
+
+  if (data.filters.query) {
+    next.set('q', data.filters.query);
+  }
+
+  if (data.filters.ruleType !== 'all') {
+    next.set('type', data.filters.ruleType);
+  }
+
+  if (data.filters.status !== 'all') {
+    next.set('status', data.filters.status);
+  }
+
+  if (data.filters.category !== 'all') {
+    next.set('category', data.filters.category);
+  }
+
+  if (page > 1) {
+    next.set('page', String(page));
+  }
+
+  const serialized = next.toString();
+
+  return serialized ? `?${serialized}` : '';
+}
+
+function excerpt(value: string | null, maximum = 72) {
+  if (!value) {
+    return 'None';
+  }
+
+  return value.length > maximum ? `${value.slice(0, maximum - 1)}…` : value;
+}
+---
+
+<WorkshopLayout
+  title="Moderation Rules"
+  description="Manage blocked words, blocked phrases, allowed exceptions, and a private moderation tester."
+  currentPath={Astro.url.pathname}
+  csrfToken={session.csrfToken}
+  openReportCount={openReportCount}
+>
+  {
+    bannerMessage && (
+      <p
+        class={`workshop-banner workshop-banner--${bannerMessage.tone}`}
+        role="status"
+      >
+        {bannerMessage.message}
+        {error === 'duplicate' && existingRulePath && (
+          <>
+            {' '}
+            <a class="workshop-inline-link" href={existingRulePath}>
+              Open existing rule
+            </a>
+          </>
+        )}
+      </p>
+    )
+  }
+
+  <section class="workshop-grid workshop-grid--detail">
+    <article class="workshop-card">
+      <div class="workshop-card__header">
+        <h2>Rules</h2>
+        <a class="workshop-inline-link" href="/workshop/moderation/new">
+          Add rule
+        </a>
+      </div>
+
+      <form class="workshop-filters" method="get" action="/workshop/moderation">
+        <div class="workshop-form__field">
+          <label for="moderation-search">Search rules</label>
+          <input
+            id="moderation-search"
+            name="q"
+            type="search"
+            value={data.filters.query}
+            maxlength="120"
+          />
+        </div>
+
+        <div class="workshop-form__field">
+          <label for="moderation-type">Rule type</label>
+          <select id="moderation-type" name="type">
+            <option value="all" selected={data.filters.ruleType === 'all'}>
+              All rule types
+            </option>
+            {
+              moderationRuleTypes.map((ruleType) => (
+                <option
+                  value={ruleType.value}
+                  selected={data.filters.ruleType === ruleType.value}
+                >
+                  {ruleType.label}
+                </option>
+              ))
+            }
+          </select>
+        </div>
+
+        <div class="workshop-form__field">
+          <label for="moderation-status">Status</label>
+          <select id="moderation-status" name="status">
+            <option value="all" selected={data.filters.status === 'all'}>
+              All statuses
+            </option>
+            <option value="active" selected={data.filters.status === 'active'}>
+              Active
+            </option>
+            <option
+              value="inactive"
+              selected={data.filters.status === 'inactive'}
+            >
+              Inactive
+            </option>
+          </select>
+        </div>
+
+        <div class="workshop-form__field">
+          <label for="moderation-category">Category</label>
+          <select id="moderation-category" name="category">
+            <option value="all" selected={data.filters.category === 'all'}>
+              All categories
+            </option>
+            {
+              moderationRuleCategories.map((category) => (
+                <option
+                  value={category.value}
+                  selected={data.filters.category === category.value}
+                >
+                  {category.label}
+                </option>
+              ))
+            }
+          </select>
+        </div>
+
+        <div class="workshop-form__actions">
+          <button type="submit" class="button-command">Apply</button>
+        </div>
+      </form>
+
+      <div class="workshop-results-bar">
+        <p>
+          Page {data.page} of {totalPages}
+        </p>
+        <p>
+          {startResult}-{endResult} of {data.total} rules
+        </p>
+      </div>
+
+      {
+        data.rules.length === 0 ? (
+          <p class="workshop-empty">No moderation rules matched this search.</p>
+        ) : (
+          <div class="workshop-table-wrap">
+            <table class="workshop-table">
+              <thead>
+                <tr>
+                  <th scope="col">Rule</th>
+                  <th scope="col">Type</th>
+                  <th scope="col">Category</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Note</th>
+                  <th scope="col">Created</th>
+                  <th scope="col">Updated</th>
+                  <th scope="col">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.rules.map((rule) => (
+                  <tr>
+                    <td data-label="Rule">
+                      <p class="workshop-summary-list__title">{rule.value}</p>
+                      <p class="workshop-summary-list__meta">{rule.publicId}</p>
+                    </td>
+                    <td data-label="Type">
+                      {getModerationRuleTypeLabel(rule.ruleType)}
+                    </td>
+                    <td data-label="Category">
+                      {getModerationRuleCategoryLabel(rule.category)}
+                    </td>
+                    <td data-label="Status">
+                      <span
+                        class="workshop-status-pill"
+                        data-active={rule.active ? 'true' : 'false'}
+                      >
+                        {rule.active ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td data-label="Note">{excerpt(rule.privateNote)}</td>
+                    <td data-label="Created">
+                      <time datetime={rule.createdAt}>
+                        {formatRulingTimestamp(rule.createdAt)}
+                      </time>
+                    </td>
+                    <td data-label="Updated">
+                      <time datetime={rule.updatedAt}>
+                        {formatRulingTimestamp(rule.updatedAt)}
+                      </time>
+                    </td>
+                    <td data-label="Actions">
+                      <div class="workshop-row-actions">
+                        <a
+                          class="workshop-inline-link"
+                          href={`/workshop/moderation/${rule.publicId}`}
+                        >
+                          Edit
+                        </a>
+                        {rule.active ? (
+                          <form
+                            method="post"
+                            action={`/api/workshop/moderation/${rule.publicId}/disable`}
+                          >
+                            <input
+                              type="hidden"
+                              name="csrfToken"
+                              value={session.csrfToken}
+                            />
+                            <input
+                              type="hidden"
+                              name="returnTo"
+                              value={`${Astro.url.pathname}${Astro.url.search}`}
+                            />
+                            <button
+                              type="submit"
+                              class="workshop-inline-button"
+                            >
+                              Disable
+                            </button>
+                          </form>
+                        ) : (
+                          <form
+                            method="post"
+                            action={`/api/workshop/moderation/${rule.publicId}/enable`}
+                          >
+                            <input
+                              type="hidden"
+                              name="csrfToken"
+                              value={session.csrfToken}
+                            />
+                            <input
+                              type="hidden"
+                              name="returnTo"
+                              value={`${Astro.url.pathname}${Astro.url.search}`}
+                            />
+                            <button
+                              type="submit"
+                              class="workshop-inline-button"
+                            >
+                              Enable
+                            </button>
+                          </form>
+                        )}
+                        <a
+                          class="workshop-inline-link workshop-inline-link--danger"
+                          href={`/workshop/moderation/${rule.publicId}#delete-rule`}
+                        >
+                          Delete
+                        </a>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
+      }
+
+      <div class="workshop-pagination">
+        <a
+          class={`button-link-secondary ${data.page <= 1 ? 'is-disabled' : ''}`}
+          href={`/workshop/moderation${buildQueryString(data.page - 1)}`}
+          aria-disabled={data.page <= 1 ? 'true' : undefined}
+        >
+          Previous
+        </a>
+        <a
+          class={`button-link-secondary ${data.page >= totalPages ? 'is-disabled' : ''}`}
+          href={`/workshop/moderation${buildQueryString(data.page + 1)}`}
+          aria-disabled={data.page >= totalPages ? 'true' : undefined}
+        >
+          Next
+        </a>
+      </div>
+    </article>
+
+    <article class="workshop-card">
+      <div class="workshop-card__header">
+        <h2>Test moderation</h2>
+      </div>
+      <p class="workshop-form__hint">
+        Try sample text against the currently active rules. Test content is not
+        saved.
+      </p>
+      <form
+        class="workshop-form"
+        id="moderation-tester-form"
+        method="post"
+        action="/api/workshop/moderation/test"
+      >
+        <input type="hidden" name="csrfToken" value={session.csrfToken} />
+        <div class="workshop-form__field">
+          <label for="moderation-test-name">Sample name</label>
+          <input
+            id="moderation-test-name"
+            name="name"
+            type="text"
+            maxlength="500"
+            autocomplete="off"
+          />
+        </div>
+        <div class="workshop-form__field">
+          <label for="moderation-test-request">Sample request</label>
+          <textarea id="moderation-test-request" name="request" maxlength="500"
+          ></textarea>
+        </div>
+        <div class="workshop-form__actions">
+          <button type="submit" class="button-command">Run test</button>
+        </div>
+      </form>
+      <div
+        class="workshop-tester-result"
+        id="moderation-tester-result"
+        role="status"
+        aria-live="polite"
+      >
+      </div>
+
+      <div class="workshop-card__section">
+        <h3>Recent moderation activity</h3>
+        {
+          data.recentActivity.length === 0 ? (
+            <p class="workshop-empty">
+              No moderation changes are recorded yet.
+            </p>
+          ) : (
+            <ol class="workshop-summary-list">
+              {data.recentActivity.map((entry) => (
+                <li class="workshop-summary-list__item">
+                  <div>
+                    <p class="workshop-summary-list__title">
+                      {getOwnerActivityLabel(entry.action)}
+                    </p>
+                    <p class="workshop-summary-list__meta">
+                      {formatRulingTimestamp(entry.createdAt)}
+                      {entry.targetPublicId ? ` · ${entry.targetPublicId}` : ''}
+                    </p>
+                    {entry.details && (
+                      <p class="workshop-summary-list__detail">
+                        {entry.details}
+                      </p>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          )
+        }
+      </div>
+    </article>
+  </section>
+</WorkshopLayout>
+
+<script is:inline>
+  const moderationTesterForm = document.querySelector(
+    '#moderation-tester-form',
+  );
+  const moderationTesterResult = document.querySelector(
+    '#moderation-tester-result',
+  );
+
+  function writeModerationTesterResult(lines, tone) {
+    if (!(moderationTesterResult instanceof HTMLElement)) {
+      return;
+    }
+
+    moderationTesterResult.className = `workshop-tester-result workshop-tester-result--${tone}`;
+    moderationTesterResult.replaceChildren();
+
+    for (const line of lines) {
+      const paragraph = document.createElement('p');
+      paragraph.textContent = line;
+      moderationTesterResult.appendChild(paragraph);
+    }
+  }
+
+  if (moderationTesterForm instanceof HTMLFormElement) {
+    moderationTesterForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+
+      const formData = new FormData(moderationTesterForm);
+
+      try {
+        const response = await fetch(moderationTesterForm.action, {
+          method: 'POST',
+          body: formData,
+          credentials: 'same-origin',
+        });
+        const payload = await response.json();
+
+        if (!response.ok || payload.status !== 'success') {
+          writeModerationTesterResult(
+            [payload.message ?? 'The moderation test could not be completed.'],
+            'error',
+          );
+          return;
+        }
+
+        writeModerationTesterResult(
+          [
+            payload.headline,
+            payload.nameSummary,
+            payload.requestSummary,
+          ].filter(Boolean),
+          payload.blocked ? 'warning' : 'success',
+        );
+      } catch {
+        writeModerationTesterResult(
+          ['The moderation test could not be completed.'],
+          'error',
+        );
+      }
+    });
+  }
+</script>
