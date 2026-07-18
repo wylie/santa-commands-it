@@ -1,11 +1,11 @@
 # Santa Commands It!
 
-`Santa Commands It!` is a theatrical holiday web application from Argon Collective LLC. Visitors ask Santa for something, the server makes the authoritative decision, completed rulings are stored in Neon Postgres, and approved or coal outcomes receive permanent public pages that can be shared directly. Version `0.2.3` continues the `v0.2.x` owner-administration milestone with an expanded private workshop dashboard, database-backed moderation rules, editable Santa settings, and response templates without editing source files for ordinary operational changes.
+`Santa Commands It!` is a theatrical holiday web application from Argon Collective LLC. Visitors ask Santa for something, the server makes the authoritative decision, completed rulings are stored in Neon Postgres, and approved or coal outcomes receive permanent public pages that can be shared directly. Version `0.2.4` continues the `v0.2.x` owner-administration milestone with dynamic social-preview images, private workshop preview tooling, and the existing owner dashboard, moderation, settings, and response-template controls.
 
 ## Release
 
-- Current version: `v0.2.3`
-- Current scope: the preserved public Santa experience plus a private `Santa's Workshop` owner area with secure single-owner authentication, server-side sessions, range-aware owner dashboard analytics, ruling visibility controls, a report-review queue, database-backed moderation rules, editable Santa settings, response-template management, and private audit activity
+- Current version: `v0.2.4`
+- Current scope: the preserved public Santa experience plus a private `Santa's Workshop` owner area with secure single-owner authentication, server-side sessions, range-aware owner dashboard analytics, ruling visibility controls, a report-review queue, database-backed moderation rules, editable Santa settings, response-template management, dynamic ruling share images, and private audit activity
 
 Completed rulings persist across refreshes and can be revisited at permanent public URLs when they remain public. Blocked submissions are still rejected before any database write and never receive public pages, public reports can be submitted without exposing reporter details, and hidden rulings now return the same public not-found experience as unknown identifiers.
 
@@ -55,7 +55,7 @@ Completed approvals and coal rulings are public on the homepage and on their own
 - `npm run db:seed:configuration`
 
 13. Start the development server with `npm run dev`.
-14. Submit a request, confirm it appears in Santa's Latest Commands, open its permanent ruling page, submit one or more reports, sign into `/workshop/login`, and test dashboard ranges, moderation rules, Santa settings, response templates, report review, hide, restore, and delete behavior against local data.
+14. Submit a request, confirm it appears in Santa's Latest Commands, open its permanent ruling page, load `/rulings/[publicId]/og.png`, sign into `/workshop/login`, and test dashboard ranges, moderation rules, Santa settings, response templates, report review, share-preview pages, hide, restore, and delete behavior against local data.
 
 If `DATABASE_URL` is missing, the form remains usable but the server cannot persist rulings, recent public commands will be unavailable, and no permanent ruling pages can be created.
 
@@ -110,6 +110,7 @@ Private owner routes now live under:
 - `/workshop/settings/responses`
 - `/workshop/rulings`
 - `/workshop/rulings/[publicId]`
+- `/workshop/rulings/[publicId]/share-preview`
 - `/workshop/reports`
 - `/workshop/reports/[reportId]`
 
@@ -406,12 +407,31 @@ The production source of truth for moderation and editable Santa behavior is now
 - Final approved and coal outcomes live at `/rulings/[publicId]`.
 - The route uses the stored public identifier rather than the internal database key.
 - Each ruling page shows the visitor name, request, decision, stored Santa response, timestamp, and share actions.
+- Public ruling pages now emit absolute Open Graph and Twitter image metadata for the current ruling when a canonical origin can be resolved from `SITE_URL` or the current request.
 - Copy-link uses the canonical absolute ruling URL.
 - Native sharing uses the Web Share API when the browser supports it.
 - Unknown or invalid public identifiers return a friendly 404 experience.
 - Blocked submissions never receive URLs, never become public pages, and never appear in metadata.
 
 Completed approved and coal rulings are public and accessible to anyone with the URL.
+
+## Dynamic social preview images
+
+- Public ruling images render at `/rulings/[publicId]/og.png`.
+- Public pages emit `og:image`, `og:image:width=1200`, `og:image:height=630`, `og:image:type=image/png`, ruling-specific alt text, `twitter:image`, and `twitter:card=summary_large_image`.
+- Approved rulings use a clear `APPROVED BY SANTA` treatment and coal rulings use `SANTA CHOSE COAL`; the image never exposes report notes, hidden reasons, internal ids, or the configured random-coal percentage.
+- Canonical Santa artwork stays fixed at filesystem path `public/images/santa.png` and browser URL `/images/santa.png`.
+- The renderer uses the committed local Santa PNG and `@vercel/og` with its default server-side font behavior, so it does not fetch Google Fonts per image request.
+- Text is normalized as plain text only, wraps deterministically, truncates with ellipses when necessary, and handles long unbroken strings without horizontal overflow.
+- Successful public image responses use short shared caching with stale-while-revalidate, not immutable caching. Hidden, deleted, malformed, missing, and renderer-failure responses return `no-store`.
+- Remote platforms may continue showing a previously cached social image until their own cache expires or is refreshed; hiding or deleting a ruling does not guarantee immediate third-party removal.
+
+## Workshop share preview
+
+- Owners can open `/workshop/rulings/[publicId]/share-preview` from a ruling detail page.
+- The preview page is private, `noindex`, and `no-store`, and it shows the rendered image, metadata title, metadata description, image alt text, visibility status, canonical ruling URL, and the public image URL only when the ruling is still public.
+- Hidden rulings render through the authenticated preview image route `/workshop/rulings/[publicId]/share-preview.png` and never expose the public `og.png` URL as an active share target.
+- The preview flow intentionally omits editing controls and download controls.
 
 ## Public reporting
 
@@ -565,7 +585,7 @@ Test precautions:
 - Cache propagation across serverless instances may take up to the configured `30` second TTL.
 - No automated data-retention policy exists yet for public rulings or reports.
 - `npm audit --omit=dev` currently reports a high-severity `drizzle-orm` advisory below `0.45.2`; resolving it requires a breaking dependency upgrade that should be handled deliberately after regression review.
-- No dynamic social image generation, downloadable share cards, or QR codes exist yet.
+- No downloadable share cards or QR codes exist yet.
 - No automatic owner alerts, email notifications, CSV export, or bulk actions exist yet.
 - No dashboard CSV export, scheduled reports, external analytics, visitor tracking, or blocked-attempt analytics exist yet.
 - Completed public rulings remain stored until removed through `Santa's Workshop` or direct database administration.
@@ -618,5 +638,4 @@ Use [PRELAUNCH.md](/Users/wylie/Repos/santa-commands-it/PRELAUNCH.md) for the co
 
 ## Roadmap
 
-- `v0.2.4`: Dynamic share images
 - `v0.2.5`: `v0.2.x` stabilization and launch polish

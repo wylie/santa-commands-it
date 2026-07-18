@@ -97,6 +97,17 @@ test.describe('Santa Workshop owner area', () => {
       `/rulings/${firstCreated.ruling.publicId}`,
     );
     expect(hiddenResponse?.status()).toBe(404);
+    const hiddenImageResponse = await page.request.get(
+      `/rulings/${firstCreated.ruling.publicId}/og.png`,
+      {
+        headers,
+      },
+    );
+    expect(hiddenImageResponse.status()).toBe(404);
+    expect(hiddenImageResponse.headers()['cache-control']).toBe('no-store');
+    expect(hiddenImageResponse.headers()['content-type']).toContain(
+      'text/plain',
+    );
     await expect(
       page.getByRole('heading', {
         name: 'SANTA CANNOT FIND THAT REQUEST.',
@@ -111,6 +122,16 @@ test.describe('Santa Workshop owner area', () => {
       `/rulings/${firstCreated.ruling.publicId}`,
     );
     expect(restoredResponse?.status()).toBe(200);
+    const restoredImageResponse = await page.request.get(
+      `/rulings/${firstCreated.ruling.publicId}/og.png`,
+      {
+        headers,
+      },
+    );
+    expect(restoredImageResponse.status()).toBe(200);
+    expect(restoredImageResponse.headers()['content-type']).toContain(
+      'image/png',
+    );
     await expect(page.getByText('A brass telescope')).toBeVisible();
 
     await page.goto(`/workshop/rulings/${secondCreated.ruling.publicId}`);
@@ -126,6 +147,14 @@ test.describe('Santa Workshop owner area', () => {
       `/rulings/${secondCreated.ruling.publicId}`,
     );
     expect(deletedResponse?.status()).toBe(404);
+    const deletedImageResponse = await page.request.get(
+      `/rulings/${secondCreated.ruling.publicId}/og.png`,
+      {
+        headers,
+      },
+    );
+    expect(deletedImageResponse.status()).toBe(404);
+    expect(deletedImageResponse.headers()['cache-control']).toBe('no-store');
     await expect(
       page.getByRole('heading', {
         name: 'SANTA CANNOT FIND THAT REQUEST.',
@@ -135,6 +164,78 @@ test.describe('Santa Workshop owner area', () => {
     await page.goto('/workshop');
     await page.getByRole('button', { name: 'Log out' }).click();
     await expect(page).toHaveURL(/\/workshop\/login/);
+  });
+
+  test('protects the workshop share preview and keeps hidden previews private', async ({
+    page,
+  }) => {
+    const { headers } = await configureSantaTestPage(page, {
+      randomValue: 0.5,
+      consideringDelayMs: 0,
+    });
+    const created = await createRulingViaApi(page, headers, {
+      name: 'Holly',
+      request: 'A brass telescope',
+    });
+    const previewPath = `/workshop/rulings/${created.ruling.publicId}/share-preview`;
+    const previewImagePath = `/workshop/rulings/${created.ruling.publicId}/share-preview.png`;
+
+    await page.goto(previewPath);
+    await expect(page).toHaveURL(/\/workshop\/login/);
+
+    await page.goto('/workshop/login');
+    await page.getByLabel('Username').fill('owner');
+    await page.getByLabel('Password').fill('northpole-sleigh');
+    await page.getByRole('button', { name: 'Enter workshop' }).click();
+    await expect(page).toHaveURL('/workshop');
+
+    const previewImageResponsePromise = page.waitForResponse(previewImagePath);
+    const previewPageResponse = await page.goto(previewPath);
+
+    expect(previewPageResponse?.status()).toBe(200);
+    expect(previewPageResponse?.headers()['cache-control']).toBe('no-store');
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute(
+      'content',
+      'noindex, nofollow',
+    );
+    await expect(page.getByText('Share image preview')).toBeVisible();
+    await expect(
+      page.getByText("Santa Commands It! - Holly's Request"),
+    ).toBeVisible();
+    await expect(
+      page.getByText(
+        `http://127.0.0.1:4321/rulings/${created.ruling.publicId}/og.png`,
+      ),
+    ).toBeVisible();
+
+    const previewImageResponse = await previewImageResponsePromise;
+    expect(previewImageResponse.status()).toBe(200);
+    expect(previewImageResponse.headers()['cache-control']).toBe('no-store');
+    expect(previewImageResponse.headers()['content-type']).toContain(
+      'image/png',
+    );
+    await expect(
+      page.locator('.workshop-share-preview__image'),
+    ).toHaveAttribute('src', previewImagePath);
+
+    await page.goto(`/workshop/rulings/${created.ruling.publicId}`);
+    await page
+      .getByLabel(/Optional private note/i)
+      .fill('Hidden for owner review');
+    await page.getByRole('button', { name: 'Hide ruling' }).click();
+
+    const hiddenPreviewImageResponsePromise =
+      page.waitForResponse(previewImagePath);
+    await page.goto(previewPath);
+    await expect(
+      page.getByText('Hidden rulings do not expose a public share image URL.'),
+    ).toBeVisible();
+
+    const hiddenPreviewImageResponse = await hiddenPreviewImageResponsePromise;
+    expect(hiddenPreviewImageResponse.status()).toBe(200);
+    expect(hiddenPreviewImageResponse.headers()['cache-control']).toBe(
+      'no-store',
+    );
   });
 
   test('reviews reports in the queue and can hide a ruling from a report', async ({

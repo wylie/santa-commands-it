@@ -9,12 +9,7 @@ import {
   getPublicRulingForHeaders,
   RULING_LOOKUP_ERROR_MESSAGE,
 } from '@/server/rulings/service';
-import {
-  buildCanonicalUrl,
-  buildRulingPageDescription,
-  buildRulingPageTitle,
-  buildRulingPath,
-} from '@/utils/rulingPages';
+import { buildRulingSocialMetadata } from '@/utils/rulingPages';
 import { formatRulingTimestamp } from '@/utils/rulings';
 
 const publicId = Astro.params.publicId ?? '';
@@ -28,17 +23,25 @@ const siteUrl = getSiteUrl();
 let title: string;
 let description: string;
 let canonicalUrl: string | null = null;
+let socialImageUrl: string | null = null;
+let socialImageAlt: string | undefined;
 let robots: string | undefined;
 let ogType: 'website' | 'article' = 'website';
+let twitterCard: 'summary' | 'summary_large_image' = 'summary';
 
 if (rulingResult.status === 'ok') {
-  title = buildRulingPageTitle(rulingResult.ruling);
-  description = buildRulingPageDescription(rulingResult.ruling);
-  canonicalUrl = buildCanonicalUrl(buildRulingPath(publicId), {
+  const socialMetadata = buildRulingSocialMetadata(rulingResult.ruling, {
     siteUrl,
     requestUrl: Astro.url,
   });
+
+  title = socialMetadata.title;
+  description = socialMetadata.description;
+  canonicalUrl = socialMetadata.canonicalUrl;
+  socialImageUrl = socialMetadata.imageUrl;
+  socialImageAlt = socialMetadata.imageAlt;
   ogType = 'article';
+  twitterCard = socialMetadata.twitterCard;
 } else if (rulingResult.status === 'not-found') {
   title = 'Santa Cannot Find That Request';
   description =
@@ -60,6 +63,12 @@ if (rulingResult.status === 'ok') {
   canonicalUrl={canonicalUrl}
   ogType={ogType}
   robots={robots}
+  socialImageUrl={socialImageUrl}
+  socialImageAlt={socialImageAlt}
+  socialImageType={socialImageUrl ? 'image/png' : undefined}
+  socialImageWidth={socialImageUrl ? 1200 : undefined}
+  socialImageHeight={socialImageUrl ? 630 : undefined}
+  twitterCard={twitterCard}
 >
   <a class="skip-link" href="#main-content">Skip to content</a>
   <main id="main-content" class="page-shell">

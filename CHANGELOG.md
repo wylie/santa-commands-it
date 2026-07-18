@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 The format is inspired by Keep a Changelog, and this project adheres to Semantic Versioning.
 
+## [0.2.4] - 2026-07-18
+
+### Added
+
+- Dynamic Open Graph preview images for public ruling pages at `/rulings/[publicId]/og.png` with shared rendering logic, the canonical `public/images/santa.png` artwork, and distinct approved or coal treatments
+- Ruling-specific `og:image`, `og:image:width`, `og:image:height`, `og:image:type`, `og:image:alt`, `twitter:image`, and `twitter:card=summary_large_image` metadata on public ruling pages
+- A private workshop preview flow at `/workshop/rulings/[publicId]/share-preview` plus an authenticated preview image endpoint for hidden or public rulings
+- Deterministic text normalization, wrapping, and truncation utilities for share-image rendering safety across long input, emoji, and hostile plain-text content
+
+### Changed
+
+- Public share images now use short-lived shared caching with stale-while-revalidate instead of immutable caching so hidden or deleted rulings can stop serving after cache expiry
+- Hidden, deleted, malformed, and unknown ruling image requests now fail closed with indistinguishable public 404 behavior and `no-store` error responses
+- Workshop ruling detail pages now include direct share-preview access alongside the existing public-link workflow
+- Automated coverage now checks share-image metadata, cache policy, and private workshop preview behavior in both unit and Playwright suites
+
 ## [0.2.3] - 2026-07-18
 
 ### Added

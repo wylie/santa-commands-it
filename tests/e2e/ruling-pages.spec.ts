@@ -43,6 +43,31 @@ test.describe('public ruling pages', () => {
       'href',
       `http://127.0.0.1:4321/rulings/${ruling.publicId}`,
     );
+    await expect(page.locator('meta[property="og:image"]')).toHaveAttribute(
+      'content',
+      `http://127.0.0.1:4321/rulings/${ruling.publicId}/og.png`,
+    );
+    await expect(
+      page.locator('meta[property="og:image:width"]'),
+    ).toHaveAttribute('content', '1200');
+    await expect(
+      page.locator('meta[property="og:image:height"]'),
+    ).toHaveAttribute('content', '630');
+    await expect(
+      page.locator('meta[property="og:image:type"]'),
+    ).toHaveAttribute('content', 'image/png');
+    await expect(page.locator('meta[property="og:image:alt"]')).toHaveAttribute(
+      'content',
+      `Santa approved ${ruling.displayName}\u2019s request with "Santa Commands It!"`,
+    );
+    await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute(
+      'content',
+      'summary_large_image',
+    );
+    await expect(page.locator('meta[name="twitter:image"]')).toHaveAttribute(
+      'content',
+      `http://127.0.0.1:4321/rulings/${ruling.publicId}/og.png`,
+    );
     await expect(
       page.locator('meta[property="og:description"]'),
     ).toHaveAttribute('content', /Santa approved it with "Santa Commands It!"/);
@@ -61,6 +86,34 @@ test.describe('public ruling pages', () => {
 
     expect(response.status()).toBe(200);
     expect(response.headers()['content-type']).toContain('image/png');
+  });
+
+  test('renders a public og image endpoint with png headers and shared caching', async ({
+    page,
+  }) => {
+    const { headers } = await configureSantaTestPage(page, {
+      randomValue: 0.5,
+    });
+    const created = await createRulingViaApi(page, headers, {
+      name: 'Holly',
+      request: 'A brass telescope for the observatory balcony',
+    });
+
+    const response = await page.request.get(
+      `/rulings/${created.ruling.publicId}/og.png`,
+      {
+        headers,
+      },
+    );
+
+    expect(response.status()).toBe(200);
+    expect(response.headers()['content-type']).toContain('image/png');
+    expect(response.headers()['cache-control']).toContain('s-maxage=900');
+    expect(response.headers()['cache-control']).toContain(
+      'stale-while-revalidate=86400',
+    );
+    expect(response.headers()['x-content-type-options']).toBe('nosniff');
+    expect((await response.body()).byteLength).toBeGreaterThan(1000);
   });
 
   test('a coal ruling page stays public and recent rulings link to it', async ({

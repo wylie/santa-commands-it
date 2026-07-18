@@ -1,0 +1,159 @@
+---
+import WorkshopLayout from '@/layouts/WorkshopLayout.astro';
+import { getSiteUrl } from '@/server/env';
+import { requireWorkshopPageSession } from '@/server/workshop/auth';
+import {
+  getWorkshopOpenReportCount,
+  getWorkshopRulingDetailData,
+} from '@/server/workshop/service';
+import {
+  buildRulingPath,
+  buildRulingSocialMetadata,
+  buildWorkshopRulingSharePreviewImagePath,
+} from '@/utils/rulingPages';
+import type { PublicRuling } from '@/utils/rulings';
+
+const session = await requireWorkshopPageSession(Astro);
+
+if (session instanceof Response) {
+  return session;
+}
+
+Astro.response.headers.set('Cache-Control', 'no-store');
+
+const publicId = Astro.params.publicId ?? '';
+const detail = await getWorkshopRulingDetailData(
+  publicId,
+  Astro.request.headers,
+);
+const openReportCount = await getWorkshopOpenReportCount(Astro.request.headers);
+
+if (!detail) {
+  return Astro.redirect('/workshop/rulings?error=not-found');
+}
+
+const ruling: PublicRuling = {
+  publicId: detail.ruling.publicId,
+  displayName: detail.ruling.displayName,
+  requestText: detail.ruling.requestText,
+  decision: detail.ruling.decision,
+  santaResponse: detail.ruling.santaResponse,
+  createdAt: detail.ruling.createdAt,
+};
+const socialMetadata = buildRulingSocialMetadata(ruling, {
+  siteUrl: getSiteUrl() ?? Astro.site,
+  requestUrl: Astro.url,
+});
+const previewImagePath = buildWorkshopRulingSharePreviewImagePath(
+  detail.ruling.publicId,
+);
+---
+
+<WorkshopLayout
+  title={`Share Preview ${detail.ruling.publicId}`}
+  description="A private preview of the current ruling share image and metadata."
+  currentPath="/workshop/rulings"
+  csrfToken={session.csrfToken}
+  openReportCount={openReportCount}
+>
+  <section class="workshop-grid workshop-grid--detail">
+    <article class="workshop-card">
+      <div class="workshop-card__header">
+        <h2>Share image preview</h2>
+        <a
+          class="workshop-inline-link"
+          href={`/workshop/rulings/${detail.ruling.publicId}`}
+        >
+          Back to ruling
+        </a>
+      </div>
+
+      <p class="workshop-form__hint">
+        This private renderer preview shows the current social image exactly as
+        it will appear for public rulings. Hidden rulings stay previewable here
+        without exposing a public share URL.
+      </p>
+
+      <img
+        class="workshop-share-preview__image"
+        src={previewImagePath}
+        alt={socialMetadata.imageAlt}
+        width={socialMetadata.imageWidth}
+        height={socialMetadata.imageHeight}
+      />
+    </article>
+
+    <article class="workshop-card">
+      <h2>Current metadata</h2>
+
+      <dl class="workshop-detail-list">
+        <div>
+          <dt>Visibility</dt>
+          <dd>{detail.ruling.visibility}</dd>
+        </div>
+        <div>
+          <dt>Metadata title</dt>
+          <dd>{socialMetadata.title}</dd>
+        </div>
+        <div>
+          <dt>Metadata description</dt>
+          <dd>{socialMetadata.description}</dd>
+        </div>
+        <div>
+          <dt>Image alt</dt>
+          <dd>{socialMetadata.imageAlt}</dd>
+        </div>
+        <div>
+          <dt>Image dimensions</dt>
+          <dd>
+            {socialMetadata.imageWidth} x {socialMetadata.imageHeight}
+          </dd>
+        </div>
+        <div>
+          <dt>Private preview image</dt>
+          <dd>{new URL(previewImagePath, Astro.url).toString()}</dd>
+        </div>
+        <div>
+          <dt>Canonical ruling URL</dt>
+          <dd>{socialMetadata.canonicalUrl ?? 'Unavailable'}</dd>
+        </div>
+        <div>
+          <dt>Public image URL</dt>
+          <dd>
+            {
+              detail.ruling.visibility === 'public'
+                ? (socialMetadata.imageUrl ?? 'Unavailable')
+                : 'Hidden rulings do not expose a public share image URL.'
+            }
+          </dd>
+        </div>
+      </dl>
+
+      {
+        detail.ruling.visibility === 'public' && (
+          <div class="workshop-card__section">
+            <h3>Public ruling</h3>
+            <p>
+              <a
+                class="workshop-inline-link"
+                href={buildRulingPath(detail.ruling.publicId)}
+              >
+                Open public ruling
+              </a>
+            </p>
+          </div>
+        )
+      }
+    </article>
+  </section>
+</WorkshopLayout>
+
+<style>
+  .workshop-share-preview__image {
+    width: 100%;
+    height: auto;
+    border-radius: 1.5rem;
+    border: 1px solid rgba(39, 67, 55, 0.12);
+    box-shadow: 0 1.5rem 3rem rgba(26, 45, 37, 0.12);
+  }
+</style>

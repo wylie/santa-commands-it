@@ -7,10 +7,15 @@ import {
 import type { PublicRuling } from '@/utils/rulings';
 import {
   buildCanonicalUrl,
+  buildRulingOgImageAlt,
+  buildRulingOgImagePath,
   buildRulingPageDescription,
   buildRulingPageTitle,
   buildRulingPath,
   buildRulingSharePayload,
+  buildRulingSocialMetadata,
+  buildWorkshopRulingSharePreviewImagePath,
+  buildWorkshopRulingSharePreviewPath,
   isValidPublicRulingId,
   truncateMetadataText,
 } from '@/utils/rulingPages';
@@ -144,6 +149,41 @@ describe('ruling metadata', () => {
 
   it('truncates metadata text without breaking emoji boundaries', () => {
     expect(truncateMetadataText('🎁🎁🎁🎁🎁', 4)).toBe('🎁...');
+  });
+
+  it('builds the public og image path and workshop preview paths predictably', () => {
+    expect(buildRulingOgImagePath(approvedRuling.publicId)).toBe(
+      `/rulings/${approvedRuling.publicId}/og.png`,
+    );
+    expect(buildWorkshopRulingSharePreviewPath(approvedRuling.publicId)).toBe(
+      `/workshop/rulings/${approvedRuling.publicId}/share-preview`,
+    );
+    expect(
+      buildWorkshopRulingSharePreviewImagePath(approvedRuling.publicId),
+    ).toBe(`/workshop/rulings/${approvedRuling.publicId}/share-preview.png`);
+  });
+
+  it('builds ruling-specific social metadata with absolute image urls', () => {
+    expect(
+      buildRulingSocialMetadata(approvedRuling, {
+        siteUrl: 'https://santa.example',
+      }),
+    ).toMatchObject({
+      title: "Santa Commands It! - <Holly>'s Request",
+      imageUrl: `https://santa.example/rulings/${approvedRuling.publicId}/og.png`,
+      imageAlt:
+        'Santa approved <Holly>\u2019s request with "Santa Commands It!"',
+      imageType: 'image/png',
+      imageWidth: 1200,
+      imageHeight: 630,
+      twitterCard: 'summary_large_image',
+    });
+  });
+
+  it('builds the coal alt text without exposing extra internal details', () => {
+    expect(buildRulingOgImageAlt(coalRuling)).toBe(
+      'Santa chose coal for <Holly>\u2019s request.',
+    );
   });
 });
 

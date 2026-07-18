@@ -13,7 +13,10 @@ import {
   getWorkshopReportReasonLabel,
   getWorkshopReportStatusLabel,
 } from '@/utils/workshop';
-import { buildRulingPath } from '@/utils/rulingPages';
+import {
+  buildRulingPath,
+  buildWorkshopRulingSharePreviewPath,
+} from '@/utils/rulingPages';
 
 const session = await requireWorkshopPageSession(Astro);
 
@@ -179,10 +182,19 @@ const currentLocation = Astro.url.pathname;
         <p class="workshop-prose">{detail.ruling.santaResponse}</p>
       </div>
 
-      {
-        detail.ruling.visibility === 'public' && (
-          <div class="workshop-card__section">
-            <h3>Public page</h3>
+      <div class="workshop-card__section">
+        <h3>Sharing</h3>
+        <p>
+          <a
+            class="workshop-inline-link"
+            href={buildWorkshopRulingSharePreviewPath(detail.ruling.publicId)}
+            target="_self"
+          >
+            Preview share image
+          </a>
+        </p>
+        {
+          detail.ruling.visibility === 'public' && (
             <p>
               <a
                 class="workshop-inline-link"
@@ -192,9 +204,9 @@ const currentLocation = Astro.url.pathname;
                 Open public ruling
               </a>
             </p>
-          </div>
-        )
-      }
+          )
+        }
+      </div>
     </article>
 
     <article class="workshop-card">

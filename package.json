@@ -1,6 +1,6 @@
 {
   "name": "santa-commands-it",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "private": true,
   "type": "module",
   "description": "A bright theatrical holiday web app from Argon Collective LLC with hardened public Santa rulings, reporting, and a private workshop configuration area.",
@@ -30,8 +30,11 @@
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.1",
+    "@types/react": "^19.2.17",
+    "@vercel/og": "^0.11.1",
     "astro": "7.0.9",
-    "drizzle-orm": "^0.44.4"
+    "drizzle-orm": "^0.44.4",
+    "react": "^19.2.7"
   },
   "devDependencies": {
     "@astrojs/check": "0.9.9",

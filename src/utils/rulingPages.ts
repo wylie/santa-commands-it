@@ -1,3 +1,8 @@
+import {
+  RULING_SHARE_IMAGE_HEIGHT,
+  RULING_SHARE_IMAGE_TYPE,
+  RULING_SHARE_IMAGE_WIDTH,
+} from '@/config/share-images';
 import type { PublicRuling } from '@/utils/rulings';
 
 const PUBLIC_RULING_ID_PATTERN =
@@ -29,12 +34,38 @@ export type RulingSharePayload = {
   url: string;
 };
 
+export type RulingSocialMetadata = {
+  title: string;
+  description: string;
+  canonicalUrl: string | null;
+  imageUrl: string | null;
+  imageAlt: string;
+  imageType: typeof RULING_SHARE_IMAGE_TYPE;
+  imageWidth: typeof RULING_SHARE_IMAGE_WIDTH;
+  imageHeight: typeof RULING_SHARE_IMAGE_HEIGHT;
+  twitterCard: 'summary_large_image';
+};
+
 export function isValidPublicRulingId(value: string): boolean {
   return PUBLIC_RULING_ID_PATTERN.test(value);
 }
 
 export function buildRulingPath(publicId: string): string {
   return `/rulings/${publicId}`;
+}
+
+export function buildRulingOgImagePath(publicId: string): string {
+  return `/rulings/${publicId}/og.png`;
+}
+
+export function buildWorkshopRulingSharePreviewPath(publicId: string): string {
+  return `/workshop/rulings/${publicId}/share-preview`;
+}
+
+export function buildWorkshopRulingSharePreviewImagePath(
+  publicId: string,
+): string {
+  return `/workshop/rulings/${publicId}/share-preview.png`;
 }
 
 export function truncateMetadataText(
@@ -95,6 +126,12 @@ export function buildRulingPageDescription(
   return truncateMetadataText(summary, maxLength);
 }
 
+export function buildRulingOgImageAlt(ruling: PublicRuling): string {
+  return ruling.decision === 'approved'
+    ? `Santa approved ${ruling.displayName}\u2019s request with "Santa Commands It!"`
+    : `Santa chose coal for ${ruling.displayName}\u2019s request.`;
+}
+
 export function buildRulingSharePayload(
   ruling: PublicRuling,
   canonicalUrl: string,
@@ -108,5 +145,34 @@ export function buildRulingSharePayload(
     title: buildRulingPageTitle(ruling),
     text,
     url: canonicalUrl,
+  };
+}
+
+export function buildRulingSocialMetadata(
+  ruling: PublicRuling,
+  options: {
+    siteUrl?: string | URL | null;
+    requestUrl?: string | URL | null;
+  } = {},
+): RulingSocialMetadata {
+  const canonicalUrl = buildCanonicalUrl(
+    buildRulingPath(ruling.publicId),
+    options,
+  );
+  const imageUrl = buildCanonicalUrl(
+    buildRulingOgImagePath(ruling.publicId),
+    options,
+  );
+
+  return {
+    title: buildRulingPageTitle(ruling),
+    description: buildRulingPageDescription(ruling),
+    canonicalUrl,
+    imageUrl,
+    imageAlt: buildRulingOgImageAlt(ruling),
+    imageType: RULING_SHARE_IMAGE_TYPE,
+    imageWidth: RULING_SHARE_IMAGE_WIDTH,
+    imageHeight: RULING_SHARE_IMAGE_HEIGHT,
+    twitterCard: 'summary_large_image',
   };
 }
