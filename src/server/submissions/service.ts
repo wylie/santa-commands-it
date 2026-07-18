@@ -367,6 +367,7 @@ export async function submitSantaRequest(
         requestText: decision.request,
         decision: decision.type,
         santaResponse: getPersistedDecisionResponse(decision),
+        createdAt: now,
         clientKeyHash: context.clientKeyHash,
         idempotencyKey: context.idempotencyKey,
         normalizedName,

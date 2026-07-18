@@ -12,6 +12,7 @@ export type RulingsTestScenario =
 export type RequestTestOptions = {
   randomValue?: number;
   scenario: RulingsTestScenario;
+  nowIso: string | null;
 };
 
 function isTestRequest(headers: Headers): boolean {
@@ -25,6 +26,7 @@ export function readRequestTestOptions(headers: Headers): RequestTestOptions {
   if (!isTestRequest(headers)) {
     return {
       scenario: 'normal',
+      nowIso: null,
     };
   }
 
@@ -39,6 +41,8 @@ export function readRequestTestOptions(headers: Headers): RequestTestOptions {
   const randomHeader = headers.get('x-santa-test-random');
   const parsedRandomValue =
     randomHeader === null ? Number.NaN : Number.parseFloat(randomHeader);
+  const nowHeader = headers.get('x-santa-test-now');
+  const parsedNow = nowHeader ? new Date(nowHeader) : null;
 
   return {
     scenario,
@@ -48,7 +52,17 @@ export function readRequestTestOptions(headers: Headers): RequestTestOptions {
       parsedRandomValue < 1
         ? parsedRandomValue
         : undefined,
+    nowIso:
+      parsedNow && !Number.isNaN(parsedNow.getTime())
+        ? parsedNow.toISOString()
+        : null,
   };
+}
+
+export function getRequestNow(headers: Headers): Date {
+  const nowIso = readRequestTestOptions(headers).nowIso;
+
+  return nowIso ? new Date(nowIso) : new Date();
 }
 
 export function getRulingsRepositoryForHeaders(headers: Headers) {

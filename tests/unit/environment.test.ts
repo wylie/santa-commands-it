@@ -20,6 +20,21 @@ describe('server environment helpers', () => {
     expect(getSiteUrl()).toBeNull();
   });
 
+  it('returns the configured SITE_TIMEZONE when it is valid', async () => {
+    vi.stubEnv('SITE_TIMEZONE', 'America/New_York');
+    const { getSiteTimeZone } = await import('@/server/env');
+
+    expect(getSiteTimeZone()).toBe('America/New_York');
+  });
+
+  it('falls back to UTC for an invalid SITE_TIMEZONE during development', async () => {
+    vi.stubEnv('SITE_TIMEZONE', 'Mars/Olympus');
+    vi.stubEnv('NODE_ENV', 'development');
+    const { getSiteTimeZone } = await import('@/server/env');
+
+    expect(getSiteTimeZone()).toBe('UTC');
+  });
+
   it('returns the documented local fallback secret in development', async () => {
     vi.stubEnv('NODE_ENV', 'development');
     vi.stubEnv('RATE_LIMIT_SECRET', '');

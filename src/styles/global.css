@@ -1211,11 +1211,55 @@ h2 {
   color: var(--color-evergreen-deep);
 }
 
+.workshop-card__eyebrow {
+  margin: 0 0 0.35rem;
+  font-size: var(--font-size-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
 .workshop-metric {
   margin: 0;
   font-family: var(--font-display);
   font-size: clamp(2rem, 1.7rem + 1vw, 3rem);
   line-height: 1;
+}
+
+.workshop-metric-comparison {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: var(--font-size-xs);
+  color: var(--color-evergreen-deep);
+}
+
+.workshop-dashboard-toolbar {
+  display: grid;
+  gap: 1rem;
+}
+
+.workshop-range-toggle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.workshop-range-toggle__link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.65rem;
+  padding: 0.6rem 1rem;
+  border: 1px solid rgb(86 117 95 / 0.22);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.76);
+  color: var(--color-evergreen-deep);
+  text-decoration: none;
+}
+
+.workshop-range-toggle__link.is-active {
+  background: linear-gradient(180deg, #2f6444, #244f36);
+  color: #fffdf7;
 }
 
 .workshop-summary-list {
@@ -1417,6 +1461,16 @@ h2 {
   color: #855a1d;
 }
 
+.workshop-status-pill[data-health='needs-attention'] {
+  background: #fff8ec;
+  color: #7d5621;
+}
+
+.workshop-status-pill[data-health='unavailable'] {
+  background: #fff4f4;
+  color: var(--color-cranberry-deep);
+}
+
 .workshop-status-pill[data-active='false'] {
   background: #fff4f4;
   color: var(--color-cranberry-deep);
@@ -1449,6 +1503,11 @@ h2 {
   display: grid;
   gap: 1rem;
   grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+}
+
+.workshop-config-summary {
+  display: grid;
+  gap: 1rem;
 }
 
 .workshop-template-card,
@@ -1490,6 +1549,104 @@ h2 {
   display: none;
 }
 
+.workshop-trend-chart {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.workshop-trend-chart__row {
+  display: grid;
+  grid-template-columns: minmax(4.5rem, 6rem) minmax(0, 1fr);
+  gap: 0.8rem;
+  align-items: center;
+}
+
+.workshop-trend-chart__label {
+  font-family: var(--font-ui);
+  font-size: var(--font-size-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+.workshop-trend-chart__bars {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.workshop-trend-chart__bar {
+  display: block;
+  height: 0.7rem;
+  width: max(0.5rem, calc(var(--bar-scale) * 100%));
+  border-radius: 999px;
+}
+
+.workshop-trend-chart__bar--approved {
+  background: linear-gradient(90deg, #507c5f, #7ba688);
+}
+
+.workshop-trend-chart__bar--coal {
+  background: linear-gradient(90deg, #8c6267, #b88188);
+}
+
+.workshop-trend-chart__bar--total {
+  background: linear-gradient(90deg, #2f6444, #4d8760);
+}
+
+.workshop-table__caption {
+  margin-bottom: 0.85rem;
+  text-align: left;
+  font-family: var(--font-ui);
+  font-size: var(--font-size-sm);
+}
+
+.workshop-stat-list {
+  display: grid;
+  gap: 0.8rem;
+  margin: 0;
+}
+
+.workshop-stat-list div {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.85rem 0.95rem;
+  border-radius: 1rem;
+  background: rgb(255 255 255 / 0.7);
+}
+
+.workshop-stat-list dt {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-evergreen-deep);
+}
+
+.workshop-stat-list dd {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.2rem, 1rem + 0.4vw, 1.6rem);
+}
+
+.workshop-health-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 0.8rem;
+}
+
+.workshop-health-list__item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: start;
+  padding: 0.95rem 1rem;
+  border-radius: 1rem;
+  background: rgb(255 255 255 / 0.72);
+}
+
 .workshop-pagination {
   margin-top: 1rem;
 }
@@ -1523,6 +1680,11 @@ h2 {
   .workshop-pagination {
     grid-auto-flow: row;
     justify-content: start;
+  }
+
+  .workshop-health-list__item,
+  .workshop-trend-chart__row {
+    grid-template-columns: 1fr;
   }
 
   .workshop-table thead {
@@ -1567,7 +1729,8 @@ h2 {
 
   .workshop-nav__links,
   .workshop-row-actions,
-  .workshop-filters {
+  .workshop-filters,
+  .workshop-range-toggle {
     display: grid;
   }
 
@@ -1575,7 +1738,8 @@ h2 {
   .workshop-nav__link,
   .workshop-inline-link,
   .workshop-inline-button,
-  .workshop-pagination .button-link-secondary {
+  .workshop-pagination .button-link-secondary,
+  .workshop-range-toggle__link {
     width: 100%;
     justify-content: center;
   }

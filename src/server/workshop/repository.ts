@@ -11,6 +11,11 @@ import {
   workshopSessions,
 } from '@/server/db/schema';
 import type {
+  DashboardTimeWindow,
+  WorkshopDashboardRulingMetrics,
+  WorkshopDashboardTrendRow,
+} from '@/server/workshop/dashboard';
+import type {
   TestReportRecord,
   TestStoredRuling,
 } from '@/server/testing/store';
@@ -71,7 +76,14 @@ export type WorkshopAuthRepository = {
 };
 
 export type WorkshopRepository = {
+  ping(): Promise<void>;
   getDashboardMetrics(): Promise<WorkshopDashboardMetrics>;
+  getDashboardRulingMetrics(
+    window: DashboardTimeWindow,
+  ): Promise<WorkshopDashboardRulingMetrics>;
+  getDashboardRulingTrend(
+    window: DashboardTimeWindow,
+  ): Promise<WorkshopDashboardTrendRow[]>;
   listRecentWorkshopRulings(limit?: number): Promise<WorkshopRulingSummary[]>;
   listWorkshopRulings(
     filters: WorkshopRulingFilters,
@@ -164,6 +176,46 @@ function buildWorkshopRulingWhere(filters: WorkshopRulingFilters) {
   return conditions.length ? and(...conditions) : undefined;
 }
 
+function parseCount(value: string | number | null | undefined) {
+  return Number(value ?? 0);
+}
+
+function isWithinTimeWindow(value: string, start: Date | null, end: Date) {
+  const timestamp = new Date(value).getTime();
+
+  return (
+    timestamp < end.getTime() &&
+    (start === null || timestamp >= start.getTime())
+  );
+}
+
+function getTestBucketKey(
+  value: string,
+  bucketGranularity: DashboardTimeWindow['bucketGranularity'],
+  timeZone: string,
+) {
+  if (bucketGranularity === 'day') {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    })
+      .format(new Date(value))
+      .replace(/\//g, '-');
+  }
+
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+  }).formatToParts(new Date(value));
+  const year = parts.find((part) => part.type === 'year')?.value ?? '0000';
+  const month = parts.find((part) => part.type === 'month')?.value ?? '01';
+
+  return `${year}-${month}`;
+}
+
 export function createDatabaseWorkshopAuthRepository(): WorkshopAuthRepository {
   return {
     async countFailedLoginAttemptsSince(clientKeyHash, since) {
@@ -250,6 +302,10 @@ export function createDatabaseWorkshopAuthRepository(): WorkshopAuthRepository {
 
 export function createDatabaseWorkshopRepository(): WorkshopRepository {
   return {
+    async ping() {
+      const database = getDatabase();
+      await database.execute(sql`select 1`);
+    },
     async getDashboardMetrics() {
       const database = getDatabase();
       const [
@@ -321,6 +377,196 @@ export function createDatabaseWorkshopRepository(): WorkshopRepository {
           multiOpenRulings.rows[0]?.value ?? 0,
         ),
       };
+    },
+    async getDashboardRulingMetrics(window) {
+      const database = getDatabase();
+
+      if (!window.currentStart) {
+        const result = await database.execute(sql<{
+          currentTotalRulings: string;
+          currentApprovedRulings: string;
+          currentCoalRulings: string;
+          currentPublicRulings: string;
+          currentHiddenRulings: string;
+        }>`
+          select
+            count(*)::text as "currentTotalRulings",
+            count(*) filter (where ${rulings.decision} = 'approved')::text as "currentApprovedRulings",
+            count(*) filter (where ${rulings.decision} = 'random-coal')::text as "currentCoalRulings",
+            count(*) filter (where ${rulings.visibility} = 'public')::text as "currentPublicRulings",
+            count(*) filter (where ${rulings.visibility} = 'hidden')::text as "currentHiddenRulings"
+          from ${rulings}
+          where ${rulings.createdAt} < ${window.currentEnd}
+        `);
+        const row = result.rows[0] as
+          | {
+              currentTotalRulings: string;
+              currentApprovedRulings: string;
+              currentCoalRulings: string;
+              currentPublicRulings: string;
+              currentHiddenRulings: string;
+            }
+          | undefined;
+
+        return {
+          current: {
+            totalRulings: parseCount(row?.currentTotalRulings),
+            approvedRulings: parseCount(row?.currentApprovedRulings),
+            coalRulings: parseCount(row?.currentCoalRulings),
+            publicRulings: parseCount(row?.currentPublicRulings),
+            hiddenRulings: parseCount(row?.currentHiddenRulings),
+          },
+          previous: null,
+        };
+      }
+
+      const previousStart = window.previousStart as Date;
+      const previousEnd = window.previousEnd as Date;
+      const result = await database.execute(sql<{
+        currentTotalRulings: string;
+        currentApprovedRulings: string;
+        currentCoalRulings: string;
+        currentPublicRulings: string;
+        currentHiddenRulings: string;
+        previousTotalRulings: string;
+        previousApprovedRulings: string;
+        previousCoalRulings: string;
+        previousPublicRulings: string;
+        previousHiddenRulings: string;
+      }>`
+        select
+          count(*) filter (
+            where ${rulings.createdAt} >= ${window.currentStart}
+              and ${rulings.createdAt} < ${window.currentEnd}
+          )::text as "currentTotalRulings",
+          count(*) filter (
+            where ${rulings.createdAt} >= ${window.currentStart}
+              and ${rulings.createdAt} < ${window.currentEnd}
+              and ${rulings.decision} = 'approved'
+          )::text as "currentApprovedRulings",
+          count(*) filter (
+            where ${rulings.createdAt} >= ${window.currentStart}
+              and ${rulings.createdAt} < ${window.currentEnd}
+              and ${rulings.decision} = 'random-coal'
+          )::text as "currentCoalRulings",
+          count(*) filter (
+            where ${rulings.createdAt} >= ${window.currentStart}
+              and ${rulings.createdAt} < ${window.currentEnd}
+              and ${rulings.visibility} = 'public'
+          )::text as "currentPublicRulings",
+          count(*) filter (
+            where ${rulings.createdAt} >= ${window.currentStart}
+              and ${rulings.createdAt} < ${window.currentEnd}
+              and ${rulings.visibility} = 'hidden'
+          )::text as "currentHiddenRulings",
+          count(*) filter (
+            where ${rulings.createdAt} >= ${previousStart}
+              and ${rulings.createdAt} < ${previousEnd}
+          )::text as "previousTotalRulings",
+          count(*) filter (
+            where ${rulings.createdAt} >= ${previousStart}
+              and ${rulings.createdAt} < ${previousEnd}
+              and ${rulings.decision} = 'approved'
+          )::text as "previousApprovedRulings",
+          count(*) filter (
+            where ${rulings.createdAt} >= ${previousStart}
+              and ${rulings.createdAt} < ${previousEnd}
+              and ${rulings.decision} = 'random-coal'
+          )::text as "previousCoalRulings",
+          count(*) filter (
+            where ${rulings.createdAt} >= ${previousStart}
+              and ${rulings.createdAt} < ${previousEnd}
+              and ${rulings.visibility} = 'public'
+          )::text as "previousPublicRulings",
+          count(*) filter (
+            where ${rulings.createdAt} >= ${previousStart}
+              and ${rulings.createdAt} < ${previousEnd}
+              and ${rulings.visibility} = 'hidden'
+          )::text as "previousHiddenRulings"
+        from ${rulings}
+      `);
+      const row = result.rows[0] as
+        | {
+            currentTotalRulings: string;
+            currentApprovedRulings: string;
+            currentCoalRulings: string;
+            currentPublicRulings: string;
+            currentHiddenRulings: string;
+            previousTotalRulings: string;
+            previousApprovedRulings: string;
+            previousCoalRulings: string;
+            previousPublicRulings: string;
+            previousHiddenRulings: string;
+          }
+        | undefined;
+
+      return {
+        current: {
+          totalRulings: parseCount(row?.currentTotalRulings),
+          approvedRulings: parseCount(row?.currentApprovedRulings),
+          coalRulings: parseCount(row?.currentCoalRulings),
+          publicRulings: parseCount(row?.currentPublicRulings),
+          hiddenRulings: parseCount(row?.currentHiddenRulings),
+        },
+        previous: {
+          totalRulings: parseCount(row?.previousTotalRulings),
+          approvedRulings: parseCount(row?.previousApprovedRulings),
+          coalRulings: parseCount(row?.previousCoalRulings),
+          publicRulings: parseCount(row?.previousPublicRulings),
+          hiddenRulings: parseCount(row?.previousHiddenRulings),
+        },
+      };
+    },
+    async getDashboardRulingTrend(window) {
+      const database = getDatabase();
+      const bucketSql =
+        window.bucketGranularity === 'day'
+          ? sql<string>`to_char(date_trunc('day', ${rulings.createdAt} at time zone ${window.timeZone}), 'YYYY-MM-DD')`
+          : sql<string>`to_char(date_trunc('month', ${rulings.createdAt} at time zone ${window.timeZone}), 'YYYY-MM')`;
+      const timeFilter = window.currentStart
+        ? sql`where ${rulings.createdAt} >= ${window.currentStart}
+            and ${rulings.createdAt} < ${window.currentEnd}`
+        : sql`where ${rulings.createdAt} < ${window.currentEnd}`;
+      const result = await database.execute(sql<{
+        bucketKey: string;
+        totalRulings: string;
+        approvedRulings: string;
+        coalRulings: string;
+        publicRulings: string;
+        hiddenRulings: string;
+      }>`
+        select
+          ${bucketSql} as "bucketKey",
+          count(*)::text as "totalRulings",
+          count(*) filter (where ${rulings.decision} = 'approved')::text as "approvedRulings",
+          count(*) filter (where ${rulings.decision} = 'random-coal')::text as "coalRulings",
+          count(*) filter (where ${rulings.visibility} = 'public')::text as "publicRulings",
+          count(*) filter (where ${rulings.visibility} = 'hidden')::text as "hiddenRulings"
+        from ${rulings}
+        ${timeFilter}
+        group by 1
+        order by 1
+      `);
+
+      return result.rows.map((row) => {
+        const typedRow = row as {
+          bucketKey: string;
+          totalRulings: string;
+          approvedRulings: string;
+          coalRulings: string;
+          publicRulings: string;
+          hiddenRulings: string;
+        };
+
+        return {
+          bucketKey: typedRow.bucketKey,
+          totalRulings: parseCount(typedRow.totalRulings),
+          approvedRulings: parseCount(typedRow.approvedRulings),
+          coalRulings: parseCount(typedRow.coalRulings),
+          publicRulings: parseCount(typedRow.publicRulings),
+          hiddenRulings: parseCount(typedRow.hiddenRulings),
+        };
+      });
     },
     async listRecentWorkshopRulings(
       limit = securitySettings.workshop.search.recentRulingsLimit,
@@ -666,6 +912,9 @@ export function createTestWorkshopRepository(
   runId: string,
 ): WorkshopRepository {
   return {
+    async ping() {
+      getTestRunStore(runId);
+    },
     async getDashboardMetrics() {
       const store = getTestRunStore(runId);
 
@@ -700,6 +949,85 @@ export function createTestWorkshopRepository(
             ).length > 1,
         ).length,
       };
+    },
+    async getDashboardRulingMetrics(window) {
+      const store = getTestRunStore(runId);
+      const currentRulings = getTestRunStore(runId).rulings.filter((ruling) =>
+        isWithinTimeWindow(
+          ruling.createdAt,
+          window.currentStart,
+          window.currentEnd,
+        ),
+      );
+      const previousStart = window.previousStart;
+      const previousEnd = window.previousEnd;
+      const previousRulings =
+        previousStart && previousEnd
+          ? store.rulings.filter((ruling) =>
+              isWithinTimeWindow(ruling.createdAt, previousStart, previousEnd),
+            )
+          : [];
+      const summarize = (rulingsToSummarize: TestStoredRuling[]) => ({
+        totalRulings: rulingsToSummarize.length,
+        approvedRulings: rulingsToSummarize.filter(
+          (ruling) => ruling.decision === 'approved',
+        ).length,
+        coalRulings: rulingsToSummarize.filter(
+          (ruling) => ruling.decision === 'random-coal',
+        ).length,
+        publicRulings: rulingsToSummarize.filter(
+          (ruling) => ruling.visibility === 'public',
+        ).length,
+        hiddenRulings: rulingsToSummarize.filter(
+          (ruling) => ruling.visibility === 'hidden',
+        ).length,
+      });
+
+      return {
+        current: summarize(currentRulings),
+        previous:
+          previousStart && previousEnd ? summarize(previousRulings) : null,
+      };
+    },
+    async getDashboardRulingTrend(window) {
+      const grouped = new Map<string, WorkshopDashboardTrendRow>();
+
+      for (const ruling of getTestRunStore(runId).rulings) {
+        if (
+          !isWithinTimeWindow(
+            ruling.createdAt,
+            window.currentStart,
+            window.currentEnd,
+          )
+        ) {
+          continue;
+        }
+
+        const bucketKey = getTestBucketKey(
+          ruling.createdAt,
+          window.bucketGranularity,
+          window.timeZone,
+        );
+        const existing = grouped.get(bucketKey) ?? {
+          bucketKey,
+          totalRulings: 0,
+          approvedRulings: 0,
+          coalRulings: 0,
+          publicRulings: 0,
+          hiddenRulings: 0,
+        };
+
+        existing.totalRulings += 1;
+        existing.approvedRulings += ruling.decision === 'approved' ? 1 : 0;
+        existing.coalRulings += ruling.decision === 'random-coal' ? 1 : 0;
+        existing.publicRulings += ruling.visibility === 'public' ? 1 : 0;
+        existing.hiddenRulings += ruling.visibility === 'hidden' ? 1 : 0;
+        grouped.set(bucketKey, existing);
+      }
+
+      return [...grouped.values()].sort((left, right) =>
+        left.bucketKey.localeCompare(right.bucketKey),
+      );
     },
     async listRecentWorkshopRulings(
       limit = securitySettings.workshop.search.recentRulingsLimit,

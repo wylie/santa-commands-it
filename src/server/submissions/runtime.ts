@@ -1,4 +1,5 @@
 import { getSubmissionRepositoryForHeaders } from '@/server/rulings/test-mode';
+import { getRequestNow } from '@/server/rulings/test-mode';
 import { readRequestTestOptions } from '@/server/rulings/test-mode';
 import { getRuntimeConfigurationForHeaders } from '@/server/config/service';
 import type { SubmitRulingDependencies } from '@/server/submissions/service';
@@ -13,7 +14,7 @@ export function buildSubmitDependencies(
     loadRuntimeConfiguration: () => getRuntimeConfigurationForHeaders(headers),
     randomProvider: () => testOptions.randomValue ?? Math.random(),
     publicIdGenerator: () => crypto.randomUUID(),
-    nowProvider: () => new Date(),
+    nowProvider: () => getRequestNow(headers),
     scenario:
       testOptions.scenario === 'submit-error' ? 'submit-error' : 'normal',
   };

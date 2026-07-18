@@ -9,6 +9,7 @@ export type WorkshopReportStatus =
   'open' | 'reviewed' | 'dismissed' | 'actioned';
 export type WorkshopReportStatusFilter = 'all' | WorkshopReportStatus;
 export type WorkshopReportReasonFilter = 'all' | ReportReason;
+export type WorkshopDashboardRange = '7d' | '30d' | '90d' | 'all';
 
 export type OwnerActivityAction =
   | 'login-success'
@@ -282,6 +283,16 @@ export function coerceWorkshopReportReasonFilter(
   }
 
   return 'all';
+}
+
+export function coerceWorkshopDashboardRange(
+  value: string | null,
+): WorkshopDashboardRange {
+  if (value === '7d' || value === '30d' || value === '90d' || value === 'all') {
+    return value;
+  }
+
+  return '30d';
 }
 
 export function coercePositivePage(value: string | null): number {

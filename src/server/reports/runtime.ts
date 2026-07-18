@@ -1,5 +1,6 @@
 import { getRulingReportsRepositoryForHeaders } from '@/server/rulings/test-mode';
 import { getRulingsRepositoryForHeaders } from '@/server/rulings/test-mode';
+import { getRequestNow } from '@/server/rulings/test-mode';
 import { readRequestTestOptions } from '@/server/rulings/test-mode';
 import type { SubmitRulingReportDependencies } from '@/server/reports/service';
 
@@ -11,7 +12,7 @@ export function buildReportDependencies(
   return {
     rulingsRepository: getRulingsRepositoryForHeaders(headers),
     reportsRepository: getRulingReportsRepositoryForHeaders(headers),
-    nowProvider: () => new Date(),
+    nowProvider: () => getRequestNow(headers),
     scenario:
       testOptions.scenario === 'report-error' ? 'report-error' : 'normal',
   };

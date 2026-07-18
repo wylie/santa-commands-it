@@ -109,4 +109,33 @@ test.describe('accessibility audit', () => {
 
     await expectNoSeriousViolations(page);
   });
+
+  test('workshop dashboard is free of serious axe violations', async ({
+    page,
+  }) => {
+    const { headers } = await configureSantaTestPage(page, {
+      consideringDelayMs: 0,
+      nowIso: '2026-07-18T12:00:00.000Z',
+    });
+
+    await createRulingViaApi(
+      page,
+      {
+        ...headers,
+        'x-santa-test-random': '0.9',
+      },
+      {
+        name: 'Holly',
+        request: 'A brass telescope',
+        nowIso: '2026-07-18T08:00:00.000Z',
+      },
+    );
+
+    await page.goto('/workshop/login');
+    await page.getByLabel('Username').fill('owner');
+    await page.getByLabel('Password').fill('northpole-sleigh');
+    await page.getByRole('button', { name: 'Enter workshop' }).click();
+
+    await expectNoSeriousViolations(page);
+  });
 });

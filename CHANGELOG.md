@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 The format is inspired by Keep a Changelog, and this project adheres to Semantic Versioning.
 
+## [0.2.3] - 2026-07-18
+
+### Added
+
+- An expanded private workshop dashboard at `/workshop` with server-side `7d`, `30d`, `90d`, and `all` date ranges
+- Range-scoped ruling metrics, previous-period comparisons, daily or monthly trend summaries, and accessible trend tables without a heavy chart dependency
+- Current-state report operations, moderation-rule counts, response-template counts, configuration-health checks, and bounded recent-ruling and recent-owner-activity summaries
+- Focused aggregate repository methods plus dashboard unit, Playwright, and accessibility coverage for the new workshop operational view
+
+### Changed
+
+- Workshop dashboard metrics now distinguish selected-range ruling activity from all-time operational report counts
+- Random coal reporting now compares the current configured coal percentage with the actual coal rate in the selected ruling range and calls out when random coal is disabled or settings changed during that range
+- Dashboard section loading now fails independently so one unavailable query surfaces a warning without taking down the rest of the private owner page
+- Environment templates and README guidance now document `SITE_TIMEZONE` and the expanded workshop dashboard behavior
+
 ## [0.2.2] - 2026-07-18
 
 ### Added

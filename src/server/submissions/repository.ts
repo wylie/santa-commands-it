@@ -16,6 +16,7 @@ export type CreateSubmissionRulingInput = {
   requestText: string;
   decision: 'approved' | 'random-coal';
   santaResponse: string;
+  createdAt?: Date;
   clientKeyHash: string;
   idempotencyKey: string;
   normalizedName: string;
@@ -207,7 +208,8 @@ export function createDatabaseSubmissionRepository(): SubmissionRepository {
             request_text,
             decision,
             santa_response,
-            visibility
+            visibility,
+            created_at
           )
           VALUES (
             ${input.publicId},
@@ -215,7 +217,8 @@ export function createDatabaseSubmissionRepository(): SubmissionRepository {
             ${input.requestText},
             ${input.decision}::ruling_decision,
             ${input.santaResponse},
-            'public'::ruling_visibility
+            'public'::ruling_visibility,
+            ${input.createdAt ?? new Date()}
           )
           RETURNING
             id,
@@ -377,7 +380,7 @@ export function createTestSubmissionRepository(
     },
     async createRulingWithIdempotency(input) {
       const store = getTestRunStore(runId);
-      const createdAt = new Date().toISOString();
+      const createdAt = (input.createdAt ?? new Date()).toISOString();
       const ruling = {
         id: store.rulings.length + 1,
         publicId: input.publicId,

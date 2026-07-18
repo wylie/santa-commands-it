@@ -15,6 +15,10 @@ import type { SQL } from 'drizzle-orm';
 import { securitySettings } from '@/config/security';
 import { getDatabase } from '@/server/db/client';
 import { rulingReports, rulings } from '@/server/db/schema';
+import type {
+  DashboardTimeWindow,
+  WorkshopDashboardReportSummary,
+} from '@/server/workshop/dashboard';
 import { getTestRunStore } from '@/server/testing/store';
 import type {
   TestReportRecord,
@@ -72,6 +76,9 @@ export type HideRulingFromReportResult =
 
 export type WorkshopReportsRepository = {
   countOpenReports(): Promise<number>;
+  getDashboardReportSummary(
+    window: DashboardTimeWindow,
+  ): Promise<WorkshopDashboardReportSummary>;
   getDashboardReportMetrics(): Promise<
     Pick<
       WorkshopDashboardMetrics,
@@ -200,6 +207,27 @@ function createReportSummarySubquery(database: ReturnType<typeof getDatabase>) {
     .as('report_summary');
 }
 
+function parseCount(value: string | number | null | undefined) {
+  return Number(value ?? 0);
+}
+
+function isWithinTimeWindow(
+  value: string | null,
+  start: Date | null,
+  end: Date,
+) {
+  if (!value) {
+    return false;
+  }
+
+  const timestamp = new Date(value).getTime();
+
+  return (
+    timestamp < end.getTime() &&
+    (start === null || timestamp >= start.getTime())
+  );
+}
+
 export function createDatabaseWorkshopReportsRepository(): WorkshopReportsRepository {
   return {
     async countOpenReports() {
@@ -210,6 +238,72 @@ export function createDatabaseWorkshopReportsRepository(): WorkshopReportsReposi
         .where(eq(rulingReports.status, 'open'));
 
       return Number(result?.value ?? 0);
+    },
+    async getDashboardReportSummary(window) {
+      const database = getDatabase();
+      const rangeStart = window.currentStart ?? new Date(0);
+      const result = await database.execute(sql<{
+        currentOpenReports: string;
+        currentReviewedReports: string;
+        reportsCreatedInRange: string;
+        reportsDismissedInRange: string;
+        reportsActionedInRange: string;
+        rulingsWithMultipleOpenReports: string;
+        oldestOpenReportCreatedAt: string | null;
+      }>`
+        with multi_open_reports as (
+          select ruling_id
+          from ${rulingReports}
+          where ${rulingReports.status} = 'open'
+          group by ruling_id
+          having count(*) > 1
+        )
+        select
+          count(*) filter (where ${rulingReports.status} = 'open')::text as "currentOpenReports",
+          count(*) filter (where ${rulingReports.status} = 'reviewed')::text as "currentReviewedReports",
+          count(*) filter (
+            where ${rulingReports.createdAt} >= ${rangeStart}
+              and ${rulingReports.createdAt} < ${window.currentEnd}
+          )::text as "reportsCreatedInRange",
+          count(*) filter (
+            where ${rulingReports.status} = 'dismissed'
+              and ${rulingReports.resolvedAt} is not null
+              and ${rulingReports.resolvedAt} >= ${rangeStart}
+              and ${rulingReports.resolvedAt} < ${window.currentEnd}
+          )::text as "reportsDismissedInRange",
+          count(*) filter (
+            where ${rulingReports.status} = 'actioned'
+              and ${rulingReports.resolvedAt} is not null
+              and ${rulingReports.resolvedAt} >= ${rangeStart}
+              and ${rulingReports.resolvedAt} < ${window.currentEnd}
+          )::text as "reportsActionedInRange",
+          (select count(*)::text from multi_open_reports) as "rulingsWithMultipleOpenReports",
+          min(${rulingReports.createdAt}) filter (where ${rulingReports.status} = 'open')::text as "oldestOpenReportCreatedAt"
+        from ${rulingReports}
+      `);
+      const row = result.rows[0] as
+        | {
+            currentOpenReports: string;
+            currentReviewedReports: string;
+            reportsCreatedInRange: string;
+            reportsDismissedInRange: string;
+            reportsActionedInRange: string;
+            rulingsWithMultipleOpenReports: string;
+            oldestOpenReportCreatedAt: string | null;
+          }
+        | undefined;
+
+      return {
+        currentOpenReports: parseCount(row?.currentOpenReports),
+        currentReviewedReports: parseCount(row?.currentReviewedReports),
+        reportsCreatedInRange: parseCount(row?.reportsCreatedInRange),
+        reportsDismissedInRange: parseCount(row?.reportsDismissedInRange),
+        reportsActionedInRange: parseCount(row?.reportsActionedInRange),
+        rulingsWithMultipleOpenReports: parseCount(
+          row?.rulingsWithMultipleOpenReports,
+        ),
+        oldestOpenReportCreatedAt: row?.oldestOpenReportCreatedAt ?? null,
+      };
     },
     async getDashboardReportMetrics() {
       const database = getDatabase();
@@ -622,6 +716,59 @@ export function createTestWorkshopReportsRepository(
       return getTestRunStore(runId).reports.filter(
         (report) => report.status === 'open',
       ).length;
+    },
+    async getDashboardReportSummary(window) {
+      const store = getTestRunStore(runId);
+      const openReports = store.reports.filter(
+        (report) => report.status === 'open',
+      );
+      const oldestOpenReport = openReports
+        .slice()
+        .sort(
+          (left, right) =>
+            new Date(left.createdAt).getTime() -
+            new Date(right.createdAt).getTime(),
+        )[0];
+
+      return {
+        currentOpenReports: openReports.length,
+        currentReviewedReports: store.reports.filter(
+          (report) => report.status === 'reviewed',
+        ).length,
+        reportsCreatedInRange: store.reports.filter((report) =>
+          isWithinTimeWindow(
+            report.createdAt,
+            window.currentStart,
+            window.currentEnd,
+          ),
+        ).length,
+        reportsDismissedInRange: store.reports.filter(
+          (report) =>
+            report.status === 'dismissed' &&
+            isWithinTimeWindow(
+              report.resolvedAt,
+              window.currentStart,
+              window.currentEnd,
+            ),
+        ).length,
+        reportsActionedInRange: store.reports.filter(
+          (report) =>
+            report.status === 'actioned' &&
+            isWithinTimeWindow(
+              report.resolvedAt,
+              window.currentStart,
+              window.currentEnd,
+            ),
+        ).length,
+        rulingsWithMultipleOpenReports: store.rulings.filter(
+          (ruling) =>
+            store.reports.filter(
+              (report) =>
+                report.rulingId === ruling.id && report.status === 'open',
+            ).length > 1,
+        ).length,
+        oldestOpenReportCreatedAt: oldestOpenReport?.createdAt ?? null,
+      };
     },
     async getDashboardReportMetrics() {
       const store = getTestRunStore(runId);

@@ -1,11 +1,11 @@
 # Santa Commands It!
 
-`Santa Commands It!` is a theatrical holiday web application from Argon Collective LLC. Visitors ask Santa for something, the server makes the authoritative decision, completed rulings are stored in Neon Postgres, and approved or coal outcomes receive permanent public pages that can be shared directly. Version `0.2.2` continues the `v0.2.x` owner-administration milestone with a private workshop configuration area for moderation rules, Santa settings, and response templates without editing source files for ordinary operational changes.
+`Santa Commands It!` is a theatrical holiday web application from Argon Collective LLC. Visitors ask Santa for something, the server makes the authoritative decision, completed rulings are stored in Neon Postgres, and approved or coal outcomes receive permanent public pages that can be shared directly. Version `0.2.3` continues the `v0.2.x` owner-administration milestone with an expanded private workshop dashboard, database-backed moderation rules, editable Santa settings, and response templates without editing source files for ordinary operational changes.
 
 ## Release
 
-- Current version: `v0.2.2`
-- Current scope: the preserved public Santa experience plus a private `Santa's Workshop` owner area with secure single-owner authentication, server-side sessions, ruling visibility controls, a report-review queue, database-backed moderation rules, editable Santa settings, response-template management, and private audit activity
+- Current version: `v0.2.3`
+- Current scope: the preserved public Santa experience plus a private `Santa's Workshop` owner area with secure single-owner authentication, server-side sessions, range-aware owner dashboard analytics, ruling visibility controls, a report-review queue, database-backed moderation rules, editable Santa settings, response-template management, and private audit activity
 
 Completed rulings persist across refreshes and can be revisited at permanent public URLs when they remain public. Blocked submissions are still rejected before any database write and never receive public pages, public reports can be submitted without exposing reporter details, and hidden rulings now return the same public not-found experience as unknown identifiers.
 
@@ -44,17 +44,18 @@ Completed approvals and coal rulings are public on the homepage and on their own
 7. Add `WORKSHOP_USERNAME=...` and `SESSION_SECRET=...`.
 8. Generate a workshop password hash with `npm run workshop:hash`, then store it as `WORKSHOP_PASSWORD_HASH=...`.
 9. Optionally add `SITE_URL=https://your-production-domain.example` for canonical URLs and production metadata.
-10. Generate and apply the schema migration:
+10. Optionally add `SITE_TIMEZONE=America/New_York` or another valid IANA time zone for workshop dashboard grouping. When omitted, the dashboard groups in `UTC`.
+11. Generate and apply the schema migration:
 
 - `npm run db:generate`
 - `npm run db:migrate`
 
-11. Seed the initial database-backed moderation and Santa configuration once:
+12. Seed the initial database-backed moderation and Santa configuration once:
 
 - `npm run db:seed:configuration`
 
-12. Start the development server with `npm run dev`.
-13. Submit a request, confirm it appears in Santa's Latest Commands, open its permanent ruling page, submit one or more reports, sign into `/workshop/login`, and test moderation rules, Santa settings, response templates, report review, hide, restore, and delete behavior against local data.
+13. Start the development server with `npm run dev`.
+14. Submit a request, confirm it appears in Santa's Latest Commands, open its permanent ruling page, submit one or more reports, sign into `/workshop/login`, and test dashboard ranges, moderation rules, Santa settings, response templates, report review, hide, restore, and delete behavior against local data.
 
 If `DATABASE_URL` is missing, the form remains usable but the server cannot persist rulings, recent public commands will be unavailable, and no permanent ruling pages can be created.
 
@@ -85,6 +86,11 @@ If `DATABASE_URL` is missing, the form remains usable but the server cannot pers
   - Required in production for canonical URLs, Open Graph metadata, and share links
   - Should be the full origin only, such as `https://example.com`
   - Falls back to the current request origin for local development when omitted
+- `SITE_TIMEZONE`
+  - Optional and server-only
+  - Must be a valid IANA time zone such as `UTC` or `America/New_York`
+  - Controls workshop dashboard date bucketing and selected-range grouping
+  - Falls back to `UTC` when omitted
 - `SANTA_TEST_MODE`
   - Used only for isolated browser-test and local audit flows
   - Must not be enabled for ordinary production traffic
@@ -108,6 +114,25 @@ Private owner routes now live under:
 - `/workshop/reports/[reportId]`
 
 The public homepage, public ruling pages, submission flow, reporting flow, Santa artwork, winter visual design, and latest-commands feed remain intact and operate independently of the owner area.
+
+## Workshop dashboard
+
+- The private dashboard remains at `/workshop`.
+- Supported range query values are `7d`, `30d`, `90d`, and `all`; invalid values fall back to `30d`.
+- Range selection is server-side and encoded in the URL, for example `/workshop?range=30d`.
+- `7d`, `30d`, and `90d` compare selected-range ruling counts against the immediately preceding equal-length period. `all` shows no previous-period comparison.
+- The dashboard groups by day for `7d`, `30d`, and `90d`, and by month for `all`.
+- Missing days or months are zero-filled in the trend output instead of disappearing.
+- Primary metrics distinguish selected-range ruling counts from current operational report counts so owners can tell historical activity apart from present queue state.
+- Decision percentages are calculated from selected-range rulings only: approved divided by total rulings, and coal divided by total rulings.
+- The coal summary compares the current configured coal percentage with the actual selected-range coal rate. If random coal is disabled, the dashboard says so explicitly. If settings were updated during the selected range, the dashboard notes that the current target may not match every historical ruling in view.
+- Report metrics include current open reports, current reviewed reports, reports created in range, dismissed in range, actioned in range, rulings with multiple open reports, and oldest open-report age.
+- Moderation and template summaries show counts only. The dashboard does not expose the full blocked-word list, allowed-exception list, report notes, or full private configuration notes.
+- Recent rulings are bounded to `5`, recent owner activity is bounded to `10`, and the owner-activity summary strips private moderation notes and other sensitive free-text details.
+- Dashboard health checks are lightweight and private. They cover runtime moderation/template loading, Santa settings availability, random coal percentage validity, database reachability, `SITE_URL`, `SITE_TIMEZONE`, required production environment presence, and the canonical `public/images/santa.png` asset.
+- The trend view is decorative HTML/CSS only; the accessible source of truth is the semantic table rendered directly below it.
+- Dashboard aggregates come from focused database summary queries and bounded recent-item queries. No client-side filtering over all-time data is used.
+- Blocked submission attempts are not counted on the dashboard because this release does not persist privacy-safe aggregate counts for them.
 
 ## Workshop authentication and session behavior
 
@@ -327,7 +352,7 @@ The production source of truth for moderation and editable Santa behavior is now
 ### Santa settings
 
 - Editable Santa settings live in the `santa_settings` table.
-- `v0.2.2` exposes `randomCoalEnabled` and `randomCoalPercentage` for editing.
+- `v0.2.3` exposes `randomCoalEnabled` and `randomCoalPercentage` for editing and surfaces the current configured value in the private dashboard.
 - The stored coal percentage is retained even when random coal is disabled.
 - Settings updates use a version field for optimistic concurrency so stale tabs do not silently overwrite newer values.
 - The default coal percentage remains `5%`.
@@ -516,7 +541,7 @@ The committed migrations live under `drizzle/`. Ordinary application startup doe
 ## Testing
 
 - `npm run test` covers validation, moderation normalization, rule duplication behavior, runtime configuration caching, stale settings conflicts, response-template safeguards, repository-safe public-ruling mapping, canonical URL helpers, share payload utilities, environment validation, and safety-oriented edge cases without requiring a live database.
-- `npm run test:e2e` uses a dedicated test-mode server strategy instead of a real Neon database, includes automated accessibility checks with Axe, and now exercises workshop moderation, settings, template, ruling, and report flows in the browser.
+- `npm run test:e2e` uses a dedicated test-mode server strategy instead of a real Neon database, includes automated accessibility checks with Axe, and now exercises workshop dashboard ranges, moderation, settings, template, ruling, and report flows in the browser.
 - `npm run test:lighthouse` provides a local production-style Lighthouse audit for the homepage and a representative ruling page.
 - `npm run build` verifies the server-rendered production output and public ruling route.
 
@@ -542,6 +567,7 @@ Test precautions:
 - `npm audit --omit=dev` currently reports a high-severity `drizzle-orm` advisory below `0.45.2`; resolving it requires a breaking dependency upgrade that should be handled deliberately after regression review.
 - No dynamic social image generation, downloadable share cards, or QR codes exist yet.
 - No automatic owner alerts, email notifications, CSV export, or bulk actions exist yet.
+- No dashboard CSV export, scheduled reports, external analytics, visitor tracking, or blocked-attempt analytics exist yet.
 - Completed public rulings remain stored until removed through `Santa's Workshop` or direct database administration.
 - Infrastructure providers still process ordinary request metadata outside the application database.
 - Rule-based moderation cannot catch every harmful meaning or evasion pattern.
@@ -592,6 +618,5 @@ Use [PRELAUNCH.md](/Users/wylie/Repos/santa-commands-it/PRELAUNCH.md) for the co
 
 ## Roadmap
 
-- `v0.2.3`: Expanded dashboard and statistics
 - `v0.2.4`: Dynamic share images
 - `v0.2.5`: `v0.2.x` stabilization and launch polish

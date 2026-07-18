@@ -1,4 +1,5 @@
 import { securitySettings } from '@/config/security';
+import { getWorkshopDashboardPageData } from '@/server/workshop/dashboard';
 import {
   getReportTransition,
   type ReportTransitionAction,
@@ -63,19 +64,8 @@ export function parseWorkshopReportFilters(searchParams: URLSearchParams) {
   };
 }
 
-export async function getWorkshopDashboardData(headers: Headers) {
-  const repository = getWorkshopRepositoryForHeaders(headers);
-  const [metrics, recentRulings, recentActivity] = await Promise.all([
-    repository.getDashboardMetrics(),
-    repository.listRecentWorkshopRulings(),
-    repository.listRecentOwnerActivity(),
-  ]);
-
-  return {
-    metrics,
-    recentRulings,
-    recentActivity,
-  };
+export async function getWorkshopDashboardData(headers: Headers, url: URL) {
+  return getWorkshopDashboardPageData(headers, url);
 }
 
 export async function getWorkshopOpenReportCount(headers: Headers) {

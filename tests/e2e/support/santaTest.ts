@@ -16,6 +16,7 @@ export async function configureSantaTestPage(
     shareMode?: ShareMode;
     copyMode?: CopyMode;
     clientId?: string;
+    nowIso?: string;
   } = {},
 ) {
   const runId = randomUUID();
@@ -29,6 +30,10 @@ export async function configureSantaTestPage(
 
   if (typeof options.randomValue === 'number') {
     headers['x-santa-test-random'] = String(options.randomValue);
+  }
+
+  if (options.nowIso) {
+    headers['x-santa-test-now'] = options.nowIso;
   }
 
   if (options.scenario) {
@@ -115,6 +120,7 @@ export async function createRulingViaApi(
     request: string;
     website?: string;
     formElapsedMs?: number;
+    nowIso?: string;
   },
 ) {
   const response = await page.request.post('/api/rulings', {
@@ -122,6 +128,7 @@ export async function createRulingViaApi(
       ...headers,
       'content-type': 'application/json',
       'x-idempotency-key': randomUUID(),
+      ...(data.nowIso ? { 'x-santa-test-now': data.nowIso } : {}),
     },
     data: {
       ...data,
@@ -142,12 +149,14 @@ export async function createReportViaApi(
   data: {
     reason: string;
     note?: string;
+    nowIso?: string;
   },
 ) {
   const response = await page.request.post(`/api/rulings/${publicId}/reports`, {
     headers: {
       ...headers,
       'content-type': 'application/json',
+      ...(data.nowIso ? { 'x-santa-test-now': data.nowIso } : {}),
     },
     data,
   });

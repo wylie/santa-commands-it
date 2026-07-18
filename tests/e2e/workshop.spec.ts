@@ -59,7 +59,9 @@ test.describe('Santa Workshop owner area', () => {
     await page.getByRole('button', { name: 'Enter workshop' }).click();
 
     await expect(page).toHaveURL('/workshop');
-    await expect(page.getByText('Total public rulings')).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'Total rulings' }),
+    ).toBeVisible();
 
     await page.getByRole('link', { name: 'Rulings', exact: true }).click();
     await expect(page).toHaveURL(/\/workshop\/rulings/);
@@ -239,6 +241,172 @@ test.describe('Santa Workshop owner area', () => {
       page.getByRole('heading', {
         name: 'SANTA CANNOT FIND THAT REQUEST.',
       }),
+    ).toBeVisible();
+  });
+
+  test('shows dashboard ranges, trends, configuration summaries, and bounded recent activity', async ({
+    page,
+  }) => {
+    const nowIso = '2026-07-18T12:00:00.000Z';
+    const { headers } = await configureSantaTestPage(page, {
+      consideringDelayMs: 0,
+      nowIso,
+    });
+    const approvedHeaders = {
+      ...headers,
+      'x-santa-test-random': '0.9',
+    };
+    const coalHeaders = {
+      ...headers,
+      'x-santa-test-random': '0.01',
+    };
+
+    const latestApproved = await createRulingViaApi(page, approvedHeaders, {
+      name: 'Holly',
+      request: 'A brass telescope',
+      nowIso: '2026-07-18T08:00:00.000Z',
+    });
+    await createRulingViaApi(page, coalHeaders, {
+      name: 'Juniper',
+      request: 'A moonlit observatory',
+      nowIso: '2026-07-16T08:00:00.000Z',
+    });
+    await createRulingViaApi(page, approvedHeaders, {
+      name: 'Peppermint',
+      request: 'A train conductor set',
+      nowIso: '2026-06-21T08:00:00.000Z',
+    });
+    await createRulingViaApi(page, approvedHeaders, {
+      name: 'Mistletoe',
+      request: 'A weather vane',
+      nowIso: '2026-04-05T08:00:00.000Z',
+    });
+
+    await createReportViaApi(
+      page,
+      {
+        ...headers,
+        'x-santa-test-client-id': 'dashboard-reporter-a',
+      },
+      latestApproved.ruling.publicId,
+      {
+        reason: 'spam',
+        note: 'Open report one',
+        nowIso: '2026-07-18T09:00:00.000Z',
+      },
+    );
+    await createReportViaApi(
+      page,
+      {
+        ...headers,
+        'x-santa-test-client-id': 'dashboard-reporter-b',
+      },
+      latestApproved.ruling.publicId,
+      {
+        reason: 'hate',
+        note: 'Open report two',
+        nowIso: '2026-07-17T09:00:00.000Z',
+      },
+    );
+
+    await page.goto('/workshop/login');
+    await page.getByLabel('Username').fill('owner');
+    await page.getByLabel('Password').fill('northpole-sleigh');
+    await page.getByRole('button', { name: 'Enter workshop' }).click();
+
+    await expect(page).toHaveURL('/workshop');
+    await expect(page.getByRole('link', { name: '30 days' })).toHaveClass(
+      /is-active/,
+    );
+    await expect(
+      page.getByText('Showing 30 days grouped in UTC.'),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'Total rulings' }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'Configured vs actual coal' }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'Reports and moderation' }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'Moderation and templates' }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'Configuration health' }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'Recent public rulings' }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'Recent owner activity' }),
+    ).toBeVisible();
+    await expect(
+      page
+        .locator('article')
+        .filter({
+          has: page.getByRole('heading', { name: 'Total rulings' }),
+        })
+        .getByText(/^3$/),
+    ).toBeVisible();
+    await expect(page.getByText('2/2 open reports')).toBeVisible();
+    await expect(page.getByRole('table').getByText('Jul 17')).toBeVisible();
+
+    await page.getByRole('link', { name: '7 days' }).click();
+    await expect(page).toHaveURL('/workshop?range=7d');
+    await expect(page.getByRole('link', { name: '7 days' })).toHaveClass(
+      /is-active/,
+    );
+    await expect(
+      page.getByText('Showing 7 days grouped in UTC.'),
+    ).toBeVisible();
+
+    await page.getByRole('link', { name: 'All time' }).click();
+    await expect(page).toHaveURL('/workshop?range=all');
+    await expect(page.getByRole('link', { name: 'All time' })).toHaveClass(
+      /is-active/,
+    );
+    await expect(
+      page.getByText('Showing all time grouped in UTC.'),
+    ).toBeVisible();
+  });
+
+  test('keeps the dashboard usable when one section fails', async ({
+    page,
+  }) => {
+    const nowIso = '2026-07-18T12:00:00.000Z';
+    const { headers } = await configureSantaTestPage(page, {
+      consideringDelayMs: 0,
+      nowIso,
+      randomValue: 0.9,
+    });
+
+    await createRulingViaApi(page, headers, {
+      name: 'Holly',
+      request: 'A brass telescope',
+      nowIso: '2026-07-18T08:00:00.000Z',
+    });
+
+    await page.setExtraHTTPHeaders({
+      ...headers,
+      'x-santa-test-now': nowIso,
+      'x-santa-test-dashboard-failure': 'trend',
+    });
+    await page.goto('/workshop/login');
+    await page.getByLabel('Username').fill('owner');
+    await page.getByLabel('Password').fill('northpole-sleigh');
+    await page.getByRole('button', { name: 'Enter workshop' }).click();
+
+    await expect(page).toHaveURL('/workshop');
+    await expect(
+      page.getByRole('heading', { name: 'Total rulings' }),
+    ).toBeVisible();
+    await expect(
+      page.getByText('trend is temporarily unavailable.'),
+    ).toBeVisible();
+    await expect(
+      page.getByText('This section is temporarily unavailable.'),
     ).toBeVisible();
   });
 

@@ -3,7 +3,7 @@ import WorkshopLayout from '@/layouts/WorkshopLayout.astro';
 import { requireWorkshopPageSession } from '@/server/workshop/auth';
 import { getWorkshopDashboardData } from '@/server/workshop/service';
 import { formatRulingTimestamp, getDecisionLabel } from '@/utils/rulings';
-import { getOwnerActivityLabel, getVisibilityLabel } from '@/utils/workshop';
+import { getVisibilityLabel } from '@/utils/workshop';
 
 const session = await requireWorkshopPageSession(Astro);
 
@@ -11,108 +11,613 @@ if (session instanceof Response) {
   return session;
 }
 
-const { metrics, recentRulings, recentActivity } =
-  await getWorkshopDashboardData(Astro.request.headers);
+const dashboard = await getWorkshopDashboardData(
+  Astro.request.headers,
+  Astro.url,
+);
+
+function formatPercentage(value: number) {
+  return `${value.toFixed(value % 1 === 0 ? 0 : 1)}%`;
+}
+
+function formatComparison(
+  comparison:
+    | {
+        delta: number;
+        percentageChange: number | null;
+        direction: 'up' | 'down' | 'flat';
+        label: string;
+      }
+    | null
+    | undefined,
+) {
+  if (!comparison) {
+    return null;
+  }
+
+  const absoluteDelta = Math.abs(comparison.delta);
+  const directionLabel =
+    comparison.direction === 'flat'
+      ? 'No change'
+      : comparison.direction === 'up'
+        ? 'Up'
+        : 'Down';
+  const percentLabel =
+    comparison.percentageChange === null
+      ? ''
+      : ` (${comparison.percentageChange > 0 ? '+' : ''}${comparison.percentageChange.toFixed(
+          1,
+        )}%)`;
+
+  return `${directionLabel} ${absoluteDelta}${percentLabel} ${comparison.label}`;
+}
+
+const trendPoints =
+  dashboard.trend.status === 'ready' ? dashboard.trend.data : [];
+const trendMaxValue = Math.max(
+  1,
+  ...trendPoints.map((point) => point.totalRulings),
+);
 ---
 
 <WorkshopLayout
   title="Workshop Dashboard"
-  description="A private operational view of public Santa rulings and owner activity."
+  description="A private operational view of rulings, reports, moderation, and workshop health."
   currentPath={Astro.url.pathname}
   csrfToken={session.csrfToken}
-  openReportCount={metrics.openReports}
+  openReportCount={dashboard.openReportCount}
 >
-  <section class="workshop-grid workshop-grid--metrics" aria-label="Overview">
-    <article class="workshop-card">
-      <h2>Total public rulings</h2>
-      <p class="workshop-metric">{metrics.totalRulings}</p>
-    </article>
-    <article class="workshop-card">
-      <h2>Approved rulings</h2>
-      <p class="workshop-metric">{metrics.approvedRulings}</p>
-    </article>
-    <article class="workshop-card">
-      <h2>Coal rulings</h2>
-      <p class="workshop-metric">{metrics.coalRulings}</p>
-    </article>
-    <article class="workshop-card">
-      <h2>Hidden rulings</h2>
-      <p class="workshop-metric">{metrics.hiddenRulings}</p>
-    </article>
-    <article class="workshop-card">
-      <h2>Open reports</h2>
-      <p class="workshop-metric">{metrics.openReports}</p>
-    </article>
-    <article class="workshop-card">
-      <h2>Reviewed reports</h2>
-      <p class="workshop-metric">{metrics.reviewedReports}</p>
-    </article>
-    <article class="workshop-card">
-      <h2>Actioned in 7 days</h2>
-      <p class="workshop-metric">{metrics.actionedReportsLast7Days}</p>
-    </article>
-    <article class="workshop-card">
-      <h2>Rulings with 2+ open reports</h2>
-      <p class="workshop-metric">{metrics.rulingsWithMultipleOpenReports}</p>
-    </article>
+  {
+    dashboard.warningMessages.length > 0 && (
+      <section class="workshop-card">
+        <p class="workshop-banner workshop-banner--warning">
+          {dashboard.warningMessages.join(' ')}
+        </p>
+      </section>
+    )
+  }
+
+  <section class="workshop-card workshop-dashboard-toolbar">
+    <div>
+      <h2>Dashboard range</h2>
+      <p class="workshop-summary-list__meta">
+        Showing {dashboard.rangeLabel.toLowerCase()} grouped in{' '}
+        {dashboard.timeZone}.
+      </p>
+    </div>
+    <nav class="workshop-range-toggle" aria-label="Dashboard date range">
+      {
+        dashboard.rangeLinks.map((entry) => (
+          <a
+            class:list={[
+              'workshop-range-toggle__link',
+              entry.active && 'is-active',
+            ]}
+            href={entry.href}
+            aria-current={entry.active ? 'page' : undefined}
+          >
+            {entry.label}
+          </a>
+        ))
+      }
+    </nav>
+  </section>
+
+  {
+    dashboard.overview.status === 'ready' ? (
+      <>
+        <section
+          class="workshop-grid workshop-grid--metrics"
+          aria-label="Primary dashboard metrics"
+        >
+          {dashboard.overview.data.primaryMetrics.map((metric) => (
+            <article class="workshop-card">
+              <p class="workshop-card__eyebrow">
+                {metric.kind === 'current'
+                  ? 'Current state'
+                  : dashboard.rangeLabel}
+              </p>
+              <h2>{metric.label}</h2>
+              <p class="workshop-metric">{metric.value}</p>
+              <p class="workshop-summary-list__meta">{metric.description}</p>
+              {metric.comparison && (
+                <p class="workshop-metric-comparison">
+                  {formatComparison(metric.comparison)}
+                </p>
+              )}
+            </article>
+          ))}
+        </section>
+
+        <section class="workshop-grid workshop-grid--columns">
+          <article class="workshop-card">
+            <div class="workshop-card__header">
+              <h2>Decision breakdown</h2>
+              <p class="workshop-summary-list__meta">
+                Percentages are based on selected-range rulings only.
+              </p>
+            </div>
+            <dl class="workshop-detail-list">
+              <div>
+                <dt>Total rulings</dt>
+                <dd>
+                  {dashboard.overview.data.decisionBreakdown.totalRulings}
+                </dd>
+              </div>
+              <div>
+                <dt>Approved</dt>
+                <dd>
+                  {dashboard.overview.data.decisionBreakdown.approvedRulings} (
+                  {formatPercentage(
+                    dashboard.overview.data.decisionBreakdown
+                      .approvedPercentage,
+                  )}
+                  )
+                </dd>
+              </div>
+              <div>
+                <dt>Coal</dt>
+                <dd>
+                  {dashboard.overview.data.decisionBreakdown.coalRulings} (
+                  {formatPercentage(
+                    dashboard.overview.data.decisionBreakdown.coalPercentage,
+                  )}
+                  )
+                </dd>
+              </div>
+            </dl>
+          </article>
+
+          <article class="workshop-card">
+            <div class="workshop-card__header">
+              <h2>Configured vs actual coal</h2>
+              <a class="workshop-inline-link" href="/workshop/settings">
+                Manage Santa settings
+              </a>
+            </div>
+            <dl class="workshop-detail-list">
+              <div>
+                <dt>Current coal target</dt>
+                <dd>
+                  {dashboard.overview.data.coalSummary.randomCoalEnabled &&
+                  dashboard.overview.data.coalSummary
+                    .configuredCoalPercentage !== null
+                    ? formatPercentage(
+                        dashboard.overview.data.coalSummary
+                          .configuredCoalPercentage,
+                      )
+                    : 'Disabled'}
+                </dd>
+              </div>
+              <div>
+                <dt>Actual coal rate</dt>
+                <dd>
+                  {formatPercentage(
+                    dashboard.overview.data.coalSummary.actualCoalPercentage,
+                  )}
+                </dd>
+              </div>
+            </dl>
+            <p class="workshop-prose">
+              {dashboard.overview.data.coalSummary.note}
+            </p>
+          </article>
+        </section>
+      </>
+    ) : (
+      <section class="workshop-card">
+        <p class="workshop-empty">{dashboard.overview.message}</p>
+      </section>
+    )
+  }
+
+  <section class="workshop-card">
+    <div class="workshop-card__header">
+      <div>
+        <h2>Ruling trend</h2>
+        <p class="workshop-summary-list__meta">
+          Daily buckets for 7, 30, and 90 days. Monthly buckets for all time.
+        </p>
+      </div>
+    </div>
+    {
+      dashboard.trend.status === 'ready' ? (
+        trendPoints.length > 0 ? (
+          <>
+            <div class="workshop-trend-chart" aria-hidden="true">
+              {trendPoints.map((point) => (
+                <div class="workshop-trend-chart__row">
+                  <span class="workshop-trend-chart__label">{point.label}</span>
+                  <div class="workshop-trend-chart__bars">
+                    <span
+                      class="workshop-trend-chart__bar workshop-trend-chart__bar--approved"
+                      style={`--bar-scale:${point.approvedRulings / trendMaxValue}`}
+                    />
+                    <span
+                      class="workshop-trend-chart__bar workshop-trend-chart__bar--coal"
+                      style={`--bar-scale:${point.coalRulings / trendMaxValue}`}
+                    />
+                    <span
+                      class="workshop-trend-chart__bar workshop-trend-chart__bar--total"
+                      style={`--bar-scale:${point.totalRulings / trendMaxValue}`}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div class="workshop-table-wrap">
+              <table class="workshop-table">
+                <caption class="workshop-table__caption">
+                  Trend values for the selected dashboard range.
+                </caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Period</th>
+                    <th scope="col">Total</th>
+                    <th scope="col">Approved</th>
+                    <th scope="col">Coal</th>
+                    <th scope="col">Public</th>
+                    <th scope="col">Hidden</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {trendPoints.map((point) => (
+                    <tr>
+                      <td data-label="Period">{point.label}</td>
+                      <td data-label="Total">{point.totalRulings}</td>
+                      <td data-label="Approved">{point.approvedRulings}</td>
+                      <td data-label="Coal">{point.coalRulings}</td>
+                      <td data-label="Public">{point.publicRulings}</td>
+                      <td data-label="Hidden">{point.hiddenRulings}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        ) : (
+          <p class="workshop-empty">
+            No rulings are available for the selected range yet.
+          </p>
+        )
+      ) : (
+        <p class="workshop-empty">{dashboard.trend.message}</p>
+      )
+    }
   </section>
 
   <section class="workshop-grid workshop-grid--columns">
     <article class="workshop-card">
       <div class="workshop-card__header">
-        <h2>Most recent rulings</h2>
+        <h2>Reports and moderation</h2>
+        <a class="workshop-inline-link" href="/workshop/reports">
+          Open report queue
+        </a>
+      </div>
+      {
+        dashboard.reports.status === 'ready' ? (
+          <dl class="workshop-stat-list">
+            <div>
+              <dt>Open reports</dt>
+              <dd>
+                <a
+                  class="workshop-inline-link"
+                  href="/workshop/reports?status=open"
+                >
+                  {dashboard.reports.data.currentOpenReports}
+                </a>
+              </dd>
+            </div>
+            <div>
+              <dt>Reviewed reports</dt>
+              <dd>
+                <a
+                  class="workshop-inline-link"
+                  href="/workshop/reports?status=reviewed"
+                >
+                  {dashboard.reports.data.currentReviewedReports}
+                </a>
+              </dd>
+            </div>
+            <div>
+              <dt>Reports created in range</dt>
+              <dd>
+                <a
+                  class="workshop-inline-link"
+                  href="/workshop/reports?sort=newest"
+                >
+                  {dashboard.reports.data.reportsCreatedInRange}
+                </a>
+              </dd>
+            </div>
+            <div>
+              <dt>Dismissed in range</dt>
+              <dd>
+                <a
+                  class="workshop-inline-link"
+                  href="/workshop/reports?status=dismissed"
+                >
+                  {dashboard.reports.data.reportsDismissedInRange}
+                </a>
+              </dd>
+            </div>
+            <div>
+              <dt>Actioned in range</dt>
+              <dd>
+                <a
+                  class="workshop-inline-link"
+                  href="/workshop/reports?status=actioned"
+                >
+                  {dashboard.reports.data.reportsActionedInRange}
+                </a>
+              </dd>
+            </div>
+            <div>
+              <dt>Rulings with 2+ open reports</dt>
+              <dd>
+                <a
+                  class="workshop-inline-link"
+                  href="/workshop/reports?status=open"
+                >
+                  {dashboard.reports.data.rulingsWithMultipleOpenReports}
+                </a>
+              </dd>
+            </div>
+            <div>
+              <dt>Oldest open report age</dt>
+              <dd>
+                {dashboard.reports.data.oldestOpenReportAgeDays === null
+                  ? 'No open reports'
+                  : `${dashboard.reports.data.oldestOpenReportAgeDays} day${
+                      dashboard.reports.data.oldestOpenReportAgeDays === 1
+                        ? ''
+                        : 's'
+                    }`}
+              </dd>
+            </div>
+          </dl>
+        ) : (
+          <p class="workshop-empty">{dashboard.reports.message}</p>
+        )
+      }
+    </article>
+
+    <article class="workshop-card">
+      <div class="workshop-card__header">
+        <h2>Moderation and templates</h2>
+        <div class="workshop-row-actions">
+          <a class="workshop-inline-link" href="/workshop/moderation">
+            Manage moderation
+          </a>
+          <a class="workshop-inline-link" href="/workshop/settings/responses">
+            Manage templates
+          </a>
+        </div>
+      </div>
+      {
+        dashboard.configuration.status === 'ready' ? (
+          <div class="workshop-config-summary">
+            <div class="workshop-template-card">
+              <h3>Moderation</h3>
+              <dl class="workshop-stat-list">
+                <div>
+                  <dt>Active blocked words</dt>
+                  <dd>
+                    {dashboard.configuration.data.moderation.activeBlockedWords}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Active blocked phrases</dt>
+                  <dd>
+                    {
+                      dashboard.configuration.data.moderation
+                        .activeBlockedPhrases
+                    }
+                  </dd>
+                </div>
+                <div>
+                  <dt>Active allowed exceptions</dt>
+                  <dd>
+                    {
+                      dashboard.configuration.data.moderation
+                        .activeAllowedExceptions
+                    }
+                  </dd>
+                </div>
+                <div>
+                  <dt>Inactive rules</dt>
+                  <dd>
+                    {dashboard.configuration.data.moderation.inactiveRules}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Most recent moderation update</dt>
+                  <dd>
+                    {dashboard.configuration.data.moderation.lastUpdatedAt
+                      ? formatRulingTimestamp(
+                          dashboard.configuration.data.moderation.lastUpdatedAt,
+                        )
+                      : 'No moderation rules yet'}
+                  </dd>
+                </div>
+              </dl>
+            </div>
+            <div class="workshop-template-card">
+              <h3>Response templates</h3>
+              <dl class="workshop-stat-list">
+                <div>
+                  <dt>Active approved templates</dt>
+                  <dd>
+                    {
+                      dashboard.configuration.data.templates
+                        .activeApprovedTemplates
+                    }
+                  </dd>
+                </div>
+                <div>
+                  <dt>Active coal templates</dt>
+                  <dd>
+                    {dashboard.configuration.data.templates.activeCoalTemplates}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Active blocked warnings</dt>
+                  <dd>
+                    {
+                      dashboard.configuration.data.templates
+                        .activeBlockedWarningTemplates
+                    }
+                  </dd>
+                </div>
+                <div>
+                  <dt>Inactive templates</dt>
+                  <dd>
+                    {dashboard.configuration.data.templates.inactiveTemplates}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Most recent template update</dt>
+                  <dd>
+                    {dashboard.configuration.data.templates.lastUpdatedAt
+                      ? formatRulingTimestamp(
+                          dashboard.configuration.data.templates.lastUpdatedAt,
+                        )
+                      : 'No response templates yet'}
+                  </dd>
+                </div>
+              </dl>
+            </div>
+          </div>
+        ) : (
+          <p class="workshop-empty">{dashboard.configuration.message}</p>
+        )
+      }
+    </article>
+  </section>
+
+  <section class="workshop-card">
+    <div class="workshop-card__header">
+      <h2>Configuration health</h2>
+      <p class="workshop-summary-list__meta">
+        Private dashboard checks are lightweight and do not call external
+        services.
+      </p>
+    </div>
+    {
+      dashboard.health.status === 'ready' ? (
+        <ol class="workshop-health-list">
+          {dashboard.health.data.checks.map((check) => (
+            <li class="workshop-health-list__item">
+              <div>
+                <p class="workshop-summary-list__title">{check.label}</p>
+                <p class="workshop-summary-list__detail">{check.detail}</p>
+              </div>
+              <div class="workshop-row-actions">
+                <span
+                  class="workshop-status-pill"
+                  data-status={check.status}
+                  data-health={check.status}
+                >
+                  {check.status === 'healthy'
+                    ? 'Healthy'
+                    : check.status === 'needs-attention'
+                      ? 'Needs attention'
+                      : 'Unavailable'}
+                </span>
+                {check.href && (
+                  <a class="workshop-inline-link" href={check.href}>
+                    Open
+                  </a>
+                )}
+              </div>
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <p class="workshop-empty">{dashboard.health.message}</p>
+      )
+    }
+  </section>
+
+  <section class="workshop-grid workshop-grid--columns">
+    <article class="workshop-card">
+      <div class="workshop-card__header">
+        <h2>Recent public rulings</h2>
         <a class="workshop-inline-link" href="/workshop/rulings">
           View all rulings
         </a>
       </div>
 
-      <ol class="workshop-summary-list">
-        {
-          recentRulings.map((ruling) => (
-            <li class="workshop-summary-list__item">
-              <div>
-                <p class="workshop-summary-list__title">{ruling.displayName}</p>
-                <p class="workshop-summary-list__meta">
-                  {getDecisionLabel(ruling.decision)} ·{' '}
-                  {getVisibilityLabel(ruling.visibility)} ·{' '}
-                  {formatRulingTimestamp(ruling.createdAt)} ·{' '}
-                  {ruling.openReportCount}/{ruling.reportCount} open reports
-                </p>
-              </div>
-              <a
-                class="workshop-inline-link"
-                href={`/workshop/rulings/${ruling.publicId}`}
-              >
-                View
-              </a>
-            </li>
-          ))
-        }
-      </ol>
+      {
+        dashboard.recentRulings.status === 'ready' ? (
+          dashboard.recentRulings.data.length > 0 ? (
+            <ol class="workshop-summary-list">
+              {dashboard.recentRulings.data.map((ruling) => (
+                <li class="workshop-summary-list__item">
+                  <div>
+                    <p class="workshop-summary-list__title">
+                      {ruling.displayName}
+                    </p>
+                    <p class="workshop-summary-list__detail">
+                      {ruling.requestExcerpt}
+                    </p>
+                    <p class="workshop-summary-list__meta">
+                      {getDecisionLabel(ruling.decision)} ·{' '}
+                      {getVisibilityLabel(ruling.visibility)} ·{' '}
+                      {formatRulingTimestamp(ruling.createdAt)} ·{' '}
+                      {ruling.openReportCount}/{ruling.reportCount} open reports
+                    </p>
+                  </div>
+                  <a
+                    class="workshop-inline-link"
+                    href={`/workshop/rulings/${ruling.publicId}`}
+                  >
+                    View
+                  </a>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <p class="workshop-empty">No rulings are available yet.</p>
+          )
+        ) : (
+          <p class="workshop-empty">{dashboard.recentRulings.message}</p>
+        )
+      }
     </article>
 
     <article class="workshop-card">
       <h2>Recent owner activity</h2>
-      <ol class="workshop-summary-list">
-        {
-          recentActivity.map((entry) => (
-            <li class="workshop-summary-list__item">
-              <div>
-                <p class="workshop-summary-list__title">
-                  {getOwnerActivityLabel(entry.action)}
-                </p>
-                <p class="workshop-summary-list__meta">
-                  {formatRulingTimestamp(entry.createdAt)}
-                  {entry.targetPublicId ? ` · ${entry.targetPublicId}` : ''}
-                </p>
-                {entry.details && (
-                  <p class="workshop-summary-list__detail">{entry.details}</p>
-                )}
-              </div>
-            </li>
-          ))
-        }
-      </ol>
+      {
+        dashboard.recentActivity.status === 'ready' ? (
+          dashboard.recentActivity.data.length > 0 ? (
+            <ol class="workshop-summary-list">
+              {dashboard.recentActivity.data.map((entry) => (
+                <li class="workshop-summary-list__item">
+                  <div>
+                    <p class="workshop-summary-list__title">{entry.label}</p>
+                    <p class="workshop-summary-list__meta">
+                      {formatRulingTimestamp(entry.createdAt)}
+                      {entry.targetReference
+                        ? ` · ${entry.targetReference}`
+                        : ''}
+                    </p>
+                    {entry.detail && (
+                      <p class="workshop-summary-list__detail">
+                        {entry.detail}
+                      </p>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <p class="workshop-empty">No owner activity is recorded yet.</p>
+          )
+        ) : (
+          <p class="workshop-empty">{dashboard.recentActivity.message}</p>
+        )
+      }
     </article>
   </section>
 </WorkshopLayout>

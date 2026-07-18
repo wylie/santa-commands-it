@@ -13,6 +13,7 @@ export type CreateRulingReportInput = {
   clientKeyHash: string;
   reason: ReportReason;
   note: string;
+  createdAt?: Date;
 };
 
 export type RulingReportsRepository = {
@@ -70,6 +71,7 @@ export function createDatabaseRulingReportsRepository(): RulingReportsRepository
         reason: input.reason,
         note: input.note || null,
         status: 'open',
+        createdAt: input.createdAt ?? new Date(),
       });
     },
   };
@@ -111,7 +113,7 @@ export function createTestRulingReportsRepository(
         reviewedAt: null,
         resolvedAt: null,
         resolutionNote: null,
-        createdAt: new Date().toISOString(),
+        createdAt: (input.createdAt ?? new Date()).toISOString(),
       });
     },
   };

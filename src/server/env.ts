@@ -25,6 +25,15 @@ export class SiteUrlConfigurationError extends Error {
   }
 }
 
+export class SiteTimeZoneConfigurationError extends Error {
+  constructor(
+    message = 'SITE_TIMEZONE must be a valid IANA time zone when it is configured.',
+  ) {
+    super(message);
+    this.name = 'SiteTimeZoneConfigurationError';
+  }
+}
+
 export class WorkshopConfigurationError extends Error {
   constructor(message: string) {
     super(message);
@@ -36,6 +45,7 @@ function readEnvValue(
   name:
     | 'DATABASE_URL'
     | 'SITE_URL'
+    | 'SITE_TIMEZONE'
     | 'RATE_LIMIT_SECRET'
     | 'WORKSHOP_USERNAME'
     | 'WORKSHOP_PASSWORD_HASH'
@@ -82,6 +92,28 @@ export function getSiteUrl(): string | null {
   }
 
   return null;
+}
+
+export function getSiteTimeZone(): string {
+  const configuredTimeZone = readEnvValue('SITE_TIMEZONE');
+
+  if (!configuredTimeZone) {
+    return 'UTC';
+  }
+
+  try {
+    Intl.DateTimeFormat(undefined, {
+      timeZone: configuredTimeZone,
+    }).format(new Date());
+
+    return configuredTimeZone;
+  } catch {
+    if (isProductionEnvironment()) {
+      throw new SiteTimeZoneConfigurationError();
+    }
+
+    return 'UTC';
+  }
 }
 
 export function isProductionEnvironment(): boolean {

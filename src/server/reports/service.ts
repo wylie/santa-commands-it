@@ -156,6 +156,7 @@ export async function submitRulingReport(
     clientKeyHash: context.clientKeyHash,
     reason: payload.reason,
     note: validatedNote.value,
+    createdAt: now,
   });
 
   return {

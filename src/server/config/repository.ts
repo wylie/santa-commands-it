@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
-import { and, asc, count, desc, eq, ilike, or } from 'drizzle-orm';
+import { and, asc, count, desc, eq, ilike, or, sql } from 'drizzle-orm';
 import type { SQL } from 'drizzle-orm';
 
 import { securitySettings } from '@/config/security';
@@ -16,6 +16,10 @@ import type {
 } from '@/server/testing/store';
 import { getTestRunStore } from '@/server/testing/store';
 import { serializeCreatedAt } from '@/utils/rulings';
+import {
+  type WorkshopModerationDashboardSummary,
+  type WorkshopResponseTemplateDashboardSummary,
+} from '@/server/workshop/dashboard';
 import {
   type ModerationRuleCategoryFilter,
   type ModerationRuleType,
@@ -111,6 +115,7 @@ export type ConfigurationRepository = {
   ): Promise<WorkshopModerationRuleDetail | null>;
   deleteModerationRule(publicId: string): Promise<boolean>;
   listActiveModerationRules(): Promise<RuntimeModerationRule[]>;
+  getModerationDashboardSummary(): Promise<WorkshopModerationDashboardSummary>;
   getSantaSettings(): Promise<WorkshopSantaSettings | null>;
   updateSantaSettings(
     input: UpdateSantaSettingsInput,
@@ -132,6 +137,7 @@ export type ConfigurationRepository = {
   ): Promise<WorkshopResponseTemplateDetail | null>;
   deleteResponseTemplate(publicId: string): Promise<boolean>;
   listActiveResponseTemplates(): Promise<RuntimeResponseTemplate[]>;
+  getResponseTemplateDashboardSummary(): Promise<WorkshopResponseTemplateDashboardSummary>;
 };
 
 function mapModerationRuleRow(
@@ -210,6 +216,10 @@ function buildModerationWhere(filters: WorkshopModerationFilters) {
   }
 
   return conditions.length ? and(...conditions) : undefined;
+}
+
+function parseCount(value: string | number | null | undefined) {
+  return Number(value ?? 0);
 }
 
 export function createDatabaseConfigurationRepository(): ConfigurationRepository {
@@ -351,6 +361,50 @@ export function createDatabaseConfigurationRepository(): ConfigurationRepository
         category: row.category,
       }));
     },
+    async getModerationDashboardSummary() {
+      const database = getDatabase();
+      const result = await database.execute(sql<{
+        activeBlockedWords: string;
+        activeBlockedPhrases: string;
+        activeAllowedExceptions: string;
+        inactiveRules: string;
+        lastUpdatedAt: string | null;
+      }>`
+        select
+          count(*) filter (
+            where ${moderationRulesTable.active} = true
+              and ${moderationRulesTable.ruleType} = 'blocked-word'
+          )::text as "activeBlockedWords",
+          count(*) filter (
+            where ${moderationRulesTable.active} = true
+              and ${moderationRulesTable.ruleType} = 'blocked-phrase'
+          )::text as "activeBlockedPhrases",
+          count(*) filter (
+            where ${moderationRulesTable.active} = true
+              and ${moderationRulesTable.ruleType} = 'allowed-exception'
+          )::text as "activeAllowedExceptions",
+          count(*) filter (where ${moderationRulesTable.active} = false)::text as "inactiveRules",
+          max(${moderationRulesTable.updatedAt})::text as "lastUpdatedAt"
+        from ${moderationRulesTable}
+      `);
+      const row = result.rows[0] as
+        | {
+            activeBlockedWords: string;
+            activeBlockedPhrases: string;
+            activeAllowedExceptions: string;
+            inactiveRules: string;
+            lastUpdatedAt: string | null;
+          }
+        | undefined;
+
+      return {
+        activeBlockedWords: parseCount(row?.activeBlockedWords),
+        activeBlockedPhrases: parseCount(row?.activeBlockedPhrases),
+        activeAllowedExceptions: parseCount(row?.activeAllowedExceptions),
+        inactiveRules: parseCount(row?.inactiveRules),
+        lastUpdatedAt: row?.lastUpdatedAt ?? null,
+      };
+    },
     async getSantaSettings() {
       const database = getDatabase();
       const [row] = await database
@@ -489,6 +543,52 @@ export function createDatabaseConfigurationRepository(): ConfigurationRepository
         templateText: row.templateText,
         sortOrder: row.sortOrder,
       }));
+    },
+    async getResponseTemplateDashboardSummary() {
+      const database = getDatabase();
+      const result = await database.execute(sql<{
+        activeApprovedTemplates: string;
+        activeCoalTemplates: string;
+        activeBlockedWarningTemplates: string;
+        inactiveTemplates: string;
+        lastUpdatedAt: string | null;
+      }>`
+        select
+          count(*) filter (
+            where ${responseTemplatesTable.active} = true
+              and ${responseTemplatesTable.group} = 'approved'
+          )::text as "activeApprovedTemplates",
+          count(*) filter (
+            where ${responseTemplatesTable.active} = true
+              and ${responseTemplatesTable.group} = 'coal'
+          )::text as "activeCoalTemplates",
+          count(*) filter (
+            where ${responseTemplatesTable.active} = true
+              and ${responseTemplatesTable.group} = 'blocked-warning'
+          )::text as "activeBlockedWarningTemplates",
+          count(*) filter (where ${responseTemplatesTable.active} = false)::text as "inactiveTemplates",
+          max(${responseTemplatesTable.updatedAt})::text as "lastUpdatedAt"
+        from ${responseTemplatesTable}
+      `);
+      const row = result.rows[0] as
+        | {
+            activeApprovedTemplates: string;
+            activeCoalTemplates: string;
+            activeBlockedWarningTemplates: string;
+            inactiveTemplates: string;
+            lastUpdatedAt: string | null;
+          }
+        | undefined;
+
+      return {
+        activeApprovedTemplates: parseCount(row?.activeApprovedTemplates),
+        activeCoalTemplates: parseCount(row?.activeCoalTemplates),
+        activeBlockedWarningTemplates: parseCount(
+          row?.activeBlockedWarningTemplates,
+        ),
+        inactiveTemplates: parseCount(row?.inactiveTemplates),
+        lastUpdatedAt: row?.lastUpdatedAt ?? null,
+      };
     },
   };
 }
@@ -682,6 +782,31 @@ export function createTestConfigurationRepository(
           category: row.category,
         }));
     },
+    async getModerationDashboardSummary() {
+      const store = getTestRunStore(runId);
+
+      return {
+        activeBlockedWords: store.moderationRules.filter(
+          (row) => row.active && row.ruleType === 'blocked-word',
+        ).length,
+        activeBlockedPhrases: store.moderationRules.filter(
+          (row) => row.active && row.ruleType === 'blocked-phrase',
+        ).length,
+        activeAllowedExceptions: store.moderationRules.filter(
+          (row) => row.active && row.ruleType === 'allowed-exception',
+        ).length,
+        inactiveRules: store.moderationRules.filter((row) => !row.active)
+          .length,
+        lastUpdatedAt:
+          store.moderationRules
+            .slice()
+            .sort(
+              (left, right) =>
+                new Date(right.updatedAt).getTime() -
+                new Date(left.updatedAt).getTime(),
+            )[0]?.updatedAt ?? null,
+      };
+    },
     async getSantaSettings() {
       const settings = getTestRunStore(runId).santaSettings;
       return {
@@ -821,6 +946,31 @@ export function createTestConfigurationRepository(
           templateText: row.templateText,
           sortOrder: row.sortOrder,
         }));
+    },
+    async getResponseTemplateDashboardSummary() {
+      const store = getTestRunStore(runId);
+
+      return {
+        activeApprovedTemplates: store.responseTemplates.filter(
+          (row) => row.active && row.group === 'approved',
+        ).length,
+        activeCoalTemplates: store.responseTemplates.filter(
+          (row) => row.active && row.group === 'coal',
+        ).length,
+        activeBlockedWarningTemplates: store.responseTemplates.filter(
+          (row) => row.active && row.group === 'blocked-warning',
+        ).length,
+        inactiveTemplates: store.responseTemplates.filter((row) => !row.active)
+          .length,
+        lastUpdatedAt:
+          store.responseTemplates
+            .slice()
+            .sort(
+              (left, right) =>
+                new Date(right.updatedAt).getTime() -
+                new Date(left.updatedAt).getTime(),
+            )[0]?.updatedAt ?? null,
+      };
     },
   };
 }
