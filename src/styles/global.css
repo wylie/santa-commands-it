@@ -7,6 +7,8 @@
   --color-page-glow: #fcfdff;
   --color-surface-primary: #ffffff;
   --color-surface-secondary: #f8fbfd;
+  --color-page-overlay: rgb(246 251 254 / 0.86);
+  --color-page-overlay-strong: rgb(236 244 250 / 0.9);
   --color-text-primary: #313330;
   --color-text-secondary: #52615b;
   --color-evergreen: #496354;
@@ -64,6 +66,12 @@
   --portrait-mobile-width: clamp(13.75rem, 64vw, 18.75rem);
   --sticky-top: 2rem;
   --desktop-gap: clamp(4.5rem, 7vw, 6rem);
+  --background-pattern-size: 400px;
+  --surface-panel-background: linear-gradient(
+    180deg,
+    rgb(255 255 255 / 0.985),
+    rgb(248 251 253 / 0.975)
+  );
 
   /* Motion tokens */
   --duration-fast: 140ms;
@@ -80,7 +88,24 @@
 
 html {
   font-family: var(--font-body);
+  background-color: var(--color-page-background);
+  color: var(--color-text-primary);
+  overflow-x: clip;
+}
+
+body {
+  margin: 0;
+  min-width: 20rem;
+  min-height: 100vh;
+  line-height: 1.6;
   background:
+    linear-gradient(
+      180deg,
+      var(--color-page-overlay) 0%,
+      var(--color-page-overlay-strong) 48%,
+      rgb(247 251 254 / 0.92) 100%
+    ),
+    url('/images/snow-black.png'),
     radial-gradient(circle at top, rgb(255 255 255 / 0.72), transparent 34%),
     radial-gradient(circle at left, rgb(220 233 241 / 0.88), transparent 31%),
     radial-gradient(circle at right, rgb(220 233 241 / 0.8), transparent 29%),
@@ -91,17 +116,24 @@ html {
       var(--color-page-glow) 50%,
       #edf4fa 100%
     );
-  color: var(--color-text-primary);
-  overflow-x: clip;
-}
-
-body {
-  margin: 0;
-  min-width: 20rem;
-  line-height: 1.6;
-  background:
-    linear-gradient(180deg, rgb(255 255 255 / 0.12), transparent 20%),
-    radial-gradient(circle at 24% 14%, rgb(255 255 255 / 0.18), transparent 18%);
+  background-repeat:
+    no-repeat, repeat, no-repeat, no-repeat, no-repeat, no-repeat, no-repeat;
+  background-position:
+    center top,
+    center top,
+    center top,
+    left top,
+    right top,
+    center top,
+    center top;
+  background-size:
+    auto,
+    var(--background-pattern-size) var(--background-pattern-size),
+    auto,
+    auto,
+    auto,
+    auto,
+    auto;
 }
 
 img {
@@ -198,7 +230,6 @@ a {
 
 .portrait-frame__mount {
   width: 100%;
-  aspect-ratio: 4 / 5;
 }
 
 .portrait-frame__image {
@@ -206,10 +237,6 @@ a {
   height: auto;
   border-radius: var(--radius-image);
   box-shadow: var(--shadow-image);
-}
-
-.portrait-frame__image {
-  object-fit: contain;
 }
 
 .hero__content {
@@ -221,11 +248,7 @@ a {
 .speech-panel,
 .request-panel,
 .recent-rulings {
-  background: linear-gradient(
-    180deg,
-    rgb(255 255 255 / 0.96),
-    rgb(248 251 253 / 0.96)
-  );
+  background: var(--surface-panel-background);
   border-radius: var(--radius-panel);
   box-shadow: var(--shadow-panel);
 }
@@ -641,11 +664,7 @@ h2 {
   display: grid;
   gap: 1rem;
   padding: 1.9rem 1.95rem 2rem;
-  background: linear-gradient(
-    180deg,
-    rgb(255 255 255 / 0.97),
-    rgb(248 251 253 / 0.96)
-  );
+  background: var(--surface-panel-background);
   border-radius: var(--radius-panel);
   box-shadow: var(--shadow-panel);
 }
@@ -1031,11 +1050,7 @@ h2 {
 .workshop-header,
 .workshop-panel,
 .workshop-card {
-  background: linear-gradient(
-    180deg,
-    rgb(255 255 255 / 0.97),
-    rgb(248 251 253 / 0.96)
-  );
+  background: var(--surface-panel-background);
   border-radius: var(--radius-panel);
   box-shadow: var(--shadow-panel);
 }

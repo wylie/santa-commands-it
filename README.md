@@ -145,7 +145,7 @@ The public homepage, public ruling pages, submission flow, reporting flow, Santa
 - Report metrics include current open reports, current reviewed reports, reports created in range, dismissed in range, actioned in range, rulings with multiple open reports, and oldest open-report age.
 - Moderation and template summaries show counts only. The dashboard does not expose the full blocked-word list, allowed-exception list, report notes, or full private configuration notes.
 - Recent rulings are bounded to `5`, recent owner activity is bounded to `10`, and the owner-activity summary strips private moderation notes and other sensitive free-text details.
-- Dashboard health checks are lightweight and private. They cover runtime moderation/template loading, Santa settings availability, random coal percentage validity, database reachability, `SITE_URL`, `SITE_TIMEZONE`, required production environment presence, and the canonical `public/images/santa.png` asset.
+- Dashboard health checks are lightweight and private. They cover runtime moderation/template loading, Santa settings availability, random coal percentage validity, database reachability, `SITE_URL`, `SITE_TIMEZONE`, required production environment presence, and the canonical `public/images/santa-solo.png` asset.
 - The trend view is decorative HTML/CSS only; the accessible source of truth is the semantic table rendered directly below it.
 - Dashboard aggregates come from focused database summary queries and bounded recent-item queries. No client-side filtering over all-time data is used.
 - Blocked submission attempts are not counted on the dashboard because this release does not persist privacy-safe aggregate counts for them.
@@ -254,12 +254,23 @@ The public homepage, public ruling pages, submission flow, reporting flow, Santa
 
 The Santa artwork is a required committed asset.
 
-- Canonical filesystem path: `public/images/santa.png`
-- Canonical browser URL: `/images/santa.png`
-- The homepage and individual ruling pages both render that exact PNG path directly.
-- Do not rename it, change its capitalization, or introduce Santa-specific JPEG or JPG variants.
+- Canonical filesystem path: `public/images/santa-solo.png`
+- Canonical browser URL: `/images/santa-solo.png`
+- The homepage, public ruling pages, and dynamic share-image renderer all use that exact PNG path directly.
+- The previous `public/images/santa.png` asset has been removed and should not be reintroduced as a second canonical Santa file.
 
-If the deployed site does not show Santa, verify that `/images/santa.png` returns `200` with `image/png` and confirm the deployment includes the tracked file.
+If the deployed site does not show Santa, verify that `/images/santa-solo.png` returns `200` with `image/png` and confirm the deployment includes the tracked file.
+
+## Snow background
+
+The repeating snow pattern is also a required committed asset.
+
+- Background filesystem path: `public/images/snow-black.png`
+- Background browser URL: `/images/snow-black.png`
+- The site uses `background-repeat: repeat` with `--background-pattern-size: 400px`.
+- A translucent icy overlay sits above the pattern through layered CSS backgrounds so the snow remains decorative and text stays readable.
+- Dynamic ruling share images continue to use the Santa artwork directly and do not tile the snow background asset into the generated PNG.
+- The pattern is decorative only. It is not exposed to assistive technology and does not carry any meaning on its own.
 
 ## Server-side submission flow
 
@@ -435,7 +446,7 @@ Completed approved and coal rulings are public and accessible to anyone with the
 - Public ruling images render at `/rulings/[publicId]/og.png`.
 - Public pages emit `og:image`, `og:image:width=1200`, `og:image:height=630`, `og:image:type=image/png`, ruling-specific alt text, `twitter:image`, and `twitter:card=summary_large_image`.
 - Approved rulings use a clear `APPROVED BY SANTA` treatment and coal rulings use `SANTA CHOSE COAL`; the image never exposes report notes, hidden reasons, internal ids, or the configured random-coal percentage.
-- Canonical Santa artwork stays fixed at filesystem path `public/images/santa.png` and browser URL `/images/santa.png`.
+- Canonical Santa artwork stays fixed at filesystem path `public/images/santa-solo.png` and browser URL `/images/santa-solo.png`.
 - The renderer uses the committed local Santa PNG and `@vercel/og` with its default server-side font behavior, so it does not fetch Google Fonts per image request.
 - Text is normalized as plain text only, wraps deterministically, truncates with ellipses when necessary, and handles long unbroken strings without horizontal overflow.
 - Successful public image responses use short shared caching with stale-while-revalidate, not immutable caching. Hidden, deleted, malformed, missing, and renderer-failure responses return `no-store`.
@@ -523,8 +534,8 @@ Generate a strong session secret with a local tool such as:
 - Seed initial configuration with `npm run db:seed:configuration`.
 - Apply the same migration command against the production or preview database before expecting new submission or reporting code paths to work.
 - Run the configuration seed once per environment after the new tables exist. Re-running it later is safe and will skip already-seeded rows.
-- After deployment, verify the ruling flow and open `/images/santa.png` directly to confirm the deployed asset path is correct.
-- Remember that `public/images/santa.png` is the repository filesystem path, while `/images/santa.png` is the browser URL.
+- After deployment, verify the ruling flow and open `/images/santa-solo.png` and `/images/snow-black.png` directly to confirm both deployed asset paths are correct.
+- Remember that `public/images/santa-solo.png` and `public/images/snow-black.png` are repository filesystem paths, while `/images/santa-solo.png` and `/images/snow-black.png` are the browser URLs.
 - Any Vercel environment-variable change requires a new deployment before the new login or session configuration is live.
 
 ## Production readiness

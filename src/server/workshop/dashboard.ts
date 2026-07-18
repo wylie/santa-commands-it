@@ -242,8 +242,8 @@ type CalendarMonthParts = {
   month: number;
 };
 
-const santaPngPath = fileURLToPath(
-  new URL('../../../public/images/santa.png', import.meta.url),
+const santaArtworkPath = fileURLToPath(
+  new URL('../../../public/images/santa-solo.png', import.meta.url),
 );
 
 function getDashboardRangeConfig(range: WorkshopDashboardRange) {
@@ -929,10 +929,10 @@ async function buildHealthSection(
 
   checks.push({
     label: 'Santa artwork asset',
-    status: existsSync(santaPngPath) ? 'healthy' : 'needs-attention',
-    detail: existsSync(santaPngPath)
-      ? 'The canonical public Santa PNG asset exists at /images/santa.png.'
-      : 'The canonical Santa PNG asset is missing from public/images/santa.png.',
+    status: existsSync(santaArtworkPath) ? 'healthy' : 'needs-attention',
+    detail: existsSync(santaArtworkPath)
+      ? 'The canonical public Santa artwork exists at /images/santa-solo.png.'
+      : 'The canonical Santa artwork is missing from public/images/santa-solo.png.',
     href: null,
   });
 

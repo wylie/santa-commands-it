@@ -4,4 +4,4 @@ export const RULING_SHARE_IMAGE_TYPE = 'image/png';
 export const RULING_SHARE_IMAGE_PUBLIC_CACHE_CONTROL =
   'public, max-age=0, s-maxage=900, stale-while-revalidate=86400';
 export const RULING_SHARE_IMAGE_PRIVATE_CACHE_CONTROL = 'no-store';
-export const SANTA_PNG_BROWSER_PATH = '/images/santa.png';
+export const SANTA_ARTWORK_BROWSER_PATH = '/images/santa-solo.png';

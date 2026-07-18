@@ -13,10 +13,27 @@ test.describe('Santa Commands It homepage', () => {
     await configureSantaTestPage(page);
     await page.goto('/');
 
-    await expect(
-      page.getByAltText(/vintage-style portrait of Santa Claus/i),
-    ).toBeVisible();
+    await expect(page.getByAltText(/Santa Claus seated/i)).toBeVisible();
+    await expect(page.getByText('public/images/santa-solo.png')).toHaveCount(0);
     await expect(page.getByText('public/images/santa.png')).toHaveCount(0);
+
+    const backgroundDetails = await page.evaluate(() => {
+      const styles = window.getComputedStyle(document.body);
+
+      return {
+        image: styles.backgroundImage,
+        repeat: styles.backgroundRepeat,
+        size: styles.backgroundSize,
+        oldSantaRequested: performance
+          .getEntriesByType('resource')
+          .some((entry) => entry.name.includes('/images/santa.png')),
+      };
+    });
+
+    expect(backgroundDetails.image).toContain('/images/snow-black.png');
+    expect(backgroundDetails.repeat).toContain('repeat');
+    expect(backgroundDetails.size).toContain('400px 400px');
+    expect(backgroundDetails.oldSantaRequested).toBe(false);
 
     await expect(
       page.getByText('Santa has not made any public commands yet.'),

@@ -23,9 +23,7 @@ test.describe('public ruling pages', () => {
     const response = await page.goto(`/rulings/${ruling.publicId}`);
 
     expect(response?.status()).toBe(200);
-    await expect(
-      page.getByAltText(/vintage-style portrait of Santa Claus/i),
-    ).toBeVisible();
+    await expect(page.getByAltText(/Santa Claus seated/i)).toBeVisible();
     await expect(
       page.getByRole('heading', { name: 'SANTA COMMANDS IT!' }),
     ).toBeVisible();
@@ -81,11 +79,18 @@ test.describe('public ruling pages', () => {
     );
   });
 
-  test('serves the canonical santa.png asset directly', async ({ page }) => {
-    const response = await page.request.get('/images/santa.png');
+  test('serves the canonical Santa and snow assets directly', async ({
+    page,
+  }) => {
+    const santaResponse = await page.request.get('/images/santa-solo.png');
+    const snowResponse = await page.request.get('/images/snow-black.png');
+    const oldSantaResponse = await page.request.get('/images/santa.png');
 
-    expect(response.status()).toBe(200);
-    expect(response.headers()['content-type']).toContain('image/png');
+    expect(santaResponse.status()).toBe(200);
+    expect(santaResponse.headers()['content-type']).toContain('image/png');
+    expect(snowResponse.status()).toBe(200);
+    expect(snowResponse.headers()['content-type']).toContain('image/png');
+    expect(oldSantaResponse.status()).toBe(404);
   });
 
   test('renders a public og image endpoint with png headers and shared caching', async ({

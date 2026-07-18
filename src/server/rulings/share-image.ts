@@ -10,15 +10,15 @@ import {
   RULING_SHARE_IMAGE_PUBLIC_CACHE_CONTROL,
   RULING_SHARE_IMAGE_TYPE,
   RULING_SHARE_IMAGE_WIDTH,
-  SANTA_PNG_BROWSER_PATH,
+  SANTA_ARTWORK_BROWSER_PATH,
 } from '@/config/share-images';
 import type { PublicRuling } from '@/utils/rulings';
 
-const SANTA_PNG_FILE_PATH = path.join(
+const SANTA_ARTWORK_FILE_PATH = path.join(
   process.cwd(),
   'public',
   'images',
-  'santa.png',
+  'santa-solo.png',
 );
 const SUCCESS_HEADERS = {
   'content-type': RULING_SHARE_IMAGE_TYPE,
@@ -30,7 +30,7 @@ const ERROR_HEADERS = {
   'x-content-type-options': 'nosniff',
 } as const;
 
-let santaPngDataUrlPromise: Promise<string> | null = null;
+let santaArtworkDataUrlPromise: Promise<string> | null = null;
 
 export type ShareImageVariant = 'short' | 'medium' | 'long';
 export type ShareImageVisibility = 'public' | 'hidden';
@@ -279,14 +279,16 @@ export function prepareRulingShareImage(
   };
 }
 
-async function getSantaPngDataUrl(): Promise<string> {
-  if (!santaPngDataUrlPromise) {
-    santaPngDataUrlPromise = fs.readFile(SANTA_PNG_FILE_PATH).then((file) => {
-      return `data:${RULING_SHARE_IMAGE_TYPE};base64,${file.toString('base64')}`;
-    });
+async function getSantaArtworkDataUrl(): Promise<string> {
+  if (!santaArtworkDataUrlPromise) {
+    santaArtworkDataUrlPromise = fs
+      .readFile(SANTA_ARTWORK_FILE_PATH)
+      .then((file) => {
+        return `data:${RULING_SHARE_IMAGE_TYPE};base64,${file.toString('base64')}`;
+      });
   }
 
-  return santaPngDataUrlPromise;
+  return santaArtworkDataUrlPromise;
 }
 
 function getNameFontSize(variant: ShareImageVariant): number {
@@ -344,7 +346,7 @@ function createTextLines(
 
 function createShareImageElement(
   prepared: PreparedRulingShareImage,
-  santaPngDataUrl: string,
+  santaArtworkDataUrl: string,
 ): ReactElement {
   const { treatment } = prepared;
 
@@ -462,7 +464,7 @@ function createShareImageElement(
               },
             },
             createElement('img', {
-              src: santaPngDataUrl,
+              src: santaArtworkDataUrl,
               alt: '',
               width: 270,
               height: 310,
@@ -516,7 +518,7 @@ function createShareImageElement(
                 color: '#d9ecee',
               },
             },
-            `Canonical Santa artwork: ${SANTA_PNG_BROWSER_PATH}`,
+            `Canonical Santa artwork: ${SANTA_ARTWORK_BROWSER_PATH}`,
           ),
         ),
       ),
@@ -774,17 +776,20 @@ export async function renderRulingShareImage(
   const prepared = prepareRulingShareImage(ruling, {
     visibility: options.visibility,
   });
-  const santaPngDataUrl = await getSantaPngDataUrl();
+  const santaArtworkDataUrl = await getSantaArtworkDataUrl();
 
-  return new ImageResponse(createShareImageElement(prepared, santaPngDataUrl), {
-    width: RULING_SHARE_IMAGE_WIDTH,
-    height: RULING_SHARE_IMAGE_HEIGHT,
-    headers: {
-      ...SUCCESS_HEADERS,
-      'cache-control':
-        options.cacheControl ?? RULING_SHARE_IMAGE_PUBLIC_CACHE_CONTROL,
+  return new ImageResponse(
+    createShareImageElement(prepared, santaArtworkDataUrl),
+    {
+      width: RULING_SHARE_IMAGE_WIDTH,
+      height: RULING_SHARE_IMAGE_HEIGHT,
+      headers: {
+        ...SUCCESS_HEADERS,
+        'cache-control':
+          options.cacheControl ?? RULING_SHARE_IMAGE_PUBLIC_CACHE_CONTROL,
+      },
     },
-  });
+  );
 }
 
 export {
@@ -792,6 +797,6 @@ export {
   RULING_SHARE_IMAGE_PRIVATE_CACHE_CONTROL,
   RULING_SHARE_IMAGE_PUBLIC_CACHE_CONTROL,
   RULING_SHARE_IMAGE_WIDTH,
-  SANTA_PNG_BROWSER_PATH,
-  SANTA_PNG_FILE_PATH,
+  SANTA_ARTWORK_BROWSER_PATH,
+  SANTA_ARTWORK_FILE_PATH,
 };
