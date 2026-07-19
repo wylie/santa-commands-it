@@ -1,0 +1,55 @@
+---
+import {
+  createPublicExcerpt,
+  type PublicCommandsDiscoveryRuling,
+} from '@/utils/publicCommands';
+import { buildRulingPath } from '@/utils/rulingPages';
+import {
+  formatRulingTimestamp,
+  getDecisionLabel,
+  type PublicRuling,
+} from '@/utils/rulings';
+
+interface Props {
+  ruling: PublicRuling | PublicCommandsDiscoveryRuling;
+  variant?: 'compact' | 'browse';
+}
+
+const { ruling, variant = 'browse' } = Astro.props;
+const requestText =
+  variant === 'compact'
+    ? ruling.requestText
+    : createPublicExcerpt(ruling.requestText);
+const responseText =
+  variant === 'compact'
+    ? ruling.santaResponse
+    : createPublicExcerpt(ruling.santaResponse, 150);
+---
+
+<article
+  class:list={['public-ruling-card', `public-ruling-card--${variant}`]}
+  data-public-ruling-card
+  data-ruling-id={ruling.publicId}
+  data-decision={ruling.decision}
+>
+  <div class="public-ruling-card__meta">
+    <p class="public-ruling-card__decision" data-decision={ruling.decision}>
+      {getDecisionLabel(ruling.decision)}
+    </p>
+    <time class="public-ruling-card__time" datetime={ruling.createdAt}>
+      {formatRulingTimestamp(ruling.createdAt)}
+    </time>
+  </div>
+  <h3 class="public-ruling-card__name">{ruling.displayName}</h3>
+  <p class="public-ruling-card__request">{requestText}</p>
+  <p class="public-ruling-card__response">{responseText}</p>
+  <p class="public-ruling-card__action">
+    <a
+      class="public-ruling-card__link"
+      href={buildRulingPath(ruling.publicId)}
+      aria-label={`View and share Santa's ruling for ${ruling.displayName}`}
+    >
+      VIEW &amp; SHARE
+    </a>
+  </p>
+</article>

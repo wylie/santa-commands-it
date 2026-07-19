@@ -1,11 +1,11 @@
 # Santa Commands It!
 
-`Santa Commands It!` is a theatrical holiday web application from Argon Collective LLC. Visitors ask Santa for something, the server makes the authoritative decision, completed rulings are stored in Neon Postgres, and approved or coal outcomes receive permanent public pages that can be shared directly. Version `0.2.6` is a stabilization and launch-polish release for the existing public site, dynamic social-preview images, and private Workshop tools.
+`Santa Commands It!` is a theatrical holiday web application from Argon Collective LLC. Visitors ask Santa for something, the server makes the authoritative decision, completed rulings are stored in Neon Postgres, and approved or coal outcomes receive permanent public pages that can be shared directly. Version `0.3.0` adds a focused public Commands discovery page for browsing published rulings beyond the homepage feed.
 
 ## Release
 
-- Current version: `v0.2.6`
-- Current scope: the preserved public Santa experience plus a private `Santa's Workshop` owner area with secure single-owner authentication, server-side sessions, range-aware owner dashboard analytics, ruling visibility controls, a report-review queue, database-backed moderation rules, editable Santa settings, response-template management, dynamic ruling share images, and private audit activity
+- Current version: `v0.3.0`
+- Current scope: the preserved public Santa experience, public Commands browsing at `/commands`, shareable discovery URLs, and a private `Santa's Workshop` owner area with secure single-owner authentication, server-side sessions, range-aware owner dashboard analytics, ruling visibility controls, a report-review queue, database-backed moderation rules, editable Santa settings, response-template management, dynamic ruling share images, and private audit activity
 
 Completed rulings persist across refreshes and can be revisited at permanent public URLs when they remain public. Blocked submissions are still rejected before any database write and never receive public pages, public reports can be submitted without exposing reporter details, and hidden rulings now return the same public not-found experience as unknown identifiers.
 
@@ -55,7 +55,7 @@ Completed approvals and coal rulings are public on the homepage and on their own
 - `npm run db:seed:configuration`
 
 13. Start the development server with `npm run dev`.
-14. Submit a request, confirm it appears in Santa's Latest Commands, open its permanent ruling page, load `/rulings/[publicId]/og.png`, sign into `/workshop/login`, and test dashboard ranges, moderation rules, Santa settings, response templates, report review, share-preview pages, hide, restore, and delete behavior against local data.
+14. Submit a request, confirm it appears in Santa's Latest Commands and `/commands`, search and filter the public Commands page, open its permanent ruling page, load `/rulings/[publicId]/og.png`, sign into `/workshop/login`, and test dashboard ranges, moderation rules, Santa settings, response templates, report review, share-preview pages, hide, restore, and delete behavior against local data.
 
 If `DATABASE_URL` is missing, the form remains usable but the server cannot persist rulings, recent public commands will be unavailable, and no permanent ruling pages can be created.
 
@@ -426,9 +426,35 @@ The production source of truth for moderation and editable Santa behavior is now
 - Hidden rulings are excluded from homepage and public-page queries.
 - The latest-commands section shows a real semantic list when rulings exist.
 - Each latest-command item links to its permanent public ruling page.
+- The homepage uses the shared public ruling-card component in a compact variant.
+- `VIEW ALL COMMANDS` links from the homepage feed to `/commands`.
 - The empty state still works for a brand-new database.
 - If recent-ruling loading fails, the homepage stays usable and shows a quiet unavailable message.
 - After a successful submission, the browser inserts the new ruling at the top of the visible list and keeps only the latest ten items.
+
+## Public Commands discovery
+
+The public Commands route lives at `/commands` and is accessible without authentication. It is server rendered, uses real GET URLs, and does not expose Workshop controls.
+
+- Search parameter: `q`
+- Searchable fields: public display name and public request text
+- Search normalization: trim leading/trailing whitespace, collapse repeated whitespace, strip unsafe control characters, and bound the query to `80` characters
+- Search matching: case-insensitive partial matches through parameterized database queries
+- Decision parameter: `decision=all`, `decision=approved`, or `decision=coal`
+- Sort parameter: `sort=newest` or `sort=oldest`
+- Pagination parameter: `page`
+- Page size: fixed at `12` rulings
+- Maximum accepted page: `1000`
+
+Generated discovery links preserve only supported parameters in stable order: `q`, `decision`, `sort`, then `page`. Empty `q`, `decision=all`, `sort=newest`, and `page=1` are omitted from generated canonical-style paths, so `/commands?q=book&decision=approved&sort=newest&page=1` becomes `/commands?q=book&decision=approved`.
+
+The Commands repository function selects only public-safe ruling fields: public id, display name, request text, decision, Santa response, and created timestamp. It applies `visibility = public`, allowed decision values, decision filters, search filters, deterministic created-at plus internal-id ordering, fixed limit, and bounded offset in the database. It does not return internal ids, report data, hidden reasons, moderation data, owner activity, IP-derived data, session data, or settings metadata.
+
+Hidden rulings disappear from `/commands`, restored rulings return, deleted rulings are absent, and blocked submissions never appear because they are never stored as public rulings. Public search does not reveal whether hidden or deleted rulings would have matched.
+
+The base `/commands` page may be indexed. URLs with `q`, `decision`, `sort`, or `page` emit `noindex, follow` and canonicalize to `/commands` so arbitrary search-result URLs do not become index targets. Search state lives only in the URL and current request; the app does not add search analytics, saved searches, cookies, profiles, popularity sorting, reactions, comments, personalized recommendations, or infinite scrolling.
+
+The discovery page currently uses simple `ILIKE` search over display name and request text. Existing visibility-plus-created-at indexing supports the default browsing path, and no full-text or trigram migration is added in this release. This is designed for the current expected dataset size; a future larger dataset should revisit text-search indexes or cursor pagination before expanding public volume.
 
 ## Permanent ruling pages and sharing
 
@@ -445,11 +471,13 @@ Completed approved and coal rulings are public and accessible to anyone with the
 
 ## Crawling and indexing
 
-- `public/robots.txt` allows the homepage and public ruling routes.
+- `public/robots.txt` allows the homepage, `/commands`, and public ruling routes.
 - Workshop routes and API routes are disallowed from ordinary crawling.
 - Workshop pages also emit `noindex, nofollow` metadata and `X-Robots-Tag` headers.
 - Public dynamic share images under `/rulings/[publicId]/og.png` remain accessible for social preview consumers.
-- Public rulings are not currently generated into a sitemap to avoid an unbounded database query during this launch-polish release.
+- `/sitemap.xml` includes `/` and `/commands`.
+- The sitemap does not include search-result URLs, filter URLs, sort URLs, paginated Commands URLs, Workshop routes, API routes, private preview routes, or unbounded public ruling URLs.
+- Parameterized Commands pages use page-level `noindex, follow` metadata rather than broad robots query-parameter rules.
 
 ## Dynamic social preview images
 
@@ -636,6 +664,7 @@ The committed migrations live under `drizzle/`. Ordinary application startup doe
 - Desktop uses the sticky two-column Santa layout.
 - The left rail holds the Santa artwork and the compact footer.
 - The right column stacks the response panel, form, and public latest-commands list.
+- The Commands page uses the same public visual system with a server-rendered responsive card grid and simple wrapped pagination.
 - Mobile and tablet collapse into normal document flow.
 - The visual system keeps the light winter palette, Germania One display typography, and rounded low-border surfaces introduced in earlier releases.
 
@@ -653,8 +682,8 @@ The committed migrations live under `drizzle/`. Ordinary application startup doe
 
 ## Testing
 
-- `npm run test` covers validation, moderation normalization, rule duplication behavior, runtime configuration caching, stale settings conflicts, response-template safeguards, repository-safe public-ruling mapping, canonical URL helpers, share payload utilities, environment validation, and safety-oriented edge cases without requiring a live database.
-- `npm run test:e2e` uses a dedicated test-mode server strategy instead of a real Neon database, includes automated accessibility checks with Axe, and now exercises workshop dashboard ranges, moderation, settings, template, ruling, and report flows in the browser.
+- `npm run test` covers validation, moderation normalization, rule duplication behavior, runtime configuration caching, stale settings conflicts, response-template safeguards, repository-safe public-ruling mapping, public Commands query parsing, discovery URL normalization, discovery repository behavior, canonical URL helpers, share payload utilities, environment validation, and safety-oriented edge cases without requiring a live database.
+- `npm run test:e2e` uses a dedicated test-mode server strategy instead of a real Neon database, includes automated accessibility checks with Axe, and now exercises public Commands browsing, search, filters, sorting, pagination, metadata, sitemap behavior, responsive overflow checks, workshop dashboard ranges, moderation, settings, template, ruling, and report flows in the browser.
 - `npm run test:lighthouse` provides a local production-style Lighthouse audit for the homepage and a representative ruling page.
 - `npm run build` verifies the server-rendered production output and public ruling route.
 
@@ -681,6 +710,10 @@ Test precautions:
 - No downloadable share cards or QR codes exist yet.
 - No automatic owner alerts, email notifications, CSV export, or bulk actions exist yet.
 - No dashboard CSV export, scheduled reports, external analytics, visitor tracking, or blocked-attempt analytics exist yet.
+- Public Commands search covers display name and request text only.
+- Public Commands does not support advanced search syntax, fuzzy matching, saved searches, popularity sorting, personalized recommendations, public analytics, comments, reactions, user profiles, user accounts, or infinite scrolling.
+- Public Commands pagination uses a fixed page size of `12`.
+- Offset pagination and simple `ILIKE` search are designed for the current expected dataset size, not an unbounded public archive.
 - Completed public rulings remain stored until removed through `Santa's Workshop` or direct database administration.
 - Infrastructure providers still process ordinary request metadata outside the application database.
 - Rule-based moderation cannot catch every harmful meaning or evasion pattern.
@@ -731,4 +764,10 @@ Use [PRELAUNCH.md](/Users/wylie/Repos/santa-commands-it/PRELAUNCH.md) for the co
 
 ## Roadmap
 
+- `v0.3.0`: public Commands discovery with search, filters, sorting, pagination, shared cards, and crawl/index controls
+- `v0.3.1`: seasonal public presentation controls
+- `v0.3.2`: additional public sharing polish
+- `v0.3.3`: lightweight Workshop operational insights
+- `v0.3.4`: public experience refinement
+- `v0.3.5`: `v0.3.x` stabilization
 - `v0.2.6`: `v0.2.x` stabilization and launch polish

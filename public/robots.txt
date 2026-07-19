@@ -4,5 +4,6 @@ Disallow: /api/
 Disallow: /workshop
 Disallow: /workshop/
 Allow: /
+Allow: /commands
 Allow: /rulings/
 Allow: /rulings/*/og.png

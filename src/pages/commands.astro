@@ -1,0 +1,227 @@
+---
+import PublicNav from '@/components/PublicNav.astro';
+import PublicRulingCard from '@/components/PublicRulingCard.astro';
+import SiteFooter from '@/components/SiteFooter.astro';
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { listPublicCommandsForHeaders } from '@/server/rulings/service';
+import {
+  PUBLIC_COMMANDS_PATH,
+  buildPublicCommandsPagePath,
+  buildPublicCommandsPath,
+  getPublicCommandsSummary,
+  hasPublicCommandsParameters,
+  parsePublicCommandsQuery,
+} from '@/utils/publicCommands';
+
+const query = parsePublicCommandsQuery(Astro.url.searchParams);
+const normalizedCommandsPath = buildPublicCommandsPath(query);
+
+if (`${Astro.url.pathname}${Astro.url.search}` !== normalizedCommandsPath) {
+  return Astro.redirect(normalizedCommandsPath, 302);
+}
+
+const hasDiscoveryParameters = hasPublicCommandsParameters(
+  Astro.url.searchParams,
+);
+const commandsResult = await listPublicCommandsForHeaders(
+  query,
+  Astro.request.headers,
+);
+
+if (commandsResult.status === 'unavailable') {
+  Astro.response.status = 503;
+  Astro.response.headers.set('Cache-Control', 'no-store');
+}
+
+const isUnavailable = commandsResult.status === 'unavailable';
+const rulings = commandsResult.status === 'ok' ? commandsResult.rulings : [];
+const total = commandsResult.status === 'ok' ? commandsResult.total : 0;
+const totalPages =
+  commandsResult.status === 'ok' ? commandsResult.totalPages : 1;
+const hasResults = rulings.length > 0;
+const summary = getPublicCommandsSummary(total, query);
+const previousPagePath =
+  query.page > 1 ? buildPublicCommandsPagePath(query, query.page - 1) : null;
+const nextPagePath =
+  commandsResult.status === 'ok' && query.page < totalPages
+    ? buildPublicCommandsPagePath(query, query.page + 1)
+    : null;
+const firstPagePath = buildPublicCommandsPath({ ...query, page: 1 });
+const emptyTitle =
+  total === 0 && !query.search && query.decision === 'all'
+    ? 'Santa has not issued any public commands yet.'
+    : query.search
+      ? 'Santa could not find any commands matching that search.'
+      : query.decision === 'coal'
+        ? 'No coal rulings are available right now.'
+        : query.decision === 'approved'
+          ? 'No approved commands are available right now.'
+          : 'There are no commands on this page.';
+const isBeyondAvailableResults = total > 0 && !hasResults;
+---
+
+<BaseLayout
+  title="Santa’s Commands | Santa Commands It!"
+  description="Browse requests Santa has approved and requests that received coal."
+  canonicalPath={PUBLIC_COMMANDS_PATH}
+  robots={hasDiscoveryParameters ? 'noindex, follow' : undefined}
+>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <main id="main-content" class="commands-shell">
+    <PublicNav current="commands" />
+    <header class="commands-header">
+      <p class="commands-header__eyebrow">LATEST COMMANDS</p>
+      <h1>SANTA&apos;S COMMANDS</h1>
+      <p>Browse the requests Santa has approved—or answered with coal.</p>
+    </header>
+
+    <section class="commands-panel" aria-labelledby="commands-filter-title">
+      <h2 id="commands-filter-title">Find Commands</h2>
+      <form
+        class="commands-form"
+        action={PUBLIC_COMMANDS_PATH}
+        method="get"
+        role="search"
+      >
+        <div class="commands-form__field commands-form__field--search">
+          <label for="commands-search">Search public commands</label>
+          <input
+            id="commands-search"
+            name="q"
+            type="search"
+            value={query.search}
+            maxlength="80"
+            autocomplete="off"
+          />
+        </div>
+        <div class="commands-form__field">
+          <label for="commands-decision">Decision</label>
+          <select id="commands-decision" name="decision">
+            <option value="all" selected={query.decision === 'all'}>
+              All Commands
+            </option>
+            <option value="approved" selected={query.decision === 'approved'}>
+              Approved
+            </option>
+            <option value="coal" selected={query.decision === 'coal'}>
+              Coal
+            </option>
+          </select>
+        </div>
+        <div class="commands-form__field">
+          <label for="commands-sort">Sort</label>
+          <select id="commands-sort" name="sort">
+            <option value="newest" selected={query.sort === 'newest'}>
+              Newest First
+            </option>
+            <option value="oldest" selected={query.sort === 'oldest'}>
+              Oldest First
+            </option>
+          </select>
+        </div>
+        <div class="commands-form__actions">
+          <button class="button-command" type="submit">APPLY</button>
+          <a class="button-link-secondary" href={PUBLIC_COMMANDS_PATH}>
+            CLEAR FILTERS
+          </a>
+        </div>
+      </form>
+    </section>
+
+    <section class="commands-results" aria-labelledby="commands-results-title">
+      <div class="commands-results__heading">
+        <h2 id="commands-results-title">Public Rulings</h2>
+        {!isUnavailable && <p>{summary}</p>}
+      </div>
+
+      {
+        isUnavailable ? (
+          <div class="commands-empty" data-commands-error>
+            <h3>SANTA&apos;S COMMANDS ARE TEMPORARILY UNAVAILABLE.</h3>
+            <p>{commandsResult.message}</p>
+            <p>
+              <a class="text-link" href="/#request-form">
+                SUBMIT A REQUEST
+              </a>
+            </p>
+          </div>
+        ) : hasResults ? (
+          <ol class="commands-grid" data-commands-list>
+            {rulings.map((ruling) => (
+              <li>
+                <PublicRulingCard ruling={ruling} variant="browse" />
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <div class="commands-empty" data-commands-empty>
+            <h3>
+              {isBeyondAvailableResults
+                ? 'There are no commands on this page.'
+                : emptyTitle}
+            </h3>
+            <p>
+              {isBeyondAvailableResults
+                ? 'Return to the first page to keep browsing these results.'
+                : 'Try a different search, clear the filters, or ask Santa for a new command.'}
+            </p>
+            <p class="commands-empty__actions">
+              {isBeyondAvailableResults ? (
+                <a class="text-link" href={firstPagePath}>
+                  GO TO PAGE 1
+                </a>
+              ) : (
+                <a class="text-link" href={PUBLIC_COMMANDS_PATH}>
+                  CLEAR FILTERS
+                </a>
+              )}
+              <a class="button-link-secondary" href="/#request-form">
+                SUBMIT A REQUEST
+              </a>
+            </p>
+          </div>
+        )
+      }
+
+      {
+        !isUnavailable && totalPages > 1 && (
+          <nav class="commands-pagination" aria-label="Commands pagination">
+            {previousPagePath ? (
+              <a class="commands-pagination__link" href={previousPagePath}>
+                Previous
+              </a>
+            ) : (
+              <span class="commands-pagination__disabled">Previous</span>
+            )}
+            {Array.from({ length: totalPages }, (_, index) => index + 1).map(
+              (pageNumber) => (
+                <a
+                  class="commands-pagination__link"
+                  href={buildPublicCommandsPagePath(query, pageNumber)}
+                  aria-current={pageNumber === query.page ? 'page' : undefined}
+                >
+                  {pageNumber}
+                </a>
+              ),
+            )}
+            {nextPagePath ? (
+              <a class="commands-pagination__link" href={nextPagePath}>
+                Next
+              </a>
+            ) : (
+              <span class="commands-pagination__disabled">Next</span>
+            )}
+          </nav>
+        )
+      }
+    </section>
+
+    <section class="commands-cta" aria-labelledby="commands-cta-title">
+      <h2 id="commands-cta-title">Need a command of your own?</h2>
+      <p>Send one request to Santa and see what he decides.</p>
+      <a class="button-command" href="/#request-form">ASK SANTA</a>
+    </section>
+
+    <SiteFooter />
+  </main>
+</BaseLayout>

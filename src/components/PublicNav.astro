@@ -1,0 +1,27 @@
+---
+import { PUBLIC_COMMANDS_PATH } from '@/utils/publicCommands';
+
+interface Props {
+  current?: 'home' | 'commands';
+}
+
+const { current = 'home' } = Astro.props;
+---
+
+<nav class="public-nav" aria-label="Public navigation">
+  <a
+    href="/"
+    class:list={['public-nav__link', current === 'home' && 'is-current']}
+    aria-current={current === 'home' ? 'page' : undefined}
+  >
+    HOME
+  </a>
+  <a
+    href={PUBLIC_COMMANDS_PATH}
+    class:list={['public-nav__link', current === 'commands' && 'is-current']}
+    aria-current={current === 'commands' ? 'page' : undefined}
+  >
+    COMMANDS
+  </a>
+  <a class="public-nav__link" href="/#request-form">SUBMIT A REQUEST</a>
+</nav>

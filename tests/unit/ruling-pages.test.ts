@@ -74,6 +74,7 @@ describe('crawler boundaries', () => {
     expect(robots).toContain('Disallow: /workshop/');
     expect(robots).toContain('Disallow: /api');
     expect(robots).toContain('Disallow: /api/');
+    expect(robots).toContain('Allow: /commands');
     expect(robots).toContain('Allow: /rulings/');
     expect(robots).toContain('Allow: /rulings/*/og.png');
   });

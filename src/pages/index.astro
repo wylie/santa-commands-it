@@ -1,6 +1,7 @@
 ---
 import RequestForm from '@/components/RequestForm.astro';
 import RecentRulings from '@/components/RecentRulings.astro';
+import PublicNav from '@/components/PublicNav.astro';
 import SantaPortrait from '@/components/SantaPortrait.astro';
 import SantaSpeechBubble from '@/components/SantaSpeechBubble.astro';
 import SiteFooter from '@/components/SiteFooter.astro';
@@ -22,6 +23,7 @@ const recentRulingsResult = await listRecentRulingsForHeaders(
     <section class="hero" aria-labelledby="opening-panel-title">
       <div class="hero__left-rail">
         <h1 class="sr-only">Santa Commands It!</h1>
+        <PublicNav current="home" />
         <div class="hero__portrait">
           <SantaPortrait />
         </div>

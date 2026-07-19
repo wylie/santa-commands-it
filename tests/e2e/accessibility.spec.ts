@@ -103,6 +103,39 @@ test.describe('accessibility audit', () => {
     await expectNoSeriousViolations(page);
   });
 
+  test('Commands discovery states are free of serious axe violations', async ({
+    page,
+  }) => {
+    const { headers } = await configureSantaTestPage(page);
+    await createRulingViaApi(page, headers, {
+      name: 'Holly',
+      request: 'A brass telescope',
+    });
+
+    await page.goto('/commands');
+    await expectNoSeriousViolations(page);
+
+    await page.goto('/commands?q=telescope');
+    await expectNoSeriousViolations(page);
+
+    await page.goto('/commands?decision=coal');
+    await expectNoSeriousViolations(page);
+
+    await page.goto('/commands?q=no-match-value');
+    await expectNoSeriousViolations(page);
+  });
+
+  test('Commands unavailable state is free of serious axe violations', async ({
+    page,
+  }) => {
+    await configureSantaTestPage(page, {
+      scenario: 'commands-unavailable',
+    });
+    await page.goto('/commands');
+
+    await expectNoSeriousViolations(page);
+  });
+
   test('not-found page is free of serious axe violations', async ({ page }) => {
     await configureSantaTestPage(page);
     await page.goto('/rulings/not-a-valid-id');

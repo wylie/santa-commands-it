@@ -6,7 +6,11 @@ const { nameMaxLength, requestMaxLength } = REQUEST_LIMITS;
 const initialCount = formatCharacterCount(0, requestMaxLength);
 ---
 
-<section class="request-panel" aria-labelledby="request-panel-title">
+<section
+  id="request-form"
+  class="request-panel"
+  aria-labelledby="request-panel-title"
+>
   <h2 id="request-panel-title" class="sr-only">Ask Santa for something</h2>
   <form class="request-form" data-request-form novalidate>
     <div class="request-form__trap" aria-hidden="true">

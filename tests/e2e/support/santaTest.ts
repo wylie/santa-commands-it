@@ -12,7 +12,11 @@ export async function configureSantaTestPage(
     formElapsedMs?: number;
     requestTimeoutMs?: number;
     randomValue?: number;
-    scenario?: 'submit-error' | 'recent-unavailable' | 'report-error';
+    scenario?:
+      | 'submit-error'
+      | 'recent-unavailable'
+      | 'commands-unavailable'
+      | 'report-error';
     shareMode?: ShareMode;
     copyMode?: CopyMode;
     clientId?: string;

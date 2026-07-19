@@ -1,4 +1,5 @@
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, asc, count, desc, eq, ilike, inArray, or } from 'drizzle-orm';
+import type { SQL } from 'drizzle-orm';
 
 import { santaSettings } from '@/config/santa-settings';
 import {
@@ -7,6 +8,10 @@ import {
   type PersistedRulingDecision,
   type PublicRuling,
 } from '@/utils/rulings';
+import type {
+  PublicCommandsDiscoveryRuling,
+  PublicCommandsQuery,
+} from '@/utils/publicCommands';
 import { getDatabase } from '@/server/db/client';
 import { rulings } from '@/server/db/schema';
 
@@ -28,10 +33,21 @@ export type RulingReference = {
   publicId: string;
 };
 
+export type PublicRulingsDiscoveryResult = {
+  rulings: PublicCommandsDiscoveryRuling[];
+  total: number;
+  totalPages: number;
+  page: number;
+  pageSize: number;
+};
+
 export type RulingsRepository = {
   createRuling(input: CreateRulingInput): Promise<PublicRuling>;
   createStoredRuling(input: CreateRulingInput): Promise<StoredRuling>;
   listRecentRulings(limit?: number): Promise<PublicRuling[]>;
+  listPublicRulingsForDiscovery(
+    query: PublicCommandsQuery,
+  ): Promise<PublicRulingsDiscoveryResult>;
   getRulingByPublicId(publicId: string): Promise<PublicRuling | null>;
   getRulingReferenceByPublicId(
     publicId: string,
@@ -61,6 +77,39 @@ export function mapRulingRowToPublicRuling(row: PublicRulingRow): PublicRuling {
     santaResponse: row.santaResponse,
     createdAt: serializeCreatedAt(row.createdAt),
   };
+}
+
+function buildPublicDiscoveryWhere(query: PublicCommandsQuery): SQL {
+  const conditions: SQL[] = [
+    inArray(rulings.decision, ['approved', 'random-coal']),
+    eq(rulings.visibility, 'public'),
+  ];
+
+  if (query.decision === 'approved') {
+    conditions.push(eq(rulings.decision, 'approved'));
+  }
+
+  if (query.decision === 'coal') {
+    conditions.push(eq(rulings.decision, 'random-coal'));
+  }
+
+  if (query.search) {
+    const pattern = `%${query.search}%`;
+    const searchCondition = or(
+      ilike(rulings.displayName, pattern),
+      ilike(rulings.requestText, pattern),
+    );
+
+    if (searchCondition) {
+      conditions.push(searchCondition);
+    }
+  }
+
+  return and(...conditions) as SQL;
+}
+
+function mapDiscoveryRow(row: PublicRulingRow): PublicCommandsDiscoveryRuling {
+  return mapRulingRowToPublicRuling(row);
 }
 
 export function createDatabaseRulingsRepository(): RulingsRepository {
@@ -104,6 +153,43 @@ export function createDatabaseRulingsRepository(): RulingsRepository {
         .limit(limit);
 
       return rows.map(mapRulingRowToPublicRuling);
+    },
+    async listPublicRulingsForDiscovery(query) {
+      const database = getDatabase();
+      const where = buildPublicDiscoveryWhere(query);
+      const offset = (query.page - 1) * query.pageSize;
+      const orderBy =
+        query.sort === 'oldest'
+          ? [asc(rulings.createdAt), asc(rulings.id)]
+          : [desc(rulings.createdAt), desc(rulings.id)];
+
+      const [rows, [totalRow]] = await Promise.all([
+        database
+          .select({
+            id: rulings.id,
+            publicId: rulings.publicId,
+            displayName: rulings.displayName,
+            requestText: rulings.requestText,
+            decision: rulings.decision,
+            santaResponse: rulings.santaResponse,
+            createdAt: rulings.createdAt,
+          })
+          .from(rulings)
+          .where(where)
+          .orderBy(...orderBy)
+          .limit(query.pageSize)
+          .offset(offset),
+        database.select({ value: count() }).from(rulings).where(where),
+      ]);
+      const total = Number(totalRow?.value ?? 0);
+
+      return {
+        rulings: rows.map(mapDiscoveryRow),
+        total,
+        totalPages: Math.max(1, Math.ceil(total / query.pageSize)),
+        page: query.page,
+        pageSize: query.pageSize,
+      };
     },
     async getRulingByPublicId(publicId: string) {
       const database = getDatabase();

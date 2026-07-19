@@ -7,7 +7,11 @@ import { createTestSubmissionRepository } from '@/server/submissions/repository'
 import { isEndToEndTestMode } from '@/server/env';
 
 export type RulingsTestScenario =
-  'normal' | 'submit-error' | 'recent-unavailable' | 'report-error';
+  | 'normal'
+  | 'submit-error'
+  | 'recent-unavailable'
+  | 'commands-unavailable'
+  | 'report-error';
 
 export type RequestTestOptions = {
   randomValue?: number;
@@ -34,6 +38,7 @@ export function readRequestTestOptions(headers: Headers): RequestTestOptions {
   const scenario: RulingsTestScenario =
     scenarioHeader === 'submit-error' ||
     scenarioHeader === 'recent-unavailable' ||
+    scenarioHeader === 'commands-unavailable' ||
     scenarioHeader === 'report-error'
       ? scenarioHeader
       : 'normal';

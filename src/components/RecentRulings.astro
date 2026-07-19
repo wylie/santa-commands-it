@@ -1,11 +1,8 @@
 ---
 import { publicSantaUiSettings } from '@/config/public-santa-ui';
-import { buildRulingPath } from '@/utils/rulingPages';
-import {
-  formatRulingTimestamp,
-  getDecisionLabel,
-  type PublicRuling,
-} from '@/utils/rulings';
+import PublicRulingCard from '@/components/PublicRulingCard.astro';
+import { buildPublicCommandsPath } from '@/utils/publicCommands';
+import type { PublicRuling } from '@/utils/rulings';
 
 interface Props {
   rulings?: PublicRuling[];
@@ -24,6 +21,11 @@ const hasRulings = rulings.length > 0;
 >
   <div class="section-heading">
     <h2 id="recent-rulings-title">Santa&apos;s Latest Commands</h2>
+    <p>
+      <a class="text-link" href={buildPublicCommandsPath()}>
+        VIEW ALL COMMANDS
+      </a>
+    </p>
   </div>
 
   {
@@ -35,29 +37,7 @@ const hasRulings = rulings.length > 0;
       <ol class="recent-rulings__list" data-recent-list>
         {rulings.map((ruling) => (
           <li class="recent-rulings__item" data-ruling-id={ruling.publicId}>
-            <div class="recent-rulings__meta">
-              <p
-                class="recent-rulings__decision"
-                data-decision={ruling.decision}
-              >
-                {getDecisionLabel(ruling.decision)}
-              </p>
-              <time class="recent-rulings__time" datetime={ruling.createdAt}>
-                {formatRulingTimestamp(ruling.createdAt)}
-              </time>
-            </div>
-            <p class="recent-rulings__name">{ruling.displayName}</p>
-            <p class="recent-rulings__request">{ruling.requestText}</p>
-            <p class="recent-rulings__response">{ruling.santaResponse}</p>
-            <p class="recent-rulings__action">
-              <a
-                class="recent-rulings__link"
-                href={buildRulingPath(ruling.publicId)}
-                aria-label={`View and share Santa's ruling for ${ruling.displayName}`}
-              >
-                VIEW &amp; SHARE
-              </a>
-            </p>
+            <PublicRulingCard ruling={ruling} variant="compact" />
           </li>
         ))}
       </ol>
@@ -67,6 +47,11 @@ const hasRulings = rulings.length > 0;
         <p class="recent-rulings__note">
           Future approvals and coal decrees will appear here once the workshop
           ledger is ready.
+        </p>
+        <p>
+          <a class="text-link" href={buildPublicCommandsPath()}>
+            BROWSE COMMANDS
+          </a>
         </p>
       </div>
     )

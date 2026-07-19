@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 The format is inspired by Keep a Changelog, and this project adheres to Semantic Versioning.
 
+## [0.3.0] - 2026-07-19
+
+### Added
+
+- Public Commands browsing page at `/commands` for viewing published public rulings beyond the homepage feed
+- Public display-name and request-text search with server-side normalization and shareable query URLs
+- Approved and coal decision filtering, newest and oldest sorting, and fixed server-side pagination
+- Shared public ruling-card component used by the homepage Latest Commands section and the Commands page
+- Homepage `VIEW ALL COMMANDS` link, public navigation, Commands metadata, and static sitemap entry
+- Automated unit and Playwright coverage for discovery query parsing, public-safe repository behavior, empty/error states, accessibility, responsive behavior, sitemap behavior, and Workshop visibility integration
+
+### Changed
+
+- Public discovery queries now select only public-safe fields, apply visibility and decision filters in the database, and avoid exposing hidden rulings, reports, moderation data, or internal ids
+- Parameterized Commands URLs now emit `noindex, follow` and canonicalize to `/commands`
+
 ## [0.2.6] - 2026-07-19
 
 ### Changed
@@ -24,7 +40,7 @@ The format is inspired by Keep a Changelog, and this project adheres to Semantic
 
 ### Added
 
-- Dynamic Open Graph preview images for public ruling pages at `/rulings/[publicId]/og.png` with shared rendering logic, the canonical `public/images/santa.png` artwork, and distinct approved or coal treatments
+- Dynamic Open Graph preview images for public ruling pages at `/rulings/[publicId]/og.png` with shared rendering logic, the canonical `public/images/santa-solo.png` artwork, and distinct approved or coal treatments
 - Ruling-specific `og:image`, `og:image:width`, `og:image:height`, `og:image:type`, `og:image:alt`, `twitter:image`, and `twitter:card=summary_large_image` metadata on public ruling pages
 - A private workshop preview flow at `/workshop/rulings/[publicId]/share-preview` plus an authenticated preview image endpoint for hidden or public rulings
 - Deterministic text normalization, wrapping, and truncation utilities for share-image rendering safety across long input, emoji, and hostile plain-text content
@@ -134,7 +150,7 @@ The format is inspired by Keep a Changelog, and this project adheres to Semantic
 - Client-side submission and reporting flows now time out cleanly and preserve retry safety more reliably
 - Environment, deployment, preview, metadata, and production-readiness documentation were expanded for the full `v0.1.x` milestone
 - Submission persistence now uses a Neon HTTP-compatible atomic write path instead of an unsupported transaction call
-- The committed Santa PNG now renders directly from `/images/santa.png` in every environment without a runtime placeholder fallback
+- The committed Santa PNG now renders directly from `/images/santa-solo.png` in every environment without a runtime placeholder fallback
 
 ## [0.1.4] - 2026-07-15
 
@@ -203,6 +219,6 @@ The format is inspired by Keep a Changelog, and this project adheres to Semantic
 - Initial Astro project configuration with strict TypeScript, ESLint, Prettier, Vitest, and Playwright
 - Reusable design-token foundation for color, typography, spacing, layout, motion, and focus states
 - Responsive homepage with Santa portrait placement, speech bubble, introductory copy, and recent-rulings placeholder
-- Santa artwork integration using the canonical `public/images/santa.png` asset path
+- Santa artwork integration using the canonical `public/images/santa-solo.png` asset path
 - Accessible request-form shell with typed field limits, a live character counter, and a foundation-release status message
 - README, changelog, favicon, and project documentation for local setup and future roadmap
