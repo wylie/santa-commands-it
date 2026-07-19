@@ -1,10 +1,10 @@
 # Santa Commands It!
 
-`Santa Commands It!` is a theatrical holiday web application from Argon Collective LLC. Visitors ask Santa for something, the server makes the authoritative decision, completed rulings are stored in Neon Postgres, and approved or coal outcomes receive permanent public pages that can be shared directly. Version `0.2.4` continues the `v0.2.x` owner-administration milestone with dynamic social-preview images, private workshop preview tooling, and the existing owner dashboard, moderation, settings, and response-template controls.
+`Santa Commands It!` is a theatrical holiday web application from Argon Collective LLC. Visitors ask Santa for something, the server makes the authoritative decision, completed rulings are stored in Neon Postgres, and approved or coal outcomes receive permanent public pages that can be shared directly. Version `0.2.5` continues the `v0.2.x` owner-administration milestone with dynamic social-preview images, private workshop preview tooling, and the existing owner dashboard, moderation, settings, and response-template controls.
 
 ## Release
 
-- Current version: `v0.2.4`
+- Current version: `v0.2.5`
 - Current scope: the preserved public Santa experience plus a private `Santa's Workshop` owner area with secure single-owner authentication, server-side sessions, range-aware owner dashboard analytics, ruling visibility controls, a report-review queue, database-backed moderation rules, editable Santa settings, response-template management, dynamic ruling share images, and private audit activity
 
 Completed rulings persist across refreshes and can be revisited at permanent public URLs when they remain public. Blocked submissions are still rejected before any database write and never receive public pages, public reports can be submitted without exposing reporter details, and hidden rulings now return the same public not-found experience as unknown identifiers.
@@ -259,7 +259,7 @@ The Santa artwork is a required committed asset.
 - Canonical filesystem path: `public/images/santa-solo.png`
 - Canonical browser URL: `/images/santa-solo.png`
 - The homepage, public ruling pages, and dynamic share-image renderer all use that exact PNG path directly.
-- The previous `public/images/santa.png` asset has been removed and should not be reintroduced as a second canonical Santa file.
+- Previous non-canonical Santa assets and non-PNG Santa derivatives should not be reintroduced as second canonical Santa files.
 
 If the deployed site does not show Santa, verify that `/images/santa-solo.png` returns `200` with `image/png` and confirm the deployment includes the tracked file.
 
@@ -271,7 +271,7 @@ The repeating snow pattern is also a required committed asset.
 - Background browser URL: `/images/snow-black.png`
 - The site uses `background-repeat: repeat` with `--background-pattern-size: 400px`.
 - A translucent icy overlay sits above the pattern through layered CSS backgrounds so the snow remains decorative and text stays readable.
-- Dynamic ruling share images continue to use the Santa artwork directly and do not tile the snow background asset into the generated PNG.
+- Dynamic ruling share images use the Santa artwork directly and apply restrained decorative snow-pattern regions from this existing asset.
 - The pattern is decorative only. It is not exposed to assistive technology and does not carry any meaning on its own.
 
 ## Server-side submission flow
@@ -435,7 +435,7 @@ The production source of truth for moderation and editable Santa behavior is now
 - Final approved and coal outcomes live at `/rulings/[publicId]`.
 - The route uses the stored public identifier rather than the internal database key.
 - Each ruling page shows the visitor name, request, decision, stored Santa response, timestamp, and share actions.
-- Public ruling pages now emit absolute Open Graph and Twitter image metadata for the current ruling when a canonical origin can be resolved from `SITE_URL` or the current request.
+- Public ruling pages now emit absolute Open Graph and Twitter image metadata for the current ruling when a canonical origin can be resolved from `SITE_URL`, local development, or a Vercel preview deployment host.
 - Copy-link uses the canonical absolute ruling URL.
 - Native sharing uses the Web Share API when the browser supports it.
 - Unknown or invalid public identifiers return a friendly 404 experience.
@@ -449,7 +449,8 @@ Completed approved and coal rulings are public and accessible to anyone with the
 - Public pages emit `og:image`, `og:image:width=1200`, `og:image:height=630`, `og:image:type=image/png`, ruling-specific alt text, `twitter:image`, and `twitter:card=summary_large_image`.
 - Approved rulings use a clear `APPROVED BY SANTA` treatment and coal rulings use `SANTA CHOSE COAL`; the image never exposes report notes, hidden reasons, internal ids, or the configured random-coal percentage.
 - Canonical Santa artwork stays fixed at filesystem path `public/images/santa-solo.png` and browser URL `/images/santa-solo.png`.
-- The renderer uses the committed local Santa PNG and `@vercel/og` with its default server-side font behavior, so it does not fetch Google Fonts per image request.
+- The renderer uses `@vercel/og`, which is built on Satori and Resvg for server-side 1200 x 630 PNG responses in the Astro server routes deployed through the Vercel adapter. It loads the committed Santa PNG and snow PNG from the local filesystem, converts them to in-memory data URLs, and caches those reads at module scope for warm server instances.
+- The generated image uses `@vercel/og` default server-side font behavior rather than downloading Google Fonts per image request. This keeps rendering compatible with the current Astro and Vercel architecture, with the limitation that it visually approximates the public Germania One display font instead of depending on a runtime Google Fonts fetch.
 - Text is normalized as plain text only, wraps deterministically, truncates with ellipses when necessary, and handles long unbroken strings without horizontal overflow.
 - Successful public image responses use short shared caching with stale-while-revalidate, not immutable caching. Hidden, deleted, malformed, missing, and renderer-failure responses return `no-store`.
 - Remote platforms may continue showing a previously cached social image until their own cache expires or is refreshed; hiding or deleting a ruling does not guarantee immediate third-party removal.
@@ -460,6 +461,17 @@ Completed approved and coal rulings are public and accessible to anyone with the
 - The preview page is private, `noindex`, and `no-store`, and it shows the rendered image, metadata title, metadata description, image alt text, visibility status, canonical ruling URL, and the public image URL only when the ruling is still public.
 - Hidden rulings render through the authenticated preview image route `/workshop/rulings/[publicId]/share-preview.png` and never expose the public `og.png` URL as an active share target.
 - The preview flow intentionally omits editing controls and download controls.
+
+## Local social-preview testing
+
+1. Start the development server with `npm run dev`.
+2. Create or use a valid public ruling.
+3. Open `/rulings/[publicId]` and inspect the page source for `og:image`, dimensions, type, alt text, `twitter:image`, and `twitter:card`.
+4. Open `/rulings/[publicId]/og.png` directly and confirm it returns PNG bytes with `Content-Type: image/png`.
+5. Sign in to Santa's Workshop and open `/workshop/rulings/[publicId]/share-preview`.
+6. Confirm the private preview image, metadata title, description, image alt text, visibility, and public image URL behavior.
+7. Run `npm run build` and preview the production build.
+8. Optionally verify the same ruling URL through a Vercel preview deployment and remember social platforms may cache previews independently.
 
 ## Public reporting
 

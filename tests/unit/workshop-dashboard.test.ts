@@ -154,12 +154,14 @@ describe('workshop dashboard data', () => {
     expect(dashboard.trend.status).toBe('ready');
     expect(dashboard.reports.status).toBe('ready');
     expect(dashboard.configuration.status).toBe('ready');
+    expect(dashboard.health.status).toBe('ready');
 
     if (
       dashboard.overview.status !== 'ready' ||
       dashboard.trend.status !== 'ready' ||
       dashboard.reports.status !== 'ready' ||
-      dashboard.configuration.status !== 'ready'
+      dashboard.configuration.status !== 'ready' ||
+      dashboard.health.status !== 'ready'
     ) {
       throw new Error('Expected ready dashboard sections.');
     }
@@ -193,6 +195,15 @@ describe('workshop dashboard data', () => {
     });
     expect(dashboard.configuration.data.moderation.inactiveRules).toBe(1);
     expect(dashboard.configuration.data.templates.inactiveTemplates).toBe(1);
+    expect(
+      dashboard.health.data.checks.find(
+        (check) => check.label === 'Santa artwork asset',
+      ),
+    ).toMatchObject({
+      status: 'healthy',
+      detail:
+        'The canonical public Santa artwork exists at /images/santa-solo.png and is PNG image data.',
+    });
     expect(dashboard.trend.data).toHaveLength(30);
     expect(
       dashboard.trend.data.find((point) => point.bucketKey === '2026-07-17'),

@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is inspired by Keep a Changelog, and this project adheres to Semantic Versioning.
 
+## [0.2.5] - 2026-07-18
+
+### Changed
+
+- Dynamic ruling Open Graph images now use the canonical `public/images/santa-solo.png` artwork and the existing `public/images/snow-black.png` pattern treatment without external asset fetches
+- Share-image text preparation now strips unsafe control and bidirectional control characters while preserving ordinary Unicode and emoji content
+- Documentation and tests now cover the PNG Santa asset path, `@vercel/og` server rendering, cache behavior, Workshop previews, and third-party social cache limits
+
 ## [0.2.4] - 2026-07-18
 
 ### Added

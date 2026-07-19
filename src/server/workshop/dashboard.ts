@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import { getConfigurationRepositoryForHeaders } from '@/server/config/test-mode';
@@ -245,6 +245,23 @@ type CalendarMonthParts = {
 const santaArtworkPath = fileURLToPath(
   new URL('../../../public/images/santa-solo.png', import.meta.url),
 );
+const PNG_FILE_SIGNATURE = Buffer.from([
+  0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+]);
+
+function isCanonicalSantaArtworkPng(): boolean {
+  if (!existsSync(santaArtworkPath)) {
+    return false;
+  }
+
+  try {
+    return readFileSync(santaArtworkPath)
+      .subarray(0, PNG_FILE_SIGNATURE.length)
+      .equals(PNG_FILE_SIGNATURE);
+  } catch {
+    return false;
+  }
+}
 
 function getDashboardRangeConfig(range: WorkshopDashboardRange) {
   return (
@@ -927,12 +944,14 @@ async function buildHealthSection(
     href: null,
   });
 
+  const santaArtworkIsValidPng = isCanonicalSantaArtworkPng();
+
   checks.push({
     label: 'Santa artwork asset',
-    status: existsSync(santaArtworkPath) ? 'healthy' : 'needs-attention',
-    detail: existsSync(santaArtworkPath)
-      ? 'The canonical public Santa artwork exists at /images/santa-solo.png.'
-      : 'The canonical Santa artwork is missing from public/images/santa-solo.png.',
+    status: santaArtworkIsValidPng ? 'healthy' : 'needs-attention',
+    detail: santaArtworkIsValidPng
+      ? 'The canonical public Santa artwork exists at /images/santa-solo.png and is PNG image data.'
+      : 'The canonical Santa artwork is missing from public/images/santa-solo.png or is not PNG image data.',
     href: null,
   });
 

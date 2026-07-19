@@ -143,6 +143,21 @@ describe('ruling metadata', () => {
     ).toBe(`http://127.0.0.1:4321/rulings/${approvedRuling.publicId}`);
   });
 
+  it('falls back to Vercel preview request URLs without trusting arbitrary hosts', () => {
+    expect(
+      buildCanonicalUrl(buildRulingPath(approvedRuling.publicId), {
+        requestUrl: 'https://santa-commands-it-git-main.vercel.app/elsewhere',
+      }),
+    ).toBe(
+      `https://santa-commands-it-git-main.vercel.app/rulings/${approvedRuling.publicId}`,
+    );
+    expect(
+      buildCanonicalUrl(buildRulingPath(approvedRuling.publicId), {
+        requestUrl: 'https://attacker.example/elsewhere',
+      }),
+    ).toBeNull();
+  });
+
   it('returns null when no canonical origin is available', () => {
     expect(buildCanonicalUrl('/rulings/example')).toBeNull();
   });

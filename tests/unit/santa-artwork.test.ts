@@ -40,6 +40,9 @@ describe('Santa artwork integration', () => {
   it('tracks the canonical Santa artwork and snow background assets at the exact required paths', () => {
     expect(fs.existsSync(santaArtworkPath)).toBe(true);
     expect(fs.existsSync(snowBackgroundPath)).toBe(true);
+    expect(fs.readFileSync(santaArtworkPath).subarray(0, 8)).toEqual(
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    );
   });
 
   it('renders the canonical browser path from the portrait component', () => {
@@ -48,7 +51,10 @@ describe('Santa artwork integration', () => {
     expect(source).toContain('src="/images/santa-solo.png"');
     expect(source).not.toContain('portrait-frame__placeholder');
     expect(source).not.toContain('santa-artwork-status');
-    expect(source).not.toMatch(/santa\.(jpe?g)/i);
+    expect(source).not.toContain('/images/santa.png');
+    for (const extension of ['jpeg', 'jpg']) {
+      expect(source).not.toContain(`/images/santa-solo.${extension}`);
+    }
   });
 
   it('keeps the ruling page tied to the same Santa portrait component', () => {

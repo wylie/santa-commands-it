@@ -11,7 +11,26 @@ const PUBLIC_RULING_ID_PATTERN =
 const DEFAULT_METADATA_LENGTH = 160;
 
 function normalizeTextForMetadata(value: string): string {
-  return value.replace(/\s+/g, ' ').trim();
+  return Array.from(value.replace(/\r\n?/g, '\n'))
+    .filter((character) => {
+      const codePoint = character.codePointAt(0) ?? 0;
+      const isUnsafeControl =
+        (codePoint >= 0x00 && codePoint <= 0x08) ||
+        codePoint === 0x0b ||
+        codePoint === 0x0c ||
+        (codePoint >= 0x0e && codePoint <= 0x1f) ||
+        codePoint === 0x7f;
+      const isBidirectionalControl =
+        codePoint === 0x200e ||
+        codePoint === 0x200f ||
+        (codePoint >= 0x202a && codePoint <= 0x202e) ||
+        (codePoint >= 0x2066 && codePoint <= 0x2069);
+
+      return !isUnsafeControl && !isBidirectionalControl;
+    })
+    .join('')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function resolveUrlOrigin(
@@ -26,6 +45,29 @@ function resolveUrlOrigin(
   } catch {
     return null;
   }
+}
+
+function isSafeRequestOriginFallback(origin: string): boolean {
+  const { hostname } = new URL(origin);
+
+  return (
+    hostname === 'localhost' ||
+    hostname === '127.0.0.1' ||
+    hostname === '::1' ||
+    hostname.endsWith('.vercel.app')
+  );
+}
+
+function resolveRequestFallbackOrigin(
+  value: string | URL | null | undefined,
+): string | null {
+  const origin = resolveUrlOrigin(value);
+
+  if (!origin || !isSafeRequestOriginFallback(origin)) {
+    return null;
+  }
+
+  return origin;
 }
 
 export type RulingSharePayload = {
@@ -98,7 +140,8 @@ export function buildCanonicalUrl(
   } = {},
 ): string | null {
   const origin =
-    resolveUrlOrigin(options.siteUrl) ?? resolveUrlOrigin(options.requestUrl);
+    resolveUrlOrigin(options.siteUrl) ??
+    resolveRequestFallbackOrigin(options.requestUrl);
 
   if (!origin) {
     return null;
@@ -108,28 +151,33 @@ export function buildCanonicalUrl(
 }
 
 export function buildRulingPageTitle(ruling: PublicRuling): string {
+  const displayName = truncateMetadataText(ruling.displayName, 64);
+
   return ruling.decision === 'approved'
-    ? `Santa Commands It! - ${ruling.displayName}'s Request`
-    : `Coal from Santa - ${ruling.displayName}'s Request`;
+    ? `Santa Commands It! - ${displayName}'s Request`
+    : `Coal from Santa - ${displayName}'s Request`;
 }
 
 export function buildRulingPageDescription(
   ruling: PublicRuling,
   maxLength = DEFAULT_METADATA_LENGTH,
 ): string {
+  const displayName = truncateMetadataText(ruling.displayName, 56);
   const requestSnippet = truncateMetadataText(ruling.requestText, 88);
   const summary =
     ruling.decision === 'approved'
-      ? `${ruling.displayName} asked Santa for ${requestSnippet}. Santa approved it with "Santa Commands It!"`
-      : `${ruling.displayName} asked Santa for ${requestSnippet}. Santa answered with coal.`;
+      ? `${displayName} asked Santa for ${requestSnippet}. Santa approved it with "Santa Commands It!"`
+      : `${displayName} asked Santa for ${requestSnippet}. Santa answered with coal.`;
 
   return truncateMetadataText(summary, maxLength);
 }
 
 export function buildRulingOgImageAlt(ruling: PublicRuling): string {
+  const displayName = truncateMetadataText(ruling.displayName, 56);
+
   return ruling.decision === 'approved'
-    ? `Santa approved ${ruling.displayName}\u2019s request with "Santa Commands It!"`
-    : `Santa chose coal for ${ruling.displayName}\u2019s request.`;
+    ? `Santa approved ${displayName}\u2019s request with "Santa Commands It!"`
+    : `Santa chose coal for ${displayName}\u2019s request.`;
 }
 
 export function buildRulingSharePayload(

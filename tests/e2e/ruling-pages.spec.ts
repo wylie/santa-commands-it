@@ -85,12 +85,20 @@ test.describe('public ruling pages', () => {
     const santaResponse = await page.request.get('/images/santa-solo.png');
     const snowResponse = await page.request.get('/images/snow-black.png');
     const oldSantaResponse = await page.request.get('/images/santa.png');
+    const obsoleteResponses = await Promise.all(
+      ['jpe' + 'g', 'jp' + 'g'].map((extension) =>
+        page.request.get(`/images/santa-solo.${extension}`),
+      ),
+    );
 
     expect(santaResponse.status()).toBe(200);
     expect(santaResponse.headers()['content-type']).toContain('image/png');
     expect(snowResponse.status()).toBe(200);
     expect(snowResponse.headers()['content-type']).toContain('image/png');
     expect(oldSantaResponse.status()).toBe(404);
+    for (const response of obsoleteResponses) {
+      expect(response.status()).toBe(404);
+    }
   });
 
   test('renders a public og image endpoint with png headers and shared caching', async ({

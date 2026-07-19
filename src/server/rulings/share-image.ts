@@ -9,7 +9,9 @@ import {
   RULING_SHARE_IMAGE_PRIVATE_CACHE_CONTROL,
   RULING_SHARE_IMAGE_PUBLIC_CACHE_CONTROL,
   RULING_SHARE_IMAGE_TYPE,
+  SANTA_ARTWORK_IMAGE_TYPE,
   RULING_SHARE_IMAGE_WIDTH,
+  SNOW_PATTERN_IMAGE_TYPE,
   SANTA_ARTWORK_BROWSER_PATH,
 } from '@/config/share-images';
 import type { PublicRuling } from '@/utils/rulings';
@@ -19,6 +21,12 @@ const SANTA_ARTWORK_FILE_PATH = path.join(
   'public',
   'images',
   'santa-solo.png',
+);
+const SNOW_PATTERN_FILE_PATH = path.join(
+  process.cwd(),
+  'public',
+  'images',
+  'snow-black.png',
 );
 const SUCCESS_HEADERS = {
   'content-type': RULING_SHARE_IMAGE_TYPE,
@@ -31,6 +39,7 @@ const ERROR_HEADERS = {
 } as const;
 
 let santaArtworkDataUrlPromise: Promise<string> | null = null;
+let snowPatternDataUrlPromise: Promise<string> | null = null;
 
 export type ShareImageVariant = 'short' | 'medium' | 'long';
 export type ShareImageVisibility = 'public' | 'hidden';
@@ -106,6 +115,17 @@ function isDisallowedControlCharacter(character: string): boolean {
   );
 }
 
+function isBidirectionalControlCharacter(character: string): boolean {
+  const codePoint = character.codePointAt(0) ?? 0;
+
+  return (
+    codePoint === 0x200e ||
+    codePoint === 0x200f ||
+    (codePoint >= 0x202a && codePoint <= 0x202e) ||
+    (codePoint >= 0x2066 && codePoint <= 0x2069)
+  );
+}
+
 function truncateWithEllipsis(value: string, maxLength: number): string {
   const characters = splitCharacters(value);
 
@@ -139,10 +159,12 @@ function splitToken(token: string, maxCharsPerLine: number): string[] {
 }
 
 export function normalizeShareImageText(value: string): string {
-  return value
-    .replace(/\r\n?/g, '\n')
-    .split('')
-    .filter((character) => !isDisallowedControlCharacter(character))
+  return Array.from(value.replace(/\r\n?/g, '\n'))
+    .filter(
+      (character) =>
+        !isDisallowedControlCharacter(character) &&
+        !isBidirectionalControlCharacter(character),
+    )
     .join('')
     .replace(/\t/g, ' ')
     .split('\n')
@@ -284,11 +306,23 @@ async function getSantaArtworkDataUrl(): Promise<string> {
     santaArtworkDataUrlPromise = fs
       .readFile(SANTA_ARTWORK_FILE_PATH)
       .then((file) => {
-        return `data:${RULING_SHARE_IMAGE_TYPE};base64,${file.toString('base64')}`;
+        return `data:${SANTA_ARTWORK_IMAGE_TYPE};base64,${file.toString('base64')}`;
       });
   }
 
   return santaArtworkDataUrlPromise;
+}
+
+async function getSnowPatternDataUrl(): Promise<string> {
+  if (!snowPatternDataUrlPromise) {
+    snowPatternDataUrlPromise = fs
+      .readFile(SNOW_PATTERN_FILE_PATH)
+      .then((file) => {
+        return `data:${SNOW_PATTERN_IMAGE_TYPE};base64,${file.toString('base64')}`;
+      });
+  }
+
+  return snowPatternDataUrlPromise;
 }
 
 function getNameFontSize(variant: ShareImageVariant): number {
@@ -347,6 +381,7 @@ function createTextLines(
 function createShareImageElement(
   prepared: PreparedRulingShareImage,
   santaArtworkDataUrl: string,
+  snowPatternDataUrl: string,
 ): ReactElement {
   const { treatment } = prepared;
 
@@ -366,27 +401,31 @@ function createShareImageElement(
         padding: '42px',
       },
     },
-    createElement('div', {
+    ...[0, 1, 2, 3].map((index) =>
+      createElement('img', {
+        key: `snow-left-${index}`,
+        src: snowPatternDataUrl,
+        alt: '',
+        width: 250,
+        height: 250,
+        style: {
+          position: 'absolute',
+          left: `${index % 2 === 0 ? -32 : 188}px`,
+          top: `${-28 + Math.floor(index / 2) * 232}px`,
+          opacity: 0.13,
+        },
+      }),
+    ),
+    createElement('img', {
+      src: snowPatternDataUrl,
+      alt: '',
+      width: 230,
+      height: 230,
       style: {
         position: 'absolute',
-        right: '-140px',
-        top: '-110px',
-        width: '360px',
-        height: '360px',
-        borderRadius: '9999px',
-        background: 'rgba(255, 255, 255, 0.34)',
-        border: '2px solid rgba(120, 156, 168, 0.14)',
-      },
-    }),
-    createElement('div', {
-      style: {
-        position: 'absolute',
-        left: '-120px',
-        bottom: '-170px',
-        width: '390px',
-        height: '390px',
-        borderRadius: '9999px',
-        background: 'rgba(28, 78, 61, 0.08)',
+        right: '34px',
+        top: '26px',
+        opacity: 0.08,
       },
     }),
     createElement(
@@ -442,7 +481,7 @@ function createShareImageElement(
               {
                 style: {
                   fontSize: '18px',
-                  letterSpacing: '0.22em',
+                  letterSpacing: 0,
                   fontWeight: 700,
                   color: '#294146',
                 },
@@ -492,12 +531,12 @@ function createShareImageElement(
             {
               style: {
                 fontSize: '15px',
-                letterSpacing: '0.16em',
+                letterSpacing: 0,
                 fontWeight: 700,
                 color: '#c8e3e7',
               },
             },
-            'BUILT FOR SHARING',
+            'A PROJECT FROM',
           ),
           createElement(
             'span',
@@ -508,17 +547,6 @@ function createShareImageElement(
               },
             },
             'Argon Collective LLC',
-          ),
-          createElement(
-            'span',
-            {
-              style: {
-                fontSize: '16px',
-                lineHeight: 1.35,
-                color: '#d9ecee',
-              },
-            },
-            `Canonical Santa artwork: ${SANTA_ARTWORK_BROWSER_PATH}`,
           ),
         ),
       ),
@@ -556,7 +584,7 @@ function createShareImageElement(
               {
                 style: {
                   fontSize: '18px',
-                  letterSpacing: '0.18em',
+                  letterSpacing: 0,
                   fontWeight: 700,
                   color: '#466166',
                 },
@@ -570,7 +598,7 @@ function createShareImageElement(
                   margin: 0,
                   fontSize: treatment.tone === 'approved' ? '74px' : '80px',
                   lineHeight: 0.95,
-                  letterSpacing: '-0.04em',
+                  letterSpacing: 0,
                   color: '#14343b',
                 },
               },
@@ -598,7 +626,7 @@ function createShareImageElement(
                     color: treatment.accentText,
                     fontSize: '22px',
                     fontWeight: 800,
-                    letterSpacing: '0.04em',
+                    letterSpacing: 0,
                   },
                 },
                 treatment.decisionLabel,
@@ -617,7 +645,7 @@ function createShareImageElement(
                         color: '#294146',
                         fontSize: '22px',
                         fontWeight: 800,
-                        letterSpacing: '0.04em',
+                        letterSpacing: 0,
                       },
                     },
                     'PRIVATE HIDDEN PREVIEW',
@@ -644,7 +672,7 @@ function createShareImageElement(
               {
                 style: {
                   fontSize: '16px',
-                  letterSpacing: '0.14em',
+                  letterSpacing: 0,
                   fontWeight: 700,
                   color: '#4a666d',
                 },
@@ -692,7 +720,7 @@ function createShareImageElement(
               {
                 style: {
                   fontSize: '17px',
-                  letterSpacing: '0.16em',
+                  letterSpacing: 0,
                   fontWeight: 700,
                   color: '#516b72',
                 },
@@ -729,7 +757,7 @@ function createShareImageElement(
               {
                 style: {
                   fontSize: '17px',
-                  letterSpacing: '0.16em',
+                  letterSpacing: 0,
                   fontWeight: 700,
                   color: '#c0dde2',
                 },
@@ -776,10 +804,13 @@ export async function renderRulingShareImage(
   const prepared = prepareRulingShareImage(ruling, {
     visibility: options.visibility,
   });
-  const santaArtworkDataUrl = await getSantaArtworkDataUrl();
+  const [santaArtworkDataUrl, snowPatternDataUrl] = await Promise.all([
+    getSantaArtworkDataUrl(),
+    getSnowPatternDataUrl(),
+  ]);
 
   return new ImageResponse(
-    createShareImageElement(prepared, santaArtworkDataUrl),
+    createShareImageElement(prepared, santaArtworkDataUrl, snowPatternDataUrl),
     {
       width: RULING_SHARE_IMAGE_WIDTH,
       height: RULING_SHARE_IMAGE_HEIGHT,
@@ -799,4 +830,5 @@ export {
   RULING_SHARE_IMAGE_WIDTH,
   SANTA_ARTWORK_BROWSER_PATH,
   SANTA_ARTWORK_FILE_PATH,
+  SNOW_PATTERN_FILE_PATH,
 };

@@ -29,6 +29,12 @@ describe('share image text shaping', () => {
     ).toBe('Holly asked for a brass telescope');
   });
 
+  it('strips bidirectional controls without removing ordinary unicode text', () => {
+    expect(normalizeShareImageText('Holly \u202Easked 🎁 北極')).toBe(
+      'Holly asked 🎁 北極',
+    );
+  });
+
   it('wraps long unbroken strings deterministically within the requested limit', () => {
     const lines = wrapShareImageText('northpole'.repeat(6), {
       maxCharsPerLine: 12,
@@ -81,6 +87,11 @@ describe('share image treatment and responses', () => {
       RULING_SHARE_IMAGE_PUBLIC_CACHE_CONTROL,
     );
     expect(response.headers.get('x-content-type-options')).toBe('nosniff');
+
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    expect(Array.from(bytes.slice(0, 8))).toEqual([
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+    ]);
   });
 
   it('keeps error responses out of caches and out of image/png mime types', () => {

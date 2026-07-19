@@ -20,13 +20,21 @@ test.describe('Santa Commands It homepage', () => {
     const backgroundDetails = await page.evaluate(() => {
       const styles = window.getComputedStyle(document.body);
 
+      const obsoleteExtensions = ['jpeg', 'jpg'];
+
       return {
         image: styles.backgroundImage,
         repeat: styles.backgroundRepeat,
         size: styles.backgroundSize,
         oldSantaRequested: performance
           .getEntriesByType('resource')
-          .some((entry) => entry.name.includes('/images/santa.png')),
+          .some(
+            (entry) =>
+              entry.name.includes('/images/santa.png') ||
+              obsoleteExtensions.some((extension) =>
+                entry.name.includes(`/images/santa-solo.${extension}`),
+              ),
+          ),
       };
     });
 
