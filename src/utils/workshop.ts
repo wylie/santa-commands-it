@@ -18,6 +18,8 @@ export type OwnerActivityAction =
   | 'ruling-hidden'
   | 'ruling-restored'
   | 'ruling-deleted'
+  | 'ruling-featured'
+  | 'ruling-unfeatured'
   | 'report-reviewed'
   | 'report-dismissed'
   | 'report-reopened'
@@ -60,6 +62,8 @@ export type WorkshopRulingSummary = {
   decision: PersistedRulingDecision;
   santaResponse: string;
   visibility: RulingVisibility;
+  isFeatured: boolean;
+  featuredAt: string | null;
   hiddenAt: string | null;
   hiddenReason: string | null;
   createdAt: string;
@@ -75,6 +79,7 @@ export type WorkshopDashboardMetrics = {
   approvedRulings: number;
   coalRulings: number;
   hiddenRulings: number;
+  featuredRulings: number;
   openReports: number;
   reviewedReports: number;
   actionedReportsLast7Days: number;
@@ -166,6 +171,10 @@ export function getOwnerActivityLabel(action: OwnerActivityAction): string {
       return 'Ruling restored';
     case 'ruling-deleted':
       return 'Ruling deleted';
+    case 'ruling-featured':
+      return 'Ruling featured';
+    case 'ruling-unfeatured':
+      return 'Ruling unfeatured';
     case 'report-reviewed':
       return 'Report reviewed';
     case 'report-dismissed':

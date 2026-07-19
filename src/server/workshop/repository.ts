@@ -96,6 +96,17 @@ export type WorkshopRepository = {
     reason: string | null,
     now: Date,
   ): Promise<'not-found' | 'already-hidden' | WorkshopRulingDetail>;
+  setRulingFeatured(
+    publicId: string,
+    featured: boolean,
+    now: Date,
+  ): Promise<
+    | 'not-found'
+    | 'hidden'
+    | 'already-featured'
+    | 'already-unfeatured'
+    | WorkshopRulingDetail
+  >;
   restoreRuling(
     publicId: string,
   ): Promise<'not-found' | 'already-public' | WorkshopRulingDetail>;
@@ -126,6 +137,8 @@ function mapWorkshopRulingRow(row: WorkshopRulingRow): WorkshopRulingSummary {
     decision: row.decision,
     santaResponse: row.santaResponse,
     visibility: row.visibility,
+    isFeatured: row.isFeatured,
+    featuredAt: serializeOptionalTimestamp(row.featuredAt),
     hiddenAt: serializeOptionalTimestamp(row.hiddenAt),
     hiddenReason: row.hiddenReason,
     createdAt: serializeCreatedAt(row.createdAt),
@@ -313,6 +326,7 @@ export function createDatabaseWorkshopRepository(): WorkshopRepository {
         approvedRulings,
         coalRulings,
         hiddenRulings,
+        featuredRulings,
         openReports,
         reviewedReports,
         actionedReportsLast7Days,
@@ -331,6 +345,12 @@ export function createDatabaseWorkshopRepository(): WorkshopRepository {
           .select({ value: count() })
           .from(rulings)
           .where(eq(rulings.visibility, 'hidden')),
+        database
+          .select({ value: count() })
+          .from(rulings)
+          .where(
+            and(eq(rulings.isFeatured, true), eq(rulings.visibility, 'public')),
+          ),
         database
           .select({ value: count() })
           .from(rulingReports)
@@ -368,6 +388,7 @@ export function createDatabaseWorkshopRepository(): WorkshopRepository {
         approvedRulings: Number(approvedRulings[0]?.value ?? 0),
         coalRulings: Number(coalRulings[0]?.value ?? 0),
         hiddenRulings: Number(hiddenRulings[0]?.value ?? 0),
+        featuredRulings: Number(featuredRulings[0]?.value ?? 0),
         openReports: Number(openReports[0]?.value ?? 0),
         reviewedReports: Number(reviewedReports[0]?.value ?? 0),
         actionedReportsLast7Days: Number(
@@ -388,13 +409,18 @@ export function createDatabaseWorkshopRepository(): WorkshopRepository {
           currentCoalRulings: string;
           currentPublicRulings: string;
           currentHiddenRulings: string;
+          currentFeaturedRulings: string;
         }>`
           select
             count(*)::text as "currentTotalRulings",
             count(*) filter (where ${rulings.decision} = 'approved')::text as "currentApprovedRulings",
             count(*) filter (where ${rulings.decision} = 'random-coal')::text as "currentCoalRulings",
             count(*) filter (where ${rulings.visibility} = 'public')::text as "currentPublicRulings",
-            count(*) filter (where ${rulings.visibility} = 'hidden')::text as "currentHiddenRulings"
+            count(*) filter (where ${rulings.visibility} = 'hidden')::text as "currentHiddenRulings",
+            count(*) filter (
+              where ${rulings.isFeatured} = true
+                and ${rulings.visibility} = 'public'
+            )::text as "currentFeaturedRulings"
           from ${rulings}
           where ${rulings.createdAt} < ${window.currentEnd}
         `);
@@ -405,6 +431,7 @@ export function createDatabaseWorkshopRepository(): WorkshopRepository {
               currentCoalRulings: string;
               currentPublicRulings: string;
               currentHiddenRulings: string;
+              currentFeaturedRulings: string;
             }
           | undefined;
 
@@ -415,6 +442,7 @@ export function createDatabaseWorkshopRepository(): WorkshopRepository {
             coalRulings: parseCount(row?.currentCoalRulings),
             publicRulings: parseCount(row?.currentPublicRulings),
             hiddenRulings: parseCount(row?.currentHiddenRulings),
+            featuredRulings: parseCount(row?.currentFeaturedRulings),
           },
           previous: null,
         };
@@ -428,11 +456,13 @@ export function createDatabaseWorkshopRepository(): WorkshopRepository {
         currentCoalRulings: string;
         currentPublicRulings: string;
         currentHiddenRulings: string;
+        currentFeaturedRulings: string;
         previousTotalRulings: string;
         previousApprovedRulings: string;
         previousCoalRulings: string;
         previousPublicRulings: string;
         previousHiddenRulings: string;
+        previousFeaturedRulings: string;
       }>`
         select
           count(*) filter (
@@ -460,6 +490,12 @@ export function createDatabaseWorkshopRepository(): WorkshopRepository {
               and ${rulings.visibility} = 'hidden'
           )::text as "currentHiddenRulings",
           count(*) filter (
+            where ${rulings.createdAt} >= ${window.currentStart}
+              and ${rulings.createdAt} < ${window.currentEnd}
+              and ${rulings.isFeatured} = true
+              and ${rulings.visibility} = 'public'
+          )::text as "currentFeaturedRulings",
+          count(*) filter (
             where ${rulings.createdAt} >= ${previousStart}
               and ${rulings.createdAt} < ${previousEnd}
           )::text as "previousTotalRulings",
@@ -482,7 +518,13 @@ export function createDatabaseWorkshopRepository(): WorkshopRepository {
             where ${rulings.createdAt} >= ${previousStart}
               and ${rulings.createdAt} < ${previousEnd}
               and ${rulings.visibility} = 'hidden'
-          )::text as "previousHiddenRulings"
+          )::text as "previousHiddenRulings",
+          count(*) filter (
+            where ${rulings.createdAt} >= ${previousStart}
+              and ${rulings.createdAt} < ${previousEnd}
+              and ${rulings.isFeatured} = true
+              and ${rulings.visibility} = 'public'
+          )::text as "previousFeaturedRulings"
         from ${rulings}
       `);
       const row = result.rows[0] as
@@ -492,11 +534,13 @@ export function createDatabaseWorkshopRepository(): WorkshopRepository {
             currentCoalRulings: string;
             currentPublicRulings: string;
             currentHiddenRulings: string;
+            currentFeaturedRulings: string;
             previousTotalRulings: string;
             previousApprovedRulings: string;
             previousCoalRulings: string;
             previousPublicRulings: string;
             previousHiddenRulings: string;
+            previousFeaturedRulings: string;
           }
         | undefined;
 
@@ -507,6 +551,7 @@ export function createDatabaseWorkshopRepository(): WorkshopRepository {
           coalRulings: parseCount(row?.currentCoalRulings),
           publicRulings: parseCount(row?.currentPublicRulings),
           hiddenRulings: parseCount(row?.currentHiddenRulings),
+          featuredRulings: parseCount(row?.currentFeaturedRulings),
         },
         previous: {
           totalRulings: parseCount(row?.previousTotalRulings),
@@ -514,6 +559,7 @@ export function createDatabaseWorkshopRepository(): WorkshopRepository {
           coalRulings: parseCount(row?.previousCoalRulings),
           publicRulings: parseCount(row?.previousPublicRulings),
           hiddenRulings: parseCount(row?.previousHiddenRulings),
+          featuredRulings: parseCount(row?.previousFeaturedRulings),
         },
       };
     },
@@ -534,6 +580,7 @@ export function createDatabaseWorkshopRepository(): WorkshopRepository {
         coalRulings: string;
         publicRulings: string;
         hiddenRulings: string;
+        featuredRulings: string;
       }>`
         select
           ${bucketSql} as "bucketKey",
@@ -541,7 +588,11 @@ export function createDatabaseWorkshopRepository(): WorkshopRepository {
           count(*) filter (where ${rulings.decision} = 'approved')::text as "approvedRulings",
           count(*) filter (where ${rulings.decision} = 'random-coal')::text as "coalRulings",
           count(*) filter (where ${rulings.visibility} = 'public')::text as "publicRulings",
-          count(*) filter (where ${rulings.visibility} = 'hidden')::text as "hiddenRulings"
+          count(*) filter (where ${rulings.visibility} = 'hidden')::text as "hiddenRulings",
+          count(*) filter (
+            where ${rulings.isFeatured} = true
+              and ${rulings.visibility} = 'public'
+          )::text as "featuredRulings"
         from ${rulings}
         ${timeFilter}
         group by 1
@@ -556,6 +607,7 @@ export function createDatabaseWorkshopRepository(): WorkshopRepository {
           coalRulings: string;
           publicRulings: string;
           hiddenRulings: string;
+          featuredRulings: string;
         };
 
         return {
@@ -565,6 +617,7 @@ export function createDatabaseWorkshopRepository(): WorkshopRepository {
           coalRulings: parseCount(typedRow.coalRulings),
           publicRulings: parseCount(typedRow.publicRulings),
           hiddenRulings: parseCount(typedRow.hiddenRulings),
+          featuredRulings: parseCount(typedRow.featuredRulings),
         };
       });
     },
@@ -581,6 +634,8 @@ export function createDatabaseWorkshopRepository(): WorkshopRepository {
           decision: rulings.decision,
           santaResponse: rulings.santaResponse,
           visibility: rulings.visibility,
+          isFeatured: rulings.isFeatured,
+          featuredAt: rulings.featuredAt,
           hiddenAt: rulings.hiddenAt,
           hiddenReason: rulings.hiddenReason,
           createdAt: rulings.createdAt,
@@ -622,6 +677,8 @@ export function createDatabaseWorkshopRepository(): WorkshopRepository {
             decision: rulings.decision,
             santaResponse: rulings.santaResponse,
             visibility: rulings.visibility,
+            isFeatured: rulings.isFeatured,
+            featuredAt: rulings.featuredAt,
             hiddenAt: rulings.hiddenAt,
             hiddenReason: rulings.hiddenReason,
             createdAt: rulings.createdAt,
@@ -663,6 +720,8 @@ export function createDatabaseWorkshopRepository(): WorkshopRepository {
           decision: rulings.decision,
           santaResponse: rulings.santaResponse,
           visibility: rulings.visibility,
+          isFeatured: rulings.isFeatured,
+          featuredAt: rulings.featuredAt,
           hiddenAt: rulings.hiddenAt,
           hiddenReason: rulings.hiddenReason,
           createdAt: rulings.createdAt,
@@ -700,8 +759,38 @@ export function createDatabaseWorkshopRepository(): WorkshopRepository {
         .update(rulings)
         .set({
           visibility: 'hidden',
+          isFeatured: false,
+          featuredAt: null,
           hiddenAt: now,
           hiddenReason: reason,
+        })
+        .where(eq(rulings.publicId, publicId));
+
+      return this.getWorkshopRulingByPublicId(
+        publicId,
+      ) as Promise<WorkshopRulingDetail>;
+    },
+    async setRulingFeatured(publicId, featured, now) {
+      const existing = await this.getWorkshopRulingByPublicId(publicId);
+
+      if (!existing) {
+        return 'not-found';
+      }
+
+      if (existing.visibility !== 'public') {
+        return 'hidden';
+      }
+
+      if (existing.isFeatured === featured) {
+        return featured ? 'already-featured' : 'already-unfeatured';
+      }
+
+      const database = getDatabase();
+      await database
+        .update(rulings)
+        .set({
+          isFeatured: featured,
+          featuredAt: featured ? now : null,
         })
         .where(eq(rulings.publicId, publicId));
 
@@ -929,6 +1018,9 @@ export function createTestWorkshopRepository(
         hiddenRulings: store.rulings.filter(
           (ruling) => ruling.visibility === 'hidden',
         ).length,
+        featuredRulings: store.rulings.filter(
+          (ruling) => ruling.visibility === 'public' && ruling.isFeatured,
+        ).length,
         openReports: store.reports.filter((report) => report.status === 'open')
           .length,
         reviewedReports: store.reports.filter(
@@ -981,6 +1073,9 @@ export function createTestWorkshopRepository(
         hiddenRulings: rulingsToSummarize.filter(
           (ruling) => ruling.visibility === 'hidden',
         ).length,
+        featuredRulings: rulingsToSummarize.filter(
+          (ruling) => ruling.visibility === 'public' && ruling.isFeatured,
+        ).length,
       });
 
       return {
@@ -1015,6 +1110,7 @@ export function createTestWorkshopRepository(
           coalRulings: 0,
           publicRulings: 0,
           hiddenRulings: 0,
+          featuredRulings: 0,
         };
 
         existing.totalRulings += 1;
@@ -1022,6 +1118,8 @@ export function createTestWorkshopRepository(
         existing.coalRulings += ruling.decision === 'random-coal' ? 1 : 0;
         existing.publicRulings += ruling.visibility === 'public' ? 1 : 0;
         existing.hiddenRulings += ruling.visibility === 'hidden' ? 1 : 0;
+        existing.featuredRulings +=
+          ruling.visibility === 'public' && ruling.isFeatured ? 1 : 0;
         grouped.set(bucketKey, existing);
       }
 
@@ -1117,8 +1215,31 @@ export function createTestWorkshopRepository(
       }
 
       ruling.visibility = 'hidden';
+      ruling.isFeatured = false;
+      ruling.featuredAt = null;
       ruling.hiddenAt = now.toISOString();
       ruling.hiddenReason = reason;
+
+      return buildTestWorkshopRulingSummary(ruling, store.reports);
+    },
+    async setRulingFeatured(publicId, featured, now) {
+      const store = getTestRunStore(runId);
+      const ruling = store.rulings.find((item) => item.publicId === publicId);
+
+      if (!ruling) {
+        return 'not-found';
+      }
+
+      if (ruling.visibility !== 'public') {
+        return 'hidden';
+      }
+
+      if (ruling.isFeatured === featured) {
+        return featured ? 'already-featured' : 'already-unfeatured';
+      }
+
+      ruling.isFeatured = featured;
+      ruling.featuredAt = featured ? now.toISOString() : null;
 
       return buildTestWorkshopRulingSummary(ruling, store.reports);
     },

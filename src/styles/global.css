@@ -246,6 +246,7 @@ a {
 
 .speech-panel,
 .request-panel,
+.seasonal-greeting,
 .recent-rulings {
   background: var(--surface-panel-background);
   border-radius: var(--radius-panel);
@@ -335,6 +336,19 @@ h2 {
 
 .request-panel {
   padding: 1.85rem 1.85rem 1.75rem;
+}
+
+.seasonal-greeting {
+  padding: 1.15rem 1.35rem;
+}
+
+.seasonal-greeting p {
+  margin: 0;
+  color: var(--color-evergreen-deep);
+  font-family: var(--font-ui);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+  overflow-wrap: anywhere;
 }
 
 .request-form {
@@ -669,6 +683,7 @@ h2 {
 }
 
 .public-ruling-card__decision,
+.public-ruling-card__badge,
 .public-ruling-card__name,
 .public-ruling-card__request,
 .public-ruling-card__response,
@@ -684,6 +699,24 @@ h2 {
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--color-evergreen-deep);
+}
+
+.public-ruling-card__badge,
+.ruling-card__featured {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  min-height: 1.9rem;
+  padding: 0.32rem 0.7rem;
+  border: 1px solid rgb(73 99 84 / 0.22);
+  border-radius: var(--radius-pill);
+  background: rgb(255 255 255 / 0.78);
+  color: var(--color-evergreen-deep);
+  font-family: var(--font-ui);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .public-ruling-card__decision[data-decision='random-coal'] {
@@ -1310,6 +1343,7 @@ h2 {
 
   .speech-panel,
   .request-panel,
+  .seasonal-greeting,
   .recent-rulings,
   .commands-header,
   .commands-panel,

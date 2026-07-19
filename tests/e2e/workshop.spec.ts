@@ -620,8 +620,14 @@ test.describe('Santa Workshop owner area', () => {
       .click();
     await expect(page).toHaveURL('/workshop/settings');
     await page.getByLabel('Random coal percentage').fill('100');
+    await page
+      .getByLabel('Seasonal homepage greeting')
+      .fill('Merry Christmas from Santa!');
     await page.getByRole('button', { name: 'Save settings' }).click();
     await expect(page.getByText('Santa settings were updated.')).toBeVisible();
+    await page.goto('/');
+    await expect(page.getByText('Merry Christmas from Santa!')).toBeVisible();
+    await page.goto('/workshop/settings');
 
     const coalSubmission = await createRulingViaApi(page, headers, {
       name: 'Juniper',

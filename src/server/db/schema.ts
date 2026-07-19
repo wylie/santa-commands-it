@@ -48,6 +48,8 @@ export const ownerActivityActionEnum = pgEnum('owner_activity_action', [
   'ruling-hidden',
   'ruling-restored',
   'ruling-deleted',
+  'ruling-featured',
+  'ruling-unfeatured',
   'report-reviewed',
   'report-dismissed',
   'report-reopened',
@@ -115,6 +117,8 @@ export const rulings = pgTable(
     decision: rulingDecisionEnum('decision').notNull(),
     santaResponse: text('santa_response').notNull(),
     visibility: rulingVisibilityEnum('visibility').default('public').notNull(),
+    isFeatured: boolean('is_featured').default(false).notNull(),
+    featuredAt: timestamp('featured_at', { withTimezone: true }),
     hiddenAt: timestamp('hidden_at', { withTimezone: true }),
     hiddenReason: text('hidden_reason'),
     createdAt: timestamp('created_at', { withTimezone: true })
@@ -126,6 +130,11 @@ export const rulings = pgTable(
     index('rulings_visibility_created_at_idx').on(
       table.visibility,
       table.createdAt,
+    ),
+    index('rulings_featured_public_idx').on(
+      table.isFeatured,
+      table.visibility,
+      table.featuredAt,
     ),
     check(
       'rulings_display_name_length_check',
@@ -364,6 +373,7 @@ export const santaSettings = pgTable(
     singletonKey: text('singleton_key').notNull().unique(),
     randomCoalEnabled: boolean('random_coal_enabled').default(true).notNull(),
     randomCoalPercentage: integer('random_coal_percentage').notNull(),
+    seasonalGreeting: text('seasonal_greeting'),
     version: integer('version').default(1).notNull(),
     createdSource: text('created_source'),
     createdAt: timestamp('created_at', { withTimezone: true })
@@ -377,6 +387,10 @@ export const santaSettings = pgTable(
     check(
       'santa_settings_random_coal_percentage_check',
       sql`${table.randomCoalPercentage} between 0 and 100`,
+    ),
+    check(
+      'santa_settings_seasonal_greeting_length_check',
+      sql`${table.seasonalGreeting} is null or char_length(${table.seasonalGreeting}) <= 120`,
     ),
     check('santa_settings_version_check', sql`${table.version} >= 1`),
   ],

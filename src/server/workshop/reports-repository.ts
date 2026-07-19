@@ -550,7 +550,9 @@ export function createDatabaseWorkshopReportsRepository(): WorkshopReportsReposi
           set
             visibility = 'hidden'::ruling_visibility,
             hidden_at = ${input.now},
-            hidden_reason = ${input.hideReason}
+            hidden_reason = ${input.hideReason},
+            is_featured = false,
+            featured_at = null
           where id = (select ruling_id from target_report)
             and visibility = 'public'::ruling_visibility
           returning public_id
@@ -983,6 +985,8 @@ export function createTestWorkshopReportsRepository(
       ruling.visibility = 'hidden';
       ruling.hiddenAt = input.now.toISOString();
       ruling.hiddenReason = input.hideReason;
+      ruling.isFeatured = false;
+      ruling.featuredAt = null;
       report.status = 'actioned';
       report.reviewedAt = report.reviewedAt ?? input.now.toISOString();
       report.resolvedAt = input.now.toISOString();

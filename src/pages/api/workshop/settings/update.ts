@@ -45,6 +45,7 @@ export const POST: APIRoute = async (context) => {
     randomCoalPercentage: String(
       parsedForm.formData.get('randomCoalPercentage') ?? '',
     ),
+    seasonalGreeting: String(parsedForm.formData.get('seasonalGreeting') ?? ''),
     headers: context.request.headers,
   });
 
@@ -60,7 +61,9 @@ export const POST: APIRoute = async (context) => {
       ? 'conflict'
       : result.status === 'not-found'
         ? 'not-found'
-        : 'invalid-percentage';
+        : result.status === 'invalid-greeting'
+          ? 'invalid-greeting'
+          : 'invalid-percentage';
 
   return context.redirect(
     appendWorkshopRedirectParam(returnTo, 'error', error),

@@ -31,6 +31,7 @@ import { getWorkshopRepositoryForHeaders } from '@/server/workshop/test-mode';
 
 const PLACEHOLDER_PATTERN = /\{([^{}]+)\}/g;
 const CONFIG_ACTIVITY_LIMIT = 8;
+const SEASONAL_GREETING_MAX_LENGTH = 120;
 export const REQUIRED_BLOCKED_WARNING_TEMPLATE =
   'THAT IS UNACCEPTABLE. ASK FOR SOMETHING ELSE OR RECEIVE COAL!';
 
@@ -298,6 +299,7 @@ async function loadRuntimeConfigurationFromRepository(
     santaSettings: {
       randomCoalEnabled: settings.randomCoalEnabled,
       randomCoalPercentage: settings.randomCoalPercentage,
+      seasonalGreeting: settings.seasonalGreeting,
       version: settings.version,
     },
     responseTemplates: {
@@ -365,6 +367,17 @@ export async function getRuntimeConfigurationForHeaders(headers: Headers) {
 
 export function invalidateRuntimeConfigurationCache(headers: Headers) {
   runtimeConfigurationCaches.get(buildCacheKey(headers))?.invalidate();
+}
+
+export async function getHomepageSeasonalGreeting(headers: Headers) {
+  try {
+    const settings =
+      await getConfigurationRepositoryForHeaders(headers).getSantaSettings();
+
+    return settings?.seasonalGreeting.trim() ?? '';
+  } catch {
+    return '';
+  }
 }
 
 async function getRelevantConfigurationActivity(
@@ -732,11 +745,13 @@ export async function updateWorkshopSantaSettings(input: {
   expectedVersion: string;
   randomCoalEnabled: boolean;
   randomCoalPercentage: string;
+  seasonalGreeting: string;
   headers: Headers;
   now?: Date;
 }) {
   const expectedVersion = Number.parseInt(input.expectedVersion, 10);
   const parsedPercentage = Number.parseInt(input.randomCoalPercentage, 10);
+  const seasonalGreeting = input.seasonalGreeting.trim();
 
   if (!Number.isInteger(expectedVersion) || expectedVersion < 1) {
     return { status: 'conflict' as const };
@@ -753,6 +768,13 @@ export async function updateWorkshopSantaSettings(input: {
     };
   }
 
+  if (seasonalGreeting.length > SEASONAL_GREETING_MAX_LENGTH) {
+    return {
+      status: 'invalid-greeting' as const,
+      message: `Please keep the seasonal greeting to ${SEASONAL_GREETING_MAX_LENGTH} characters or fewer.`,
+    };
+  }
+
   const repository = getConfigurationRepositoryForHeaders(input.headers);
   const existing = await repository.getSantaSettings();
 
@@ -764,6 +786,7 @@ export async function updateWorkshopSantaSettings(input: {
     expectedVersion,
     randomCoalEnabled: input.randomCoalEnabled,
     randomCoalPercentage: parsedPercentage,
+    seasonalGreeting: seasonalGreeting || null,
     now: input.now ?? new Date(),
   });
 
@@ -780,7 +803,14 @@ export async function updateWorkshopSantaSettings(input: {
     action: 'santa-settings-updated',
     targetType: 'setting',
     targetPublicId: 'santa-settings',
-    details: `Random coal ${existing.randomCoalEnabled ? 'enabled' : 'disabled'} → ${updated.randomCoalEnabled ? 'enabled' : 'disabled'} · ${existing.randomCoalPercentage}% → ${updated.randomCoalPercentage}%`,
+    details: [
+      `Random coal ${existing.randomCoalEnabled ? 'enabled' : 'disabled'} → ${updated.randomCoalEnabled ? 'enabled' : 'disabled'} · ${existing.randomCoalPercentage}% → ${updated.randomCoalPercentage}%`,
+      existing.seasonalGreeting !== updated.seasonalGreeting
+        ? 'Seasonal greeting updated'
+        : null,
+    ]
+      .filter(Boolean)
+      .join(' · '),
   });
 
   return {

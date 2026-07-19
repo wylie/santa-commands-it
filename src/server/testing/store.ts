@@ -17,6 +17,7 @@ import { normalizeModerationRuleValue } from '@/utils/moderation';
 export type TestStoredRuling = PublicRuling & {
   id: number;
   visibility: RulingVisibility;
+  featuredAt: string | null;
   hiddenAt: string | null;
   hiddenReason: string | null;
 };
@@ -93,6 +94,7 @@ export type TestSantaSettingsRecord = {
   singletonKey: string;
   randomCoalEnabled: boolean;
   randomCoalPercentage: number;
+  seasonalGreeting: string;
   version: number;
   createdSource: string | null;
   createdAt: string;
@@ -261,6 +263,8 @@ export function getTestRunStore(runId: string): TestRunStore {
         configurationSeedDefaults.santaSettings.randomCoalEnabled,
       randomCoalPercentage:
         configurationSeedDefaults.santaSettings.randomCoalPercentage,
+      seasonalGreeting:
+        configurationSeedDefaults.santaSettings.seasonalGreeting ?? '',
       version: 1,
       createdSource: 'source-migration',
       createdAt: seededAt,

@@ -27,6 +27,7 @@ function createRepositoryMock() {
       requestText: input.requestText,
       decision: input.decision,
       santaResponse: input.santaResponse,
+      isFeatured: false,
       createdAt: '2026-07-15T23:30:00.000Z',
     })),
   } satisfies SubmissionRepository;
@@ -331,6 +332,7 @@ describe('public ruling mapping and rendering safety', () => {
       requestText: '<script>alert(1)</script>',
       decision: 'approved',
       santaResponse: 'VERY WELL, Holly.',
+      isFeatured: false,
       createdAt: new Date('2026-07-15T23:30:00.000Z'),
     });
 
@@ -340,6 +342,7 @@ describe('public ruling mapping and rendering safety', () => {
       requestText: '<script>alert(1)</script>',
       decision: 'approved',
       santaResponse: 'VERY WELL, Holly.',
+      isFeatured: false,
       createdAt: '2026-07-15T23:30:00.000Z',
     });
     expect('id' in publicRuling).toBe(false);
@@ -354,6 +357,7 @@ describe('public ruling mapping and rendering safety', () => {
         requestText: 'A brass telescope',
         decision: 'blocked' as 'approved',
         santaResponse: 'NO.',
+        isFeatured: false,
         createdAt: new Date('2026-07-15T23:30:00.000Z'),
       }),
     ).toThrow('Only approved and random-coal rulings can be public.');
@@ -380,6 +384,7 @@ describe('public ruling mapping and rendering safety', () => {
         requestText: '<img src=x onerror=alert(1)>',
         decision: 'approved',
         santaResponse: 'VERY WELL, <Holly>.',
+        isFeatured: false,
         createdAt: '2026-07-15T23:30:00.000Z',
       },
     } as const;

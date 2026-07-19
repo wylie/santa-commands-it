@@ -103,6 +103,36 @@ describe('workshop dashboard data', () => {
 
     hiddenRuling.visibility = 'hidden';
     hiddenRuling.hiddenAt = '2026-06-22T10:00:00.000Z';
+    const featuredRuling = store.rulings.find(
+      (ruling) => ruling.publicId === '00000000-0000-4000-8000-000000000001',
+    );
+
+    if (!featuredRuling) {
+      throw new Error('Expected featured ruling fixture.');
+    }
+
+    featuredRuling.isFeatured = true;
+    featuredRuling.featuredAt = '2026-07-18T10:00:00.000Z';
+    store.ownerActivity.push(
+      {
+        id: 1,
+        action: 'ruling-featured',
+        targetType: 'ruling',
+        targetPublicId: featuredRuling.publicId,
+        relatedPublicId: null,
+        details: null,
+        createdAt: '2026-07-18T10:00:00.000Z',
+      },
+      {
+        id: 2,
+        action: 'ruling-unfeatured',
+        targetType: 'ruling',
+        targetPublicId: '00000000-0000-4000-8000-000000000002',
+        relatedPublicId: null,
+        details: null,
+        createdAt: '2026-07-17T10:00:00.000Z',
+      },
+    );
 
     await reportsRepository.createReport({
       rulingId: 1,
@@ -177,6 +207,7 @@ describe('workshop dashboard data', () => {
       ['Coal rulings', 1],
       ['Public rulings', 2],
       ['Hidden rulings', 1],
+      ['Featured Commands', 1],
       ['Open reports', 2],
     ]);
     expect(dashboard.overview.data.coalSummary.configuredCoalPercentage).toBe(
@@ -195,6 +226,19 @@ describe('workshop dashboard data', () => {
     });
     expect(dashboard.configuration.data.moderation.inactiveRules).toBe(1);
     expect(dashboard.configuration.data.templates.inactiveTemplates).toBe(1);
+    expect(dashboard.recentFeaturedActivity.status).toBe('ready');
+    if (dashboard.recentFeaturedActivity.status !== 'ready') {
+      throw new Error('Expected featured activity to be ready.');
+    }
+    expect(dashboard.recentFeaturedActivity.data).toMatchObject([
+      {
+        label: 'Ruling featured',
+        targetReference: featuredRuling.publicId,
+      },
+      {
+        label: 'Ruling unfeatured',
+      },
+    ]);
     expect(
       dashboard.health.data.checks.find(
         (check) => check.label === 'Santa artwork asset',

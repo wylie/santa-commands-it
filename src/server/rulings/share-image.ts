@@ -64,6 +64,7 @@ export type ShareImageTreatment = {
 export type PreparedRulingShareImage = {
   treatment: ShareImageTreatment;
   visibility: ShareImageVisibility;
+  isFeatured: boolean;
   displayName: PreparedShareImageText;
   requestText: PreparedShareImageText;
   santaResponse: PreparedShareImageText;
@@ -292,6 +293,7 @@ export function prepareRulingShareImage(
   return {
     treatment: selectShareImageTreatment(ruling.decision),
     visibility: options.visibility ?? 'public',
+    isFeatured: ruling.isFeatured,
     displayName: prepareShareImageText(ruling.displayName, NAME_CONSTRAINTS),
     requestText: prepareShareImageText(ruling.requestText, REQUEST_CONSTRAINTS),
     santaResponse: prepareShareImageText(
@@ -649,6 +651,26 @@ function createShareImageElement(
                       },
                     },
                     'PRIVATE HIDDEN PREVIEW',
+                  )
+                : null,
+              prepared.isFeatured
+                ? createElement(
+                    'span',
+                    {
+                      style: {
+                        display: 'flex',
+                        alignItems: 'center',
+                        padding: '12px 18px',
+                        borderRadius: '9999px',
+                        border: '2px solid rgba(73, 99, 84, 0.24)',
+                        background: 'rgba(255, 255, 255, 0.86)',
+                        color: '#355043',
+                        fontSize: '22px',
+                        fontWeight: 800,
+                        letterSpacing: 0,
+                      },
+                    },
+                    'FEATURED',
                   )
                 : null,
             ),

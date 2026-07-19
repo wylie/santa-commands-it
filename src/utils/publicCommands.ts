@@ -5,7 +5,7 @@ export const PUBLIC_COMMANDS_PAGE_SIZE = 12;
 export const PUBLIC_COMMANDS_MAX_PAGE = 1000;
 export const PUBLIC_COMMANDS_MAX_SEARCH_LENGTH = 80;
 
-export type PublicCommandsDecision = 'all' | 'approved' | 'coal';
+export type PublicCommandsDecision = 'all' | 'approved' | 'coal' | 'featured';
 export type PublicCommandsSort = 'newest' | 'oldest';
 
 export type PublicCommandsQuery = {
@@ -23,6 +23,7 @@ export type PublicCommandsDiscoveryRuling = Pick<
   | 'requestText'
   | 'decision'
   | 'santaResponse'
+  | 'isFeatured'
   | 'createdAt'
 >;
 
@@ -51,7 +52,9 @@ export function normalizePublicCommandsSearch(value: string): string {
 }
 
 function parseDecision(value: string | null): PublicCommandsDecision {
-  return value === 'approved' || value === 'coal' ? value : 'all';
+  return value === 'approved' || value === 'coal' || value === 'featured'
+    ? value
+    : 'all';
 }
 
 function parseSort(value: string | null): PublicCommandsSort {
@@ -161,7 +164,9 @@ export function getPublicCommandsSummary(
       ? 'approved '
       : query.decision === 'coal'
         ? 'coal '
-        : '';
+        : query.decision === 'featured'
+          ? 'featured '
+          : '';
   const commandLabel = total === 1 ? 'command' : 'commands';
   const matching = query.search ? ` matching "${query.search}"` : '';
 

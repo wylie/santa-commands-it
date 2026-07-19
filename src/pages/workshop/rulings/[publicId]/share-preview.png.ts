@@ -33,6 +33,7 @@ export const GET: APIRoute = async (context) => {
     requestText: detail.ruling.requestText,
     decision: detail.ruling.decision,
     santaResponse: detail.ruling.santaResponse,
+    isFeatured: detail.ruling.isFeatured,
     createdAt: detail.ruling.createdAt,
   };
 

@@ -197,6 +197,15 @@ describe('workshop report moderation workflow', () => {
       now: new Date('2026-07-17T09:15:00.000Z'),
     });
 
+    const featuredRuling = getTestRunStore(runId).rulings.find(
+      (entry) => entry.id === 1,
+    );
+    if (!featuredRuling) {
+      throw new Error('Expected featured ruling fixture.');
+    }
+    featuredRuling.isFeatured = true;
+    featuredRuling.featuredAt = '2026-07-17T10:00:00.000Z';
+
     const result = await hideWorkshopRulingFromReport({
       publicId: targetReport?.publicId ?? '',
       hideReason: 'Confirmed harmful content.',
@@ -220,6 +229,8 @@ describe('workshop report moderation workflow', () => {
     expect(store.rulings.find((entry) => entry.id === 1)).toMatchObject({
       visibility: 'hidden',
       hiddenReason: 'Confirmed harmful content.',
+      isFeatured: false,
+      featuredAt: null,
     });
     expect(
       store.reports.find((entry) => entry.publicId === targetReport?.publicId),

@@ -69,6 +69,7 @@ export type UpdateSantaSettingsInput = {
   expectedVersion: number;
   randomCoalEnabled: boolean;
   randomCoalPercentage: number;
+  seasonalGreeting: string | null;
   now: Date;
 };
 
@@ -179,6 +180,7 @@ function mapSantaSettingsRow(
   return {
     randomCoalEnabled: row.randomCoalEnabled,
     randomCoalPercentage: row.randomCoalPercentage,
+    seasonalGreeting: row.seasonalGreeting ?? '',
     version: row.version,
     updatedAt: serializeCreatedAt(row.updatedAt),
   };
@@ -422,6 +424,7 @@ export function createDatabaseConfigurationRepository(): ConfigurationRepository
         .set({
           randomCoalEnabled: input.randomCoalEnabled,
           randomCoalPercentage: input.randomCoalPercentage,
+          seasonalGreeting: input.seasonalGreeting,
           version: input.expectedVersion + 1,
           updatedAt: input.now,
         })
@@ -812,6 +815,7 @@ export function createTestConfigurationRepository(
       return {
         randomCoalEnabled: settings.randomCoalEnabled,
         randomCoalPercentage: settings.randomCoalPercentage,
+        seasonalGreeting: settings.seasonalGreeting,
         version: settings.version,
         updatedAt: settings.updatedAt,
       };
@@ -825,12 +829,14 @@ export function createTestConfigurationRepository(
 
       settings.randomCoalEnabled = input.randomCoalEnabled;
       settings.randomCoalPercentage = input.randomCoalPercentage;
+      settings.seasonalGreeting = input.seasonalGreeting ?? '';
       settings.version += 1;
       settings.updatedAt = input.now.toISOString();
 
       return {
         randomCoalEnabled: settings.randomCoalEnabled,
         randomCoalPercentage: settings.randomCoalPercentage,
+        seasonalGreeting: settings.seasonalGreeting,
         version: settings.version,
         updatedAt: settings.updatedAt,
       };

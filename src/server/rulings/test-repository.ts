@@ -28,6 +28,8 @@ export function createTestRulingsRepository(runId: string): RulingsRepository {
         requestText: input.requestText,
         decision: input.decision,
         santaResponse: input.santaResponse,
+        isFeatured: false,
+        featuredAt: null,
         createdAt: new Date().toISOString(),
         visibility: 'public' as const,
         hiddenAt: null,
@@ -47,6 +49,28 @@ export function createTestRulingsRepository(runId: string): RulingsRepository {
         .slice(0, limit)
         .map(toPublicRuling);
     },
+    async listFeaturedRulings(limit = 3) {
+      return getTestRunStore(runId)
+        .rulings.filter(
+          (ruling) => ruling.visibility === 'public' && ruling.isFeatured,
+        )
+        .sort((left, right) => {
+          const leftTime = left.featuredAt
+            ? new Date(left.featuredAt).getTime()
+            : 0;
+          const rightTime = right.featuredAt
+            ? new Date(right.featuredAt).getTime()
+            : 0;
+
+          if (rightTime !== leftTime) {
+            return rightTime - leftTime;
+          }
+
+          return right.id - left.id;
+        })
+        .slice(0, limit)
+        .map(toPublicRuling);
+    },
     async listPublicRulingsForDiscovery(query: PublicCommandsQuery) {
       const filtered = getTestRunStore(runId)
         .rulings.filter((ruling) => ruling.visibility === 'public')
@@ -57,6 +81,10 @@ export function createTestRulingsRepository(runId: string): RulingsRepository {
 
           if (query.decision === 'coal') {
             return ruling.decision === 'random-coal';
+          }
+
+          if (query.decision === 'featured') {
+            return ruling.isFeatured;
           }
 
           return true;
@@ -74,6 +102,21 @@ export function createTestRulingsRepository(runId: string): RulingsRepository {
           );
         })
         .sort((left, right) => {
+          if (query.decision === 'featured') {
+            const leftTime = left.featuredAt
+              ? new Date(left.featuredAt).getTime()
+              : 0;
+            const rightTime = right.featuredAt
+              ? new Date(right.featuredAt).getTime()
+              : 0;
+
+            if (rightTime !== leftTime) {
+              return rightTime - leftTime;
+            }
+
+            return right.id - left.id;
+          }
+
           const leftTime = new Date(left.createdAt).getTime();
           const rightTime = new Date(right.createdAt).getTime();
           const timeComparison =
@@ -132,6 +175,7 @@ function toPublicRuling(ruling: TestStoredRuling): PublicRuling {
     requestText: ruling.requestText,
     decision: ruling.decision,
     santaResponse: ruling.santaResponse,
+    isFeatured: ruling.isFeatured,
     createdAt: ruling.createdAt,
   };
 }

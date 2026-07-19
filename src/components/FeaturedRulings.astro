@@ -1,0 +1,31 @@
+---
+import PublicRulingCard from '@/components/PublicRulingCard.astro';
+import type { PublicRuling } from '@/utils/rulings';
+
+interface Props {
+  rulings?: PublicRuling[];
+}
+
+const { rulings = [] } = Astro.props;
+---
+
+{
+  rulings.length > 0 && (
+    <section
+      class="recent-rulings featured-rulings"
+      aria-labelledby="featured-rulings-title"
+      data-featured-rulings
+    >
+      <div class="section-heading">
+        <h2 id="featured-rulings-title">Featured Commands</h2>
+      </div>
+      <ol class="recent-rulings__list" data-featured-list>
+        {rulings.map((ruling) => (
+          <li class="recent-rulings__item" data-ruling-id={ruling.publicId}>
+            <PublicRulingCard ruling={ruling} variant="compact" />
+          </li>
+        ))}
+      </ol>
+    </section>
+  )
+}

@@ -57,21 +57,63 @@ const bannerMessage =
               message:
                 'The ruling was restored, but the activity entry could not be recorded.',
             }
-          : error === 'invalid-hide-reason'
-            ? {
-                tone: 'error',
-                message: 'Please keep hide notes to 300 characters or fewer.',
-              }
-            : error === 'invalid-confirmation'
+          : status === 'featured'
+            ? { tone: 'success', message: 'The ruling is now featured.' }
+            : status === 'featured-with-warning'
               ? {
-                  tone: 'error',
-                  message: 'Deletion requires the exact confirmation phrase.',
+                  tone: 'warning',
+                  message:
+                    'The ruling was featured, but the activity entry could not be recorded.',
                 }
-              : error === 'already-hidden'
-                ? { tone: 'error', message: 'That ruling is already hidden.' }
-                : error === 'already-public'
-                  ? { tone: 'error', message: 'That ruling is already public.' }
-                  : null;
+              : status === 'unfeatured'
+                ? {
+                    tone: 'success',
+                    message: 'The ruling is no longer featured.',
+                  }
+                : status === 'unfeatured-with-warning'
+                  ? {
+                      tone: 'warning',
+                      message:
+                        'The ruling was unfeatured, but the activity entry could not be recorded.',
+                    }
+                  : error === 'invalid-hide-reason'
+                    ? {
+                        tone: 'error',
+                        message:
+                          'Please keep hide notes to 300 characters or fewer.',
+                      }
+                    : error === 'invalid-confirmation'
+                      ? {
+                          tone: 'error',
+                          message:
+                            'Deletion requires the exact confirmation phrase.',
+                        }
+                      : error === 'already-hidden'
+                        ? {
+                            tone: 'error',
+                            message: 'That ruling is already hidden.',
+                          }
+                        : error === 'already-public'
+                          ? {
+                              tone: 'error',
+                              message: 'That ruling is already public.',
+                            }
+                          : error === 'hidden'
+                            ? {
+                                tone: 'error',
+                                message: 'Hidden rulings cannot be featured.',
+                              }
+                            : error === 'already-featured'
+                              ? {
+                                  tone: 'error',
+                                  message: 'That ruling is already featured.',
+                                }
+                              : error === 'already-unfeatured'
+                                ? {
+                                    tone: 'error',
+                                    message: 'That ruling is not featured.',
+                                  }
+                                : null;
 
 const currentLocation = Astro.url.pathname;
 ---
@@ -121,6 +163,10 @@ const currentLocation = Astro.url.pathname;
           <dd>{getVisibilityLabel(detail.ruling.visibility)}</dd>
         </div>
         <div>
+          <dt>Featured</dt>
+          <dd>{detail.ruling.isFeatured ? 'Yes' : 'No'}</dd>
+        </div>
+        <div>
           <dt>Created</dt>
           <dd>
             <time datetime={detail.ruling.createdAt}>
@@ -150,6 +196,18 @@ const currentLocation = Astro.url.pathname;
             }
           </dd>
         </div>
+        {
+          detail.ruling.featuredAt && (
+            <div>
+              <dt>Featured at</dt>
+              <dd>
+                <time datetime={detail.ruling.featuredAt}>
+                  {formatRulingTimestamp(detail.ruling.featuredAt)}
+                </time>
+              </dd>
+            </div>
+          )
+        }
         {
           detail.ruling.hiddenAt && (
             <div>
@@ -211,6 +269,31 @@ const currentLocation = Astro.url.pathname;
 
     <article class="workshop-card">
       <h2>Actions</h2>
+
+      {
+        detail.ruling.visibility === 'public' && (
+          <form
+            class="workshop-form"
+            method="post"
+            action={`/api/workshop/rulings/${detail.ruling.publicId}/${detail.ruling.isFeatured ? 'unfeature' : 'feature'}`}
+          >
+            <input type="hidden" name="csrfToken" value={session.csrfToken} />
+            <input type="hidden" name="returnTo" value={currentLocation} />
+            <h3>
+              {detail.ruling.isFeatured
+                ? 'Remove this featured command?'
+                : 'Feature this command?'}
+            </h3>
+            <p class="workshop-form__hint">
+              Featured commands are highlighted publicly without exposing any
+              private editorial reason.
+            </p>
+            <button type="submit" class="button-command">
+              {detail.ruling.isFeatured ? 'Remove Feature' : 'Feature Command'}
+            </button>
+          </form>
+        )
+      }
 
       {
         detail.ruling.visibility === 'public' ? (

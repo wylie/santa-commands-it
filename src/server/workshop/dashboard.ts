@@ -67,6 +67,7 @@ export type WorkshopDashboardAggregateCounts = {
   coalRulings: number;
   publicRulings: number;
   hiddenRulings: number;
+  featuredRulings: number;
 };
 
 export type WorkshopDashboardRulingMetrics = {
@@ -81,6 +82,7 @@ export type WorkshopDashboardTrendRow = {
   coalRulings: number;
   publicRulings: number;
   hiddenRulings: number;
+  featuredRulings: number;
 };
 
 export type WorkshopDashboardReportSummary = {
@@ -228,6 +230,7 @@ export type WorkshopDashboardPageData = {
   configuration: DashboardSection<WorkshopDashboardConfigurationSummary>;
   health: DashboardSection<WorkshopDashboardHealth>;
   recentRulings: DashboardSection<WorkshopDashboardRecentRuling[]>;
+  recentFeaturedActivity: DashboardSection<WorkshopDashboardOwnerActivity[]>;
   recentActivity: DashboardSection<WorkshopDashboardOwnerActivity[]>;
 };
 
@@ -669,6 +672,7 @@ export function buildFilledTrendPoints(
       coalRulings: row?.coalRulings ?? 0,
       publicRulings: row?.publicRulings ?? 0,
       hiddenRulings: row?.hiddenRulings ?? 0,
+      featuredRulings: row?.featuredRulings ?? 0,
     };
   });
 }
@@ -759,6 +763,13 @@ function buildOverviewSection(
           metrics.current.hiddenRulings,
           metrics.previous?.hiddenRulings ?? null,
         ),
+      },
+      {
+        label: 'Featured Commands',
+        value: metrics.current.featuredRulings,
+        kind: 'current',
+        description: 'Current public rulings hand-picked for featured display.',
+        comparison: null,
       },
       {
         label: 'Open reports',
@@ -991,6 +1002,7 @@ export async function getWorkshopDashboardPageData(headers: Headers, url: URL) {
     configuration,
     health,
     recentRulings,
+    recentFeaturedActivity,
     recentActivity,
   ] = await Promise.all([
     loadDashboardSection(headers, 'overview', async () =>
@@ -1030,6 +1042,22 @@ export async function getWorkshopDashboardPageData(headers: Headers, url: URL) {
         openReportCount: ruling.openReportCount,
       })),
     ),
+    loadDashboardSection(headers, 'recent-featured-activity', async () =>
+      (await repository.listRecentOwnerActivity(12))
+        .filter(
+          (entry) =>
+            entry.action === 'ruling-featured' ||
+            entry.action === 'ruling-unfeatured',
+        )
+        .slice(0, 5)
+        .map((entry) => ({
+          action: entry.action,
+          label: getOwnerActivityLabel(entry.action),
+          targetReference: entry.targetPublicId,
+          detail: sanitizeOwnerActivityDetail(entry.action, entry.details),
+          createdAt: entry.createdAt,
+        })),
+    ),
     loadDashboardSection(headers, 'recent-activity', async () =>
       (await repository.listRecentOwnerActivity()).map((entry) => ({
         action: entry.action,
@@ -1056,6 +1084,7 @@ export async function getWorkshopDashboardPageData(headers: Headers, url: URL) {
     configuration,
     health,
     recentRulings,
+    recentFeaturedActivity,
     recentActivity,
   })) {
     if (section.status === 'unavailable') {
@@ -1080,6 +1109,7 @@ export async function getWorkshopDashboardPageData(headers: Headers, url: URL) {
     configuration,
     health,
     recentRulings,
+    recentFeaturedActivity,
     recentActivity,
   } satisfies WorkshopDashboardPageData;
 }

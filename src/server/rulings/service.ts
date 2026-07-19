@@ -16,6 +16,8 @@ export const RULING_LOOKUP_ERROR_MESSAGE =
   "SANTA'S WORKSHOP IS HAVING A SMALL MISHAP. Please try again in a moment.";
 export const PUBLIC_COMMANDS_UNAVAILABLE_MESSAGE =
   'Please try again in a little while.';
+export const FEATURED_RULINGS_UNAVAILABLE_MESSAGE =
+  "Santa's featured commands are temporarily unavailable.";
 
 export type RecentRulingsResult =
   | {
@@ -80,6 +82,26 @@ export async function listRecentRulingsForHeaders(
     return {
       status: 'unavailable',
       message: RECENT_RULINGS_UNAVAILABLE_MESSAGE,
+    };
+  }
+}
+
+export async function listFeaturedRulingsForHeaders(
+  headers: Headers,
+): Promise<RecentRulingsResult> {
+  const repository = getRulingsRepositoryForHeaders(headers);
+
+  try {
+    const rulings = await repository.listFeaturedRulings(3);
+
+    return {
+      status: 'ok',
+      rulings,
+    };
+  } catch {
+    return {
+      status: 'unavailable',
+      message: FEATURED_RULINGS_UNAVAILABLE_MESSAGE,
     };
   }
 }

@@ -64,6 +64,7 @@ type PersistedRulingInsertRow = {
   requestText: string;
   decision: 'approved' | 'random-coal';
   santaResponse: string;
+  isFeatured: boolean;
   createdAt: Date | string;
 };
 
@@ -77,6 +78,7 @@ function mapInsertedRowToPublicRuling(
     requestText: row.requestText,
     decision: row.decision,
     santaResponse: row.santaResponse,
+    isFeatured: row.isFeatured,
     createdAt:
       row.createdAt instanceof Date ? row.createdAt : new Date(row.createdAt),
   });
@@ -209,6 +211,7 @@ export function createDatabaseSubmissionRepository(): SubmissionRepository {
             decision,
             santa_response,
             visibility,
+            is_featured,
             created_at
           )
           VALUES (
@@ -218,6 +221,7 @@ export function createDatabaseSubmissionRepository(): SubmissionRepository {
             ${input.decision}::ruling_decision,
             ${input.santaResponse},
             'public'::ruling_visibility,
+            false,
             ${input.createdAt ?? new Date()}
           )
           RETURNING
@@ -227,6 +231,7 @@ export function createDatabaseSubmissionRepository(): SubmissionRepository {
             request_text,
             decision,
             santa_response,
+            is_featured,
             created_at
         ),
         created_idempotency AS (
@@ -255,6 +260,7 @@ export function createDatabaseSubmissionRepository(): SubmissionRepository {
           created_ruling.request_text AS "requestText",
           created_ruling.decision AS "decision",
           created_ruling.santa_response AS "santaResponse",
+          created_ruling.is_featured AS "isFeatured",
           created_ruling.created_at AS "createdAt"
         FROM created_ruling
         INNER JOIN created_idempotency ON true
@@ -388,6 +394,8 @@ export function createTestSubmissionRepository(
         requestText: input.requestText,
         decision: input.decision,
         santaResponse: input.santaResponse,
+        isFeatured: false,
+        featuredAt: null,
         createdAt,
         visibility: 'public' as const,
         hiddenAt: null,
@@ -411,6 +419,7 @@ export function createTestSubmissionRepository(
         requestText: ruling.requestText,
         decision: ruling.decision,
         santaResponse: ruling.santaResponse,
+        isFeatured: ruling.isFeatured,
         createdAt: ruling.createdAt,
       };
     },

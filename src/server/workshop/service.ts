@@ -278,6 +278,45 @@ export async function hideWorkshopRuling(input: {
   };
 }
 
+export async function setWorkshopRulingFeatured(input: {
+  publicId: string;
+  featured: boolean;
+  headers: Headers;
+  now?: Date;
+}) {
+  if (!isValidPublicRulingId(input.publicId)) {
+    return { status: 'not-found' as const };
+  }
+
+  const repository = getWorkshopRepositoryForHeaders(input.headers);
+  const result = await repository.setRulingFeatured(
+    input.publicId,
+    input.featured,
+    input.now ?? new Date(),
+  );
+
+  if (
+    result === 'not-found' ||
+    result === 'hidden' ||
+    result === 'already-featured' ||
+    result === 'already-unfeatured'
+  ) {
+    return { status: result };
+  }
+
+  const activityLogged = await recordActivitySafely(input.headers, {
+    action: input.featured ? 'ruling-featured' : 'ruling-unfeatured',
+    targetType: 'ruling',
+    targetPublicId: result.publicId,
+  });
+
+  return {
+    status: 'success' as const,
+    ruling: result,
+    activityLogged,
+  };
+}
+
 export async function restoreWorkshopRuling(input: {
   publicId: string;
   headers: Headers;

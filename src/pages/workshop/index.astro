@@ -587,6 +587,39 @@ const trendMaxValue = Math.max(
     </article>
 
     <article class="workshop-card">
+      <h2>Recent Featured activity</h2>
+      {
+        dashboard.recentFeaturedActivity.status === 'ready' ? (
+          dashboard.recentFeaturedActivity.data.length > 0 ? (
+            <ol class="workshop-summary-list">
+              {dashboard.recentFeaturedActivity.data.map((entry) => (
+                <li class="workshop-summary-list__item">
+                  <div>
+                    <p class="workshop-summary-list__title">{entry.label}</p>
+                    <p class="workshop-summary-list__meta">
+                      {formatRulingTimestamp(entry.createdAt)}
+                      {entry.targetReference
+                        ? ` · ${entry.targetReference}`
+                        : ''}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <p class="workshop-empty">
+              No featured command changes are recorded yet.
+            </p>
+          )
+        ) : (
+          <p class="workshop-empty">
+            {dashboard.recentFeaturedActivity.message}
+          </p>
+        )
+      }
+    </article>
+
+    <article class="workshop-card">
       <h2>Recent owner activity</h2>
       {
         dashboard.recentActivity.status === 'ready' ? (

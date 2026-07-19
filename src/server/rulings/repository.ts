@@ -45,6 +45,7 @@ export type RulingsRepository = {
   createRuling(input: CreateRulingInput): Promise<PublicRuling>;
   createStoredRuling(input: CreateRulingInput): Promise<StoredRuling>;
   listRecentRulings(limit?: number): Promise<PublicRuling[]>;
+  listFeaturedRulings(limit?: number): Promise<PublicRuling[]>;
   listPublicRulingsForDiscovery(
     query: PublicCommandsQuery,
   ): Promise<PublicRulingsDiscoveryResult>;
@@ -61,6 +62,8 @@ type PublicRulingRow = {
   requestText: string;
   decision: PersistedRulingDecision;
   santaResponse: string;
+  isFeatured: boolean;
+  featuredAt?: Date | string | null;
   createdAt: Date | string;
 };
 
@@ -75,6 +78,7 @@ export function mapRulingRowToPublicRuling(row: PublicRulingRow): PublicRuling {
     requestText: row.requestText,
     decision: row.decision,
     santaResponse: row.santaResponse,
+    isFeatured: row.isFeatured,
     createdAt: serializeCreatedAt(row.createdAt),
   };
 }
@@ -91,6 +95,10 @@ function buildPublicDiscoveryWhere(query: PublicCommandsQuery): SQL {
 
   if (query.decision === 'coal') {
     conditions.push(eq(rulings.decision, 'random-coal'));
+  }
+
+  if (query.decision === 'featured') {
+    conditions.push(eq(rulings.isFeatured, true));
   }
 
   if (query.search) {
@@ -129,6 +137,7 @@ export function createDatabaseRulingsRepository(): RulingsRepository {
           requestText: input.requestText,
           decision: input.decision,
           santaResponse: input.santaResponse,
+          isFeatured: false,
           visibility: 'public',
         })
         .returning();
@@ -154,6 +163,23 @@ export function createDatabaseRulingsRepository(): RulingsRepository {
 
       return rows.map(mapRulingRowToPublicRuling);
     },
+    async listFeaturedRulings(limit = 3) {
+      const database = getDatabase();
+      const rows = await database
+        .select()
+        .from(rulings)
+        .where(
+          and(
+            inArray(rulings.decision, ['approved', 'random-coal']),
+            eq(rulings.visibility, 'public'),
+            eq(rulings.isFeatured, true),
+          ),
+        )
+        .orderBy(desc(rulings.featuredAt), desc(rulings.id))
+        .limit(limit);
+
+      return rows.map(mapRulingRowToPublicRuling);
+    },
     async listPublicRulingsForDiscovery(query) {
       const database = getDatabase();
       const where = buildPublicDiscoveryWhere(query);
@@ -172,11 +198,17 @@ export function createDatabaseRulingsRepository(): RulingsRepository {
             requestText: rulings.requestText,
             decision: rulings.decision,
             santaResponse: rulings.santaResponse,
+            isFeatured: rulings.isFeatured,
+            featuredAt: rulings.featuredAt,
             createdAt: rulings.createdAt,
           })
           .from(rulings)
           .where(where)
-          .orderBy(...orderBy)
+          .orderBy(
+            ...(query.decision === 'featured'
+              ? [desc(rulings.featuredAt), desc(rulings.id)]
+              : orderBy),
+          )
           .limit(query.pageSize)
           .offset(offset),
         database.select({ value: count() }).from(rulings).where(where),

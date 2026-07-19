@@ -227,6 +227,7 @@ describe('workshop Santa settings and response templates', () => {
       expectedVersion: '1',
       randomCoalEnabled: true,
       randomCoalPercentage: '100',
+      seasonalGreeting: '',
       headers,
       now: new Date('2026-07-18T12:00:00.000Z'),
     });
@@ -244,6 +245,7 @@ describe('workshop Santa settings and response templates', () => {
       expectedVersion: '1',
       randomCoalEnabled: false,
       randomCoalPercentage: '0',
+      seasonalGreeting: '',
       headers,
       now: new Date('2026-07-18T12:05:00.000Z'),
     });
@@ -281,6 +283,7 @@ describe('workshop Santa settings and response templates', () => {
       expectedVersion: '2',
       randomCoalEnabled: false,
       randomCoalPercentage: '100',
+      seasonalGreeting: '',
       headers,
       now: new Date('2026-07-18T12:15:00.000Z'),
     });
@@ -324,6 +327,45 @@ describe('workshop Santa settings and response templates', () => {
     expect(getTestRunStore(runId).rulings[0]?.decision).toBe('approved');
   });
 
+  it('updates and bounds the optional seasonal homepage greeting', async () => {
+    const headers = createWorkshopHeaders();
+    const saved = await updateWorkshopSantaSettings({
+      expectedVersion: '1',
+      randomCoalEnabled: true,
+      randomCoalPercentage: '5',
+      seasonalGreeting: '  Merry Christmas from Santa!  ',
+      headers,
+      now: new Date('2026-07-18T12:00:00.000Z'),
+    });
+
+    expect(saved).toMatchObject({
+      status: 'success',
+      settings: {
+        seasonalGreeting: 'Merry Christmas from Santa!',
+      },
+    });
+
+    await expect(
+      getRuntimeConfigurationForHeaders(headers),
+    ).resolves.toMatchObject({
+      santaSettings: {
+        seasonalGreeting: 'Merry Christmas from Santa!',
+      },
+    });
+
+    await expect(
+      updateWorkshopSantaSettings({
+        expectedVersion: '2',
+        randomCoalEnabled: true,
+        randomCoalPercentage: '5',
+        seasonalGreeting: 'x'.repeat(121),
+        headers,
+      }),
+    ).resolves.toMatchObject({
+      status: 'invalid-greeting',
+    });
+  });
+
   it('keeps persisted ruling responses stable and protects required blocked-warning templates', async () => {
     const headers = createWorkshopHeaders();
     const runId = headers.get('x-santa-test-run-id') ?? 'default';
@@ -352,6 +394,7 @@ describe('workshop Santa settings and response templates', () => {
       expectedVersion: '1',
       randomCoalEnabled: false,
       randomCoalPercentage: '5',
+      seasonalGreeting: '',
       headers,
       now: new Date('2026-07-18T13:05:00.000Z'),
     });

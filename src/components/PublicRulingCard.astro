@@ -36,6 +36,13 @@ const responseText =
     <p class="public-ruling-card__decision" data-decision={ruling.decision}>
       {getDecisionLabel(ruling.decision)}
     </p>
+    {
+      ruling.isFeatured && (
+        <p class="public-ruling-card__badge" data-featured-badge>
+          Featured
+        </p>
+      )
+    }
     <time class="public-ruling-card__time" datetime={ruling.createdAt}>
       {formatRulingTimestamp(ruling.createdAt)}
     </time>

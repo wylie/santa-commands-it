@@ -10,6 +10,7 @@ export type PublicRuling = {
   decision: PersistedRulingDecision;
   santaResponse: string;
   createdAt: string;
+  isFeatured: boolean;
 };
 
 export type CreatedRulingResponse = {
@@ -109,7 +110,8 @@ export function isPublicRuling(value: unknown): value is PublicRuling {
     typeof value.requestText === 'string' &&
     isPersistedRulingDecision(value.decision) &&
     typeof value.santaResponse === 'string' &&
-    typeof value.createdAt === 'string'
+    typeof value.createdAt === 'string' &&
+    typeof value.isFeatured === 'boolean'
   );
 }
 

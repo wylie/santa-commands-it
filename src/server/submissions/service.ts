@@ -56,6 +56,7 @@ export type SubmitRulingDependencies = {
     santaSettings: {
       randomCoalEnabled: boolean;
       randomCoalPercentage: number;
+      seasonalGreeting?: string;
     };
     responseTemplates: {
       approved: string[];

@@ -89,6 +89,11 @@ if (rulingResult.status === 'ok') {
               data-decision={rulingResult.ruling.decision}
             >
               <p class="ruling-card__eyebrow">Santa has spoken</p>
+              {rulingResult.ruling.isFeatured && (
+                <p class="ruling-card__featured" data-featured-badge>
+                  Featured
+                </p>
+              )}
               <p class="ruling-card__intro">
                 <strong>{rulingResult.ruling.displayName}</strong> asked Santa:
               </p>

@@ -191,6 +191,65 @@ test.describe('public Commands discovery', () => {
     await expect(page.getByText(latestCreated!.requestText)).toBeVisible();
   });
 
+  test('features a ruling from Workshop and highlights it publicly', async ({
+    page,
+  }) => {
+    const { headers } = await configureSantaTestPage(page);
+    const created = await createRulingViaApi(page, headers, {
+      name: 'Featured Holly',
+      request: 'A glass snow globe',
+      nowIso: '2026-07-18T12:00:00.000Z',
+    });
+
+    await page.goto('/');
+    await expect(page.locator('[data-featured-rulings]')).toHaveCount(0);
+
+    await page.goto('/workshop/login');
+    await page.getByLabel('Username').fill('owner');
+    await page.getByLabel('Password').fill('northpole-sleigh');
+    await page.getByRole('button', { name: 'Enter workshop' }).click();
+    await page.goto(`/workshop/rulings/${created.ruling.publicId}`);
+    await page.getByRole('button', { name: 'Feature Command' }).click();
+    await expect(page.getByText('The ruling is now featured.')).toBeVisible();
+    await expect(page.getByText('Ruling featured')).toBeVisible();
+
+    await page.goto('/');
+    await expect(page.locator('[data-featured-rulings]')).toBeVisible();
+    await expect(page.locator('[data-featured-list]')).toContainText(
+      'A glass snow globe',
+    );
+    await expect(
+      page.locator('[data-featured-list] [data-featured-badge]'),
+    ).toContainText('Featured');
+
+    await page.goto('/commands?decision=featured');
+    await expect(page.locator('[data-commands-list]')).toContainText(
+      'A glass snow globe',
+    );
+    await expect(
+      page.locator('[data-commands-list] [data-featured-badge]'),
+    ).toContainText('Featured');
+
+    await page.goto(`/rulings/${created.ruling.publicId}`);
+    await expect(page.locator('[data-featured-badge]')).toContainText(
+      'Featured',
+    );
+    const imageResponse = await page.request.get(
+      `/rulings/${created.ruling.publicId}/og.png`,
+      { headers },
+    );
+    expect(imageResponse.status()).toBe(200);
+    expect(imageResponse.headers()['content-type']).toContain('image/png');
+
+    await page.goto(`/workshop/rulings/${created.ruling.publicId}`);
+    await page.getByRole('button', { name: 'Remove Feature' }).click();
+    await expect(
+      page.getByText('The ruling is no longer featured.'),
+    ).toBeVisible();
+    await page.goto('/commands?decision=featured');
+    await expect(page.getByText('A glass snow globe')).toHaveCount(0);
+  });
+
   test('renders safe error and mobile states', async ({ page }) => {
     await configureSantaTestPage(page, {
       scenario: 'commands-unavailable',

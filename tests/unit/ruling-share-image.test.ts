@@ -19,6 +19,7 @@ const approvedRuling: PublicRuling = {
     'Please Santa bring me a telescope with a supercalifragilisticexpialidociouswinterwraparoundlens.',
   decision: 'approved',
   santaResponse: 'VERY WELL. SANTA COMMANDS IT!',
+  isFeatured: false,
   createdAt: '2026-07-18T12:00:00.000Z',
 };
 
@@ -59,8 +60,18 @@ describe('share image text shaping', () => {
     );
 
     expect(prepared.visibility).toBe('hidden');
+    expect(prepared.isFeatured).toBe(false);
     expect(prepared.displayName.text).toBe('Holly');
     expect(prepared.santaResponse.text).toBe('KEEP CALM AND MERRY');
+  });
+
+  it('carries featured state into prepared share images', () => {
+    expect(
+      prepareRulingShareImage({
+        ...approvedRuling,
+        isFeatured: true,
+      }).isFeatured,
+    ).toBe(true);
   });
 });
 
@@ -76,11 +87,17 @@ describe('share image treatment and responses', () => {
     });
   });
 
-  it('renders png responses with a short shared cache policy', async () => {
-    const response = await renderRulingShareImage(approvedRuling, {
-      visibility: 'public',
-      cacheControl: RULING_SHARE_IMAGE_PUBLIC_CACHE_CONTROL,
-    });
+  it('renders featured png responses with a short shared cache policy', async () => {
+    const response = await renderRulingShareImage(
+      {
+        ...approvedRuling,
+        isFeatured: true,
+      },
+      {
+        visibility: 'public',
+        cacheControl: RULING_SHARE_IMAGE_PUBLIC_CACHE_CONTROL,
+      },
+    );
 
     expect(response.headers.get('content-type')).toContain('image/png');
     expect(response.headers.get('cache-control')).toBe(

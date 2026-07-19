@@ -123,6 +123,7 @@ export type WorkshopModerationFilters = {
 export type WorkshopSantaSettings = {
   randomCoalEnabled: boolean;
   randomCoalPercentage: number;
+  seasonalGreeting: string;
   version: number;
   updatedAt: string;
 };
@@ -144,6 +145,7 @@ export type WorkshopResponseTemplateDetail = WorkshopResponseTemplateSummary;
 export type RuntimeSantaSettings = {
   randomCoalEnabled: boolean;
   randomCoalPercentage: number;
+  seasonalGreeting: string;
   version: number;
 };
 
@@ -169,6 +171,7 @@ export const configurationSeedDefaults = seedDefaults as {
   santaSettings: {
     randomCoalEnabled: boolean;
     randomCoalPercentage: number;
+    seasonalGreeting?: string;
   };
   responseTemplates: {
     approved: string[];

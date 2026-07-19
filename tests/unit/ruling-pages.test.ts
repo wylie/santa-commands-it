@@ -29,6 +29,7 @@ const approvedRuling: PublicRuling = {
     '<img src=x onerror=alert(1)> A brass telescope for winter stargazing',
   decision: 'approved',
   santaResponse: 'VERY WELL, Holly. SANTA COMMANDS IT!',
+  isFeatured: false,
   createdAt: '2026-07-15T23:30:00.000Z',
 };
 

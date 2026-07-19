@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 The format is inspired by Keep a Changelog, and this project adheres to Semantic Versioning.
 
+## [0.3.1] - 2026-07-19
+
+### Added
+
+- Featured Commands editorial controls for hand-picking public rulings in Santa's Workshop
+- Homepage Featured Commands section that shows up to three newest featured public rulings above Latest Commands
+- Featured-only public Commands filtering through server-rendered discovery URLs
+- Workshop featured management actions, dashboard count, and recent featured activity summary
+- Optional seasonal homepage greeting managed separately from announcements or scheduling
+- Subtle Featured treatment in dynamic ruling Open Graph images
+- Automated coverage for feature toggles, public badges, filtering, dashboard counts, activity logging, share images, and seasonal settings
+
+### Changed
+
+- Public ruling cards and ruling detail pages now expose featured status with accessible text while preserving chronological browsing behavior
+- Project documentation now covers Featured Commands, Workshop management, seasonal homepage messaging, cache behavior, and the related schema migration
+
 ## [0.3.0] - 2026-07-19
 
 ### Added

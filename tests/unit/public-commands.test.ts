@@ -49,6 +49,7 @@ describe('public Commands query parsing', () => {
     expect(parse('decision=all').decision).toBe('all');
     expect(parse('decision=approved').decision).toBe('approved');
     expect(parse('decision=coal').decision).toBe('coal');
+    expect(parse('decision=featured').decision).toBe('featured');
     expect(parse('decision=hidden').decision).toBe('all');
   });
 
@@ -91,6 +92,9 @@ describe('public Commands query parsing', () => {
     );
     expect(getPublicCommandsSummary(0, parse('decision=coal'))).toBe(
       'No coal commands matched.',
+    );
+    expect(getPublicCommandsSummary(1, parse('decision=featured'))).toBe(
+      'Showing 1 featured command.',
     );
   });
 });
@@ -191,6 +195,46 @@ describe('public Commands repository behavior', () => {
     ).resolves.toMatchObject({
       total: 1,
       rulings: [{ displayName: 'Book Kid' }],
+    });
+  });
+
+  it('filters featured rulings by newest featured time without changing all-result ordering', async () => {
+    const repository = await seedRepository();
+    const store = await import('@/server/testing/store');
+    const testStore = store.getTestRunStore('commands-run');
+    const bikeDad = testStore.rulings.find(
+      (ruling) => ruling.displayName === 'Bike Dad',
+    );
+    const coalCousin = testStore.rulings.find(
+      (ruling) => ruling.displayName === 'Coal Cousin',
+    );
+
+    if (!bikeDad || !coalCousin) {
+      throw new Error('Expected seeded rulings.');
+    }
+
+    bikeDad.isFeatured = true;
+    bikeDad.featuredAt = '2026-07-18T12:00:00.000Z';
+    coalCousin.isFeatured = true;
+    coalCousin.featuredAt = '2026-07-19T12:00:00.000Z';
+
+    await expect(
+      repository.listPublicRulingsForDiscovery(parse('decision=featured')),
+    ).resolves.toMatchObject({
+      total: 2,
+      rulings: [
+        { displayName: 'Coal Cousin', isFeatured: true },
+        { displayName: 'Bike Dad', isFeatured: true },
+      ],
+    });
+    await expect(
+      repository.listPublicRulingsForDiscovery(parse()),
+    ).resolves.toMatchObject({
+      rulings: [
+        { displayName: 'Book Kid' },
+        { displayName: 'Coal Cousin' },
+        { displayName: 'Bike Dad' },
+      ],
     });
   });
 

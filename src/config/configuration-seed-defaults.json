@@ -6,7 +6,8 @@
   },
   "santaSettings": {
     "randomCoalEnabled": true,
-    "randomCoalPercentage": 5
+    "randomCoalPercentage": 5,
+    "seasonalGreeting": ""
   },
   "responseTemplates": {
     "approved": [

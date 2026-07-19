@@ -12,6 +12,70 @@ afterEach(() => {
 });
 
 describe('workshop ruling visibility', () => {
+  it('features, unfeatures, and clears featured state when a ruling is hidden', async () => {
+    const runId = 'workshop-featured';
+    const publicRepository = createTestRulingsRepository(runId);
+    const workshopRepository = createTestWorkshopRepository(runId);
+
+    await publicRepository.createRuling({
+      publicId: '550e8400-e29b-41d4-a716-446655440010',
+      displayName: 'Holly',
+      requestText: 'A brass telescope',
+      decision: 'approved',
+      santaResponse: 'VERY WELL, Holly.',
+    });
+
+    const featured = await workshopRepository.setRulingFeatured(
+      '550e8400-e29b-41d4-a716-446655440010',
+      true,
+      new Date('2026-07-18T12:00:00.000Z'),
+    );
+
+    expect(featured).toMatchObject({
+      isFeatured: true,
+      featuredAt: '2026-07-18T12:00:00.000Z',
+    });
+    await expect(publicRepository.listFeaturedRulings()).resolves.toMatchObject(
+      [{ publicId: '550e8400-e29b-41d4-a716-446655440010' }],
+    );
+
+    const unfeatured = await workshopRepository.setRulingFeatured(
+      '550e8400-e29b-41d4-a716-446655440010',
+      false,
+      new Date('2026-07-18T12:05:00.000Z'),
+    );
+
+    expect(unfeatured).toMatchObject({
+      isFeatured: false,
+      featuredAt: null,
+    });
+
+    await workshopRepository.setRulingFeatured(
+      '550e8400-e29b-41d4-a716-446655440010',
+      true,
+      new Date('2026-07-18T12:10:00.000Z'),
+    );
+    const hidden = await workshopRepository.hideRuling(
+      '550e8400-e29b-41d4-a716-446655440010',
+      'Private moderation note',
+      new Date('2026-07-18T12:15:00.000Z'),
+    );
+
+    expect(hidden).toMatchObject({
+      visibility: 'hidden',
+      isFeatured: false,
+      featuredAt: null,
+    });
+    expect(
+      await workshopRepository.setRulingFeatured(
+        '550e8400-e29b-41d4-a716-446655440010',
+        true,
+        new Date('2026-07-18T12:20:00.000Z'),
+      ),
+    ).toBe('hidden');
+    await expect(publicRepository.listFeaturedRulings()).resolves.toEqual([]);
+  });
+
   it('hides a ruling from public queries and restores it later', async () => {
     const runId = 'workshop-visibility';
     const publicRepository = createTestRulingsRepository(runId);
