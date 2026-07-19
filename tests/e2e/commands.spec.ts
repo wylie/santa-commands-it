@@ -58,6 +58,37 @@ test.describe('public Commands discovery', () => {
     await expect(
       publicNav.getByRole('link', { name: 'BROWSE REQUESTS' }),
     ).toHaveAttribute('aria-current', 'page');
+    await expect(page.locator('[data-public-shell]')).toHaveCount(1);
+    await expect(page.locator('[data-public-portrait] img')).toHaveCount(1);
+    await expect(page.locator('footer.site-footer')).toHaveCount(1);
+
+    const desktopShellPositions = await page.evaluate(() => {
+      const portrait = document.querySelector('[data-public-portrait]');
+      const nav = document.querySelector('nav[aria-label="Public navigation"]');
+      const main = document.querySelector('[data-public-main]');
+      const footer = document.querySelector('footer.site-footer');
+
+      if (!portrait || !nav || !main || !footer) {
+        return null;
+      }
+
+      const portraitBox = portrait.getBoundingClientRect();
+      const navBox = nav.getBoundingClientRect();
+      const mainBox = main.getBoundingClientRect();
+      const footerBox = footer.getBoundingClientRect();
+
+      return {
+        navBelowPortrait: navBox.top >= portraitBox.bottom,
+        footerBelowNav: footerBox.top > navBox.bottom,
+        mainRightOfRail: mainBox.left > portraitBox.left,
+      };
+    });
+
+    expect(desktopShellPositions).toEqual({
+      navBelowPortrait: true,
+      footerBelowNav: true,
+      mainRightOfRail: true,
+    });
 
     await expect(
       page.getByRole('heading', { name: 'REQUESTS ANSWERED BY SANTA' }),
@@ -96,6 +127,7 @@ test.describe('public Commands discovery', () => {
     await expect(
       page.getByText('No requests matched your search.'),
     ).toBeVisible();
+    await expect(page.locator('.commands-cta')).toHaveCount(0);
 
     await page
       .getByLabel('Find Requests')
@@ -282,6 +314,7 @@ test.describe('public Commands discovery', () => {
     await expect(
       page.getByLabel('Requests').getByRole('link', { name: 'ASK SANTA' }),
     ).toBeVisible();
+    await expect(page.locator('.commands-cta')).toHaveCount(0);
 
     await configureSantaTestPage(page);
     await page.setViewportSize({ width: 320, height: 900 });
@@ -297,6 +330,39 @@ test.describe('public Commands discovery', () => {
     });
 
     expect(hasHorizontalOverflow).toBe(false);
+
+    const mobileOrder = await page.evaluate(() => {
+      const portrait = document.querySelector('[data-public-portrait]');
+      const nav = document.querySelector('nav[aria-label="Public navigation"]');
+      const main = document.querySelector('[data-public-main]');
+      const footer = document.querySelector('footer.site-footer');
+
+      if (!portrait || !nav || !main || !footer) {
+        return null;
+      }
+
+      const portraitBox = portrait.getBoundingClientRect();
+      const navBox = nav.getBoundingClientRect();
+      const mainBox = main.getBoundingClientRect();
+      const footerBox = footer.getBoundingClientRect();
+      const railStyle = window.getComputedStyle(
+        document.querySelector('[data-public-rail]')!,
+      );
+
+      return {
+        navBelowPortrait: navBox.top >= portraitBox.bottom,
+        mainBelowNav: mainBox.top >= navBox.bottom,
+        footerBelowMain: footerBox.top >= mainBox.bottom,
+        stickyDisabled: railStyle.position !== 'sticky',
+      };
+    });
+
+    expect(mobileOrder).toEqual({
+      navBelowPortrait: true,
+      mainBelowNav: true,
+      footerBelowMain: true,
+      stickyDisabled: true,
+    });
   });
 
   test('includes only public entry points in the sitemap', async ({ page }) => {

@@ -1,11 +1,9 @@
 ---
 import FeaturedRulings from '@/components/FeaturedRulings.astro';
+import PublicShell from '@/components/PublicShell.astro';
 import RequestForm from '@/components/RequestForm.astro';
 import RecentRulings from '@/components/RecentRulings.astro';
-import PublicNav from '@/components/PublicNav.astro';
-import SantaPortrait from '@/components/SantaPortrait.astro';
 import SantaSpeechBubble from '@/components/SantaSpeechBubble.astro';
-import SiteFooter from '@/components/SiteFooter.astro';
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import { getHomepageSeasonalGreeting } from '@/server/config/service';
 import {
@@ -28,39 +26,30 @@ const [recentRulingsResult, featuredRulingsResult, seasonalGreeting] =
 >
   <a class="skip-link" href="#main-content">Skip to content</a>
   <main id="main-content" class="page-shell">
-    <section class="hero" aria-labelledby="opening-panel-title">
-      <div class="hero__left-rail">
-        <h1 class="sr-only">Santa Commands It!</h1>
-        <PublicNav current="ask-santa" />
-        <div class="hero__portrait">
-          <SantaPortrait />
-        </div>
-        <SiteFooter />
-      </div>
-      <div class="hero__content">
-        <SantaSpeechBubble />
-        {
-          seasonalGreeting && (
-            <section class="seasonal-greeting" aria-label="Seasonal greeting">
-              <p>{seasonalGreeting}</p>
-            </section>
-          )
-        }
-        <RequestForm />
-        <FeaturedRulings
-          rulings={featuredRulingsResult.status === 'ok'
-            ? featuredRulingsResult.rulings
-            : []}
-        />
-        <RecentRulings
-          rulings={recentRulingsResult.status === 'ok'
-            ? recentRulingsResult.rulings
-            : []}
-          unavailableMessage={recentRulingsResult.status === 'unavailable'
-            ? recentRulingsResult.message
-            : null}
-        />
-      </div>
-    </section>
+    <PublicShell current="ask-santa">
+      <h1 class="sr-only">Santa Commands It!</h1>
+      <SantaSpeechBubble />
+      {
+        seasonalGreeting && (
+          <section class="seasonal-greeting" aria-label="Seasonal greeting">
+            <p>{seasonalGreeting}</p>
+          </section>
+        )
+      }
+      <RequestForm />
+      <FeaturedRulings
+        rulings={featuredRulingsResult.status === 'ok'
+          ? featuredRulingsResult.rulings
+          : []}
+      />
+      <RecentRulings
+        rulings={recentRulingsResult.status === 'ok'
+          ? recentRulingsResult.rulings
+          : []}
+        unavailableMessage={recentRulingsResult.status === 'unavailable'
+          ? recentRulingsResult.message
+          : null}
+      />
+    </PublicShell>
   </main>
 </BaseLayout>

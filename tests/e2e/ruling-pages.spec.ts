@@ -24,6 +24,13 @@ test.describe('public ruling pages', () => {
 
     expect(response?.status()).toBe(200);
     await expect(page.getByAltText(/Santa Claus seated/i)).toBeVisible();
+    await expect(page.locator('[data-public-portrait] img')).toHaveCount(1);
+    await expect(page.locator('footer.site-footer')).toHaveCount(1);
+    await expect(
+      page
+        .getByLabel('Public navigation')
+        .getByRole('link', { name: 'BROWSE REQUESTS' }),
+    ).toHaveAttribute('aria-current', 'page');
     await expect(
       page.getByRole('heading', { name: 'SANTA COMMANDS IT!' }),
     ).toBeVisible();

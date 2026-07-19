@@ -1,0 +1,24 @@
+---
+import PublicNav from '@/components/PublicNav.astro';
+import SantaPortrait from '@/components/SantaPortrait.astro';
+import SiteFooter from '@/components/SiteFooter.astro';
+
+interface Props {
+  current?: 'ask-santa' | 'browse-requests';
+}
+
+const { current } = Astro.props;
+---
+
+<div class="public-shell" data-public-shell>
+  <div class="public-shell__rail" data-public-rail>
+    <div class="public-shell__portrait" data-public-portrait>
+      <SantaPortrait />
+    </div>
+    <PublicNav current={current} />
+  </div>
+  <div class="public-shell__main" data-public-main>
+    <slot />
+  </div>
+  <SiteFooter className="public-shell__footer" />
+</div>

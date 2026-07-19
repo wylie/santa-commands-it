@@ -679,11 +679,12 @@ The committed migrations live under `drizzle/`. Ordinary application startup doe
 
 ## Design and layout
 
-- Desktop uses the sticky two-column Santa layout.
-- The left rail holds the Santa artwork and the compact footer.
-- The right column stacks the response panel, form, and public latest-commands list.
-- The Commands page uses the same public visual system with a server-rendered responsive card grid and simple wrapped pagination.
-- Mobile and tablet collapse into normal document flow.
+- Public pages use one shared two-column shell.
+- On desktop, the left rail holds the Santa artwork, the public navigation beneath Santa, and the compact footer at the bottom of the rail.
+- The homepage, `/commands`, and public ruling pages all use that shared shell.
+- The right column stacks page-specific panels such as the response panel, request form, discovery filters, results, and public ruling content.
+- The left rail stays sticky on wide screens unless the viewport height is too short for safe sticky behavior.
+- Mobile and tablet collapse into normal document flow in this order: Santa, navigation, content, footer.
 - The visual system keeps the light winter palette, Germania One display typography, and rounded low-border surfaces introduced in earlier releases.
 
 ## Accessibility goals

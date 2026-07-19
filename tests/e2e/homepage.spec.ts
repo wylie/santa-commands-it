@@ -66,6 +66,54 @@ test.describe('Santa Commands It homepage', () => {
     await expect(
       page.getByRole('link', { name: 'BROWSE ALL REQUESTS' }),
     ).toHaveAttribute('href', '/commands');
+
+    await expect(page.locator('[data-public-shell]')).toHaveCount(1);
+    await expect(page.locator('[data-public-portrait] img')).toHaveCount(1);
+    await expect(page.locator('footer.site-footer')).toHaveCount(1);
+
+    const publicShellOrder = await page.evaluate(() => {
+      const shell = document.querySelector('[data-public-shell]');
+      if (!shell) {
+        return [];
+      }
+
+      return Array.from(shell.children).map((child) => {
+        if (child.matches('[data-public-rail]')) return 'rail';
+        if (child.matches('[data-public-main]')) return 'main';
+        if (child.matches('footer')) return 'footer';
+        return child.tagName.toLowerCase();
+      });
+    });
+
+    expect(publicShellOrder).toEqual(['rail', 'main', 'footer']);
+
+    const desktopRailPositions = await page.evaluate(() => {
+      const portrait = document.querySelector('[data-public-portrait]');
+      const nav = document.querySelector('nav[aria-label="Public navigation"]');
+      const footer = document.querySelector('footer.site-footer');
+      const main = document.querySelector('[data-public-main]');
+
+      if (!portrait || !nav || !footer || !main) {
+        return null;
+      }
+
+      const portraitBox = portrait.getBoundingClientRect();
+      const navBox = nav.getBoundingClientRect();
+      const footerBox = footer.getBoundingClientRect();
+      const mainBox = main.getBoundingClientRect();
+
+      return {
+        navBelowPortrait: navBox.top >= portraitBox.bottom,
+        footerBelowNav: footerBox.top > navBox.bottom,
+        mainRightOfRail: mainBox.left > portraitBox.left,
+      };
+    });
+
+    expect(desktopRailPositions).toEqual({
+      navBelowPortrait: true,
+      footerBelowNav: true,
+      mainRightOfRail: true,
+    });
   });
 
   test('persists an approved ruling and shows it after reload', async ({
@@ -380,6 +428,39 @@ test.describe('Santa Commands It homepage', () => {
     });
 
     expect(hasHorizontalOverflow).toBe(false);
+
+    const mobileOrder = await page.evaluate(() => {
+      const portrait = document.querySelector('[data-public-portrait]');
+      const nav = document.querySelector('nav[aria-label="Public navigation"]');
+      const main = document.querySelector('[data-public-main]');
+      const footer = document.querySelector('footer.site-footer');
+
+      if (!portrait || !nav || !main || !footer) {
+        return null;
+      }
+
+      const portraitBox = portrait.getBoundingClientRect();
+      const navBox = nav.getBoundingClientRect();
+      const mainBox = main.getBoundingClientRect();
+      const footerBox = footer.getBoundingClientRect();
+      const railStyle = window.getComputedStyle(
+        document.querySelector('[data-public-rail]')!,
+      );
+
+      return {
+        navBelowPortrait: navBox.top >= portraitBox.bottom,
+        mainBelowNav: mainBox.top >= navBox.bottom,
+        footerBelowMain: footerBox.top >= mainBox.bottom,
+        stickyDisabled: railStyle.position !== 'sticky',
+      };
+    });
+
+    expect(mobileOrder).toEqual({
+      navBelowPortrait: true,
+      mainBelowNav: true,
+      footerBelowMain: true,
+      stickyDisabled: true,
+    });
   });
 
   test('shows a friendly rate-limit message and preserves form values', async ({

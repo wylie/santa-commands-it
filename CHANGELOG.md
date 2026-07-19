@@ -20,6 +20,10 @@ The format is inspired by Keep a Changelog, and this project adheres to Semantic
 
 - Public ruling cards and ruling detail pages now expose featured status with accessible text while preserving chronological browsing behavior
 - Project documentation now covers Featured Commands, simplified public navigation, seasonal homepage messaging, cache behavior, and the related schema migration
+- Unified the Requests page with the homepage two-column layout and centralized the shared public shell
+- Moved public navigation below Santa and kept the footer anchored to the left rail on desktop
+- Removed redundant Requests-page Ask Santa CTA panels for empty and unavailable states
+- Improved mobile stacking order and guarded desktop sticky-rail behavior for short viewports
 
 ## [0.3.0] - 2026-07-19
 

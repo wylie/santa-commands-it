@@ -1,10 +1,15 @@
 ---
 import { SITE_OWNER, SITE_TITLE } from '@/config/site';
 
+interface Props {
+  className?: string;
+}
+
+const { className } = Astro.props;
 const year = new Date().getFullYear();
 ---
 
-<footer class="site-footer">
+<footer class:list={['site-footer', className]}>
   <p class="site-footer__primary">
     <span>{SITE_TITLE}</span>
     <span>&copy; {year}</span>
