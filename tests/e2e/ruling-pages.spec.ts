@@ -144,11 +144,11 @@ test.describe('public ruling pages', () => {
     await page.goto('/');
     const firstRecentItem = page.locator('[data-recent-list] > li').first();
     await expect(
-      firstRecentItem.getByRole('link', { name: /view and share/i }),
+      firstRecentItem.getByRole('link', { name: /read santa's answer/i }),
     ).toHaveAttribute('href', `/rulings/${ruling.publicId}`);
 
     await firstRecentItem
-      .getByRole('link', { name: /view and share/i })
+      .getByRole('link', { name: /read santa's answer/i })
       .click();
     await expect(page).toHaveURL(`/rulings/${ruling.publicId}`);
     await expect(page.getByRole('heading', { name: 'COAL' })).toBeVisible();
@@ -377,8 +377,16 @@ test.describe('public ruling pages', () => {
       '<img src=x onerror=alert(1)>',
     );
     await expect(page.locator('.ruling-card img')).toHaveCount(0);
-    await page.getByRole('link', { name: 'ASK SANTA SOMETHING' }).click();
-    await expect(page).toHaveURL('/');
+    const publicNav = page.getByLabel('Public navigation');
+    await expect(
+      publicNav.getByRole('link', { name: 'ASK SANTA' }),
+    ).toHaveAttribute('href', '/#ask-santa');
+    await expect(
+      publicNav.getByRole('link', { name: 'BROWSE REQUESTS' }),
+    ).toHaveAttribute('href', '/commands');
+
+    await page.getByRole('link', { name: 'BACK TO REQUESTS' }).click();
+    await expect(page).toHaveURL('/commands');
 
     const hasHorizontalOverflow = await page.evaluate(() => {
       return document.documentElement.scrollWidth > window.innerWidth;

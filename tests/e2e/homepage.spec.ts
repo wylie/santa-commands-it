@@ -13,6 +13,23 @@ test.describe('Santa Commands It homepage', () => {
     await configureSantaTestPage(page);
     await page.goto('/');
 
+    const publicNav = page.getByLabel('Public navigation');
+    await expect(publicNav.getByRole('link')).toHaveCount(2);
+    await expect(
+      publicNav.getByRole('link', { name: 'ASK SANTA' }),
+    ).toHaveAttribute('href', '/#ask-santa');
+    await expect(
+      publicNav.getByRole('link', { name: 'ASK SANTA' }),
+    ).toHaveAttribute('aria-current', 'page');
+    await expect(
+      publicNav.getByRole('link', { name: 'BROWSE REQUESTS' }),
+    ).toHaveAttribute('href', '/commands');
+    await expect(publicNav.getByRole('link', { name: 'HOME' })).toHaveCount(0);
+    await expect(
+      publicNav.getByRole('link', { name: 'SUBMIT A REQUEST' }),
+    ).toHaveCount(0);
+    await expect(page.locator('#ask-santa')).toBeVisible();
+
     await expect(page.getByAltText(/Santa Claus seated/i)).toBeVisible();
     await expect(page.getByText('public/images/santa-solo.png')).toHaveCount(0);
     await expect(page.getByText('public/images/santa.png')).toHaveCount(0);
@@ -44,8 +61,11 @@ test.describe('Santa Commands It homepage', () => {
     expect(backgroundDetails.oldSantaRequested).toBe(false);
 
     await expect(
-      page.getByText('Santa has not made any public commands yet.'),
+      page.getByText("SANTA HASN'T ANSWERED ANY PUBLIC REQUESTS YET."),
     ).toBeVisible();
+    await expect(
+      page.getByRole('link', { name: 'BROWSE ALL REQUESTS' }),
+    ).toHaveAttribute('href', '/commands');
   });
 
   test('persists an approved ruling and shows it after reload', async ({
@@ -131,7 +151,7 @@ test.describe('Santa Commands It homepage', () => {
     await page.reload();
 
     await expect(
-      page.getByText('Santa has not made any public commands yet.'),
+      page.getByText("SANTA HASN'T ANSWERED ANY PUBLIC REQUESTS YET."),
     ).toBeVisible();
   });
 
@@ -336,9 +356,30 @@ test.describe('Santa Commands It homepage', () => {
     await page.goto('/');
 
     await expect(
-      page.getByText("Santa's announcement board is temporarily unavailable."),
+      page.getByText("SANTA'S LATEST ANSWERS ARE TEMPORARILY UNAVAILABLE."),
+    ).toBeVisible();
+    await expect(
+      page.getByText('Please try again in a little while.'),
     ).toBeVisible();
     await expect(page.getByRole('button', { name: 'ASK SANTA' })).toBeVisible();
+  });
+
+  test('public navigation lands on the request section and stays overflow-safe on narrow screens', async ({
+    page,
+  }) => {
+    await configureSantaTestPage(page);
+    await page.setViewportSize({ width: 320, height: 900 });
+    await page.goto('/');
+
+    await page.getByRole('link', { name: 'ASK SANTA' }).click();
+    await expect(page).toHaveURL(/\/#ask-santa$/);
+    await expect(page.locator('#ask-santa')).toBeInViewport();
+
+    const hasHorizontalOverflow = await page.evaluate(() => {
+      return document.documentElement.scrollWidth > window.innerWidth;
+    });
+
+    expect(hasHorizontalOverflow).toBe(false);
   });
 
   test('shows a friendly rate-limit message and preserves form values', async ({

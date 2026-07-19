@@ -9,7 +9,7 @@ The format is inspired by Keep a Changelog, and this project adheres to Semantic
 ### Added
 
 - Featured Commands editorial controls for hand-picking public rulings in Santa's Workshop
-- Homepage Featured Commands section that shows up to three newest featured public rulings above Latest Commands
+- Homepage Featured Commands section that shows up to three newest featured public rulings above Santa's Latest Answers
 - Featured-only public Commands filtering through server-rendered discovery URLs
 - Workshop featured management actions, dashboard count, and recent featured activity summary
 - Optional seasonal homepage greeting managed separately from announcements or scheduling
@@ -19,7 +19,7 @@ The format is inspired by Keep a Changelog, and this project adheres to Semantic
 ### Changed
 
 - Public ruling cards and ruling detail pages now expose featured status with accessible text while preserving chronological browsing behavior
-- Project documentation now covers Featured Commands, Workshop management, seasonal homepage messaging, cache behavior, and the related schema migration
+- Project documentation now covers Featured Commands, simplified public navigation, seasonal homepage messaging, cache behavior, and the related schema migration
 
 ## [0.3.0] - 2026-07-19
 
@@ -28,8 +28,10 @@ The format is inspired by Keep a Changelog, and this project adheres to Semantic
 - Public Commands browsing page at `/commands` for viewing published public rulings beyond the homepage feed
 - Public display-name and request-text search with server-side normalization and shareable query URLs
 - Approved and coal decision filtering, newest and oldest sorting, and fixed server-side pagination
-- Shared public ruling-card component used by the homepage Latest Commands section and the Commands page
-- Homepage `VIEW ALL COMMANDS` link, public navigation, Commands metadata, and static sitemap entry
+- Shared public ruling-card component used by the homepage Santa's Latest Answers section and the `/commands` page
+- Simplified public navigation with `ASK SANTA`, `BROWSE REQUESTS`, and a direct homepage form anchor
+- Clearer Browse Requests terminology across public navigation, `/commands`, and related metadata
+- Static sitemap entry for `/commands`
 - Automated unit and Playwright coverage for discovery query parsing, public-safe repository behavior, empty/error states, accessibility, responsive behavior, sitemap behavior, and Workshop visibility integration
 
 ### Changed

@@ -88,13 +88,13 @@ describe('public Commands query parsing', () => {
 
   it('summarizes active filters without private counts', () => {
     expect(getPublicCommandsSummary(3, parse('q=bike&decision=approved'))).toBe(
-      'Showing 3 approved commands matching "bike".',
+      'Showing 3 approved requests matching "bike".',
     );
     expect(getPublicCommandsSummary(0, parse('decision=coal'))).toBe(
-      'No coal commands matched.',
+      'No coal requests matched.',
     );
     expect(getPublicCommandsSummary(1, parse('decision=featured'))).toBe(
-      'Showing 1 featured command.',
+      'Showing 1 featured request.',
     );
   });
 });

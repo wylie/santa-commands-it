@@ -50,8 +50,17 @@ test.describe('public Commands discovery', () => {
 
     await page.goto('/commands');
 
+    const publicNav = page.getByLabel('Public navigation');
+    await expect(publicNav.getByRole('link')).toHaveCount(2);
     await expect(
-      page.getByRole('heading', { name: "SANTA'S COMMANDS" }),
+      publicNav.getByRole('link', { name: 'ASK SANTA' }),
+    ).toHaveAttribute('href', '/#ask-santa');
+    await expect(
+      publicNav.getByRole('link', { name: 'BROWSE REQUESTS' }),
+    ).toHaveAttribute('aria-current', 'page');
+
+    await expect(
+      page.getByRole('heading', { name: 'REQUESTS ANSWERED BY SANTA' }),
     ).toBeVisible();
     await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
       'href',
@@ -63,10 +72,10 @@ test.describe('public Commands discovery', () => {
       page.locator('[data-commands-list] > li').first(),
     ).toContainText('Discovery request 13');
 
-    await page.getByLabel('Search public commands').fill('bike');
+    await page.getByLabel('Search public requests').fill('bike');
     await page.getByRole('button', { name: 'APPLY' }).click();
     await expect(page).toHaveURL('/commands?q=bike');
-    await expect(page.getByLabel('Search public commands')).toHaveValue('bike');
+    await expect(page.getByLabel('Search public requests')).toHaveValue('bike');
     await expect(page.locator('[data-commands-list] > li')).toHaveCount(1);
     await expect(page.locator('[data-commands-list]')).toContainText(
       'Bike Dad',
@@ -76,20 +85,20 @@ test.describe('public Commands discovery', () => {
       'noindex, follow',
     );
 
-    await page.getByLabel('Search public commands').fill('bicycle');
+    await page.getByLabel('Search public requests').fill('bicycle');
     await page.getByRole('button', { name: 'APPLY' }).click();
     await expect(page.locator('[data-commands-list]')).toContainText(
       'A blue bicycle with a bell',
     );
 
-    await page.getByLabel('Search public commands').fill('no-match-value');
+    await page.getByLabel('Search public requests').fill('no-match-value');
     await page.getByRole('button', { name: 'APPLY' }).click();
     await expect(
-      page.getByText('Santa could not find any commands matching that search.'),
+      page.getByText('No requests matched your search.'),
     ).toBeVisible();
 
     await page
-      .getByLabel('Find Commands')
+      .getByLabel('Find Requests')
       .getByRole('link', { name: 'CLEAR FILTERS' })
       .click();
     await expect(page).toHaveURL('/commands');
@@ -119,13 +128,13 @@ test.describe('public Commands discovery', () => {
     await page.getByLabel('Sort').selectOption('newest');
     await page.getByRole('button', { name: 'APPLY' }).click();
     await page
-      .getByLabel('Commands pagination')
+      .getByLabel('Requests pagination')
       .getByRole('link', { name: '2', exact: true })
       .click();
     await expect(page).toHaveURL('/commands?page=2');
     await expect(
       page
-        .getByLabel('Commands pagination')
+        .getByLabel('Requests pagination')
         .getByRole('link', { name: '2', exact: true }),
     ).toHaveAttribute('aria-current', 'page');
     await expect(page.locator('[data-commands-list] > li')).toHaveCount(2);
@@ -133,7 +142,7 @@ test.describe('public Commands discovery', () => {
     await page.getByRole('link', { name: 'Previous' }).click();
     await expect(page).toHaveURL('/commands');
 
-    await page.getByLabel('Search public commands').fill('Discovery');
+    await page.getByLabel('Search public requests').fill('Discovery');
     await page.getByLabel('Decision').selectOption('approved');
     await page.getByLabel('Sort').selectOption('oldest');
     await page.getByRole('button', { name: 'APPLY' }).click();
@@ -142,7 +151,7 @@ test.describe('public Commands discovery', () => {
     );
 
     await page
-      .getByRole('link', { name: /View and share/i })
+      .getByRole('link', { name: /Read Santa's answer/i })
       .first()
       .click();
     await expect(page).toHaveURL(/\/rulings\/[0-9a-f-]+$/);
@@ -155,6 +164,16 @@ test.describe('public Commands discovery', () => {
     await expect(page.getByRole('heading', { level: 1 })).toContainText(
       /SANTA|COAL/,
     );
+    await expect(
+      page.getByLabel('Public navigation').getByRole('link', {
+        name: 'ASK SANTA',
+      }),
+    ).toBeVisible();
+    await expect(
+      page.getByLabel('Public navigation').getByRole('link', {
+        name: 'BROWSE REQUESTS',
+      }),
+    ).toBeVisible();
   });
 
   test('links from the homepage and keeps hidden rulings out of public discovery', async ({
@@ -167,7 +186,7 @@ test.describe('public Commands discovery', () => {
     expect(latestCreated).toBeDefined();
 
     await page.goto('/');
-    await page.getByRole('link', { name: 'VIEW ALL COMMANDS' }).click();
+    await page.getByRole('link', { name: 'BROWSE ALL REQUESTS' }).click();
     await expect(page).toHaveURL('/commands');
 
     await expect(page.getByText(latestCreated!.requestText)).toBeVisible();
@@ -258,12 +277,10 @@ test.describe('public Commands discovery', () => {
 
     expect(response?.status()).toBe(503);
     await expect(
-      page.getByText("SANTA'S COMMANDS ARE TEMPORARILY UNAVAILABLE."),
+      page.getByText('REQUESTS ANSWERED BY SANTA ARE TEMPORARILY UNAVAILABLE.'),
     ).toBeVisible();
     await expect(
-      page
-        .getByLabel('Public Rulings')
-        .getByRole('link', { name: 'SUBMIT A REQUEST' }),
+      page.getByLabel('Requests').getByRole('link', { name: 'ASK SANTA' }),
     ).toBeVisible();
 
     await configureSantaTestPage(page);
@@ -271,7 +288,7 @@ test.describe('public Commands discovery', () => {
     await page.goto('/commands?q=this-will-not-match');
     await expect(
       page
-        .getByLabel('Public Rulings')
+        .getByLabel('Find Requests')
         .getByRole('link', { name: 'CLEAR FILTERS' }),
     ).toBeVisible();
 

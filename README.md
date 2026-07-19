@@ -5,7 +5,7 @@
 ## Release
 
 - Current version: `v0.3.1`
-- Current scope: the preserved public Santa experience, public Commands browsing at `/commands`, curated Featured Commands, optional seasonal homepage messaging, shareable discovery URLs, and a private `Santa's Workshop` owner area with secure single-owner authentication, server-side sessions, range-aware owner dashboard analytics, ruling visibility controls, a report-review queue, database-backed moderation rules, editable Santa settings, response-template management, dynamic ruling share images, and private audit activity
+- Current scope: the preserved public Santa experience, public request browsing at `/commands`, curated Featured Commands, optional seasonal homepage messaging, shareable discovery URLs, and a private `Santa's Workshop` owner area with secure single-owner authentication, server-side sessions, range-aware owner dashboard analytics, ruling visibility controls, a report-review queue, database-backed moderation rules, editable Santa settings, response-template management, dynamic ruling share images, and private audit activity
 
 Completed rulings persist across refreshes and can be revisited at permanent public URLs when they remain public. Blocked submissions are still rejected before any database write and never receive public pages, public reports can be submitted without exposing reporter details, and hidden rulings now return the same public not-found experience as unknown identifiers.
 
@@ -55,9 +55,9 @@ Completed approvals and coal rulings are public on the homepage and on their own
 - `npm run db:seed:configuration`
 
 13. Start the development server with `npm run dev`.
-14. Submit a request, confirm it appears in Santa's Latest Commands and `/commands`, search and filter the public Commands page, open its permanent ruling page, load `/rulings/[publicId]/og.png`, sign into `/workshop/login`, and test dashboard ranges, Featured Commands, seasonal greeting editing, moderation rules, Santa settings, response templates, report review, share-preview pages, hide, restore, and delete behavior against local data.
+14. Submit a request, confirm it appears in Santa's Latest Answers and `/commands`, use the public `BROWSE REQUESTS` page, open its permanent ruling page, load `/rulings/[publicId]/og.png`, sign into `/workshop/login`, and test dashboard ranges, Featured Commands, seasonal greeting editing, moderation rules, Santa settings, response templates, report review, share-preview pages, hide, restore, and delete behavior against local data.
 
-If `DATABASE_URL` is missing, the form remains usable but the server cannot persist rulings, recent public commands will be unavailable, and no permanent ruling pages can be created.
+If `DATABASE_URL` is missing, the form remains usable but the server cannot persist rulings, recent public requests will be unavailable, and no permanent ruling pages can be created.
 
 ## Environment variables
 
@@ -298,7 +298,7 @@ The server then:
 11. Persists approved or coal rulings in Neon through Drizzle, along with short-lived idempotency and submission-attempt records.
 12. Returns safe ruling data to the browser, including the public identifier for permanent linking.
 
-The browser updates the response panel, inserts the new ruling at the top of Santa's Latest Commands, and exposes a `VIEW & SHARE` action without a full page reload. Client-side requests now use a bounded timeout and preserve the in-flight idempotency key for safe retry behavior after ambiguous failures.
+The browser updates the response panel, inserts the new ruling at the top of Santa's Latest Answers, and exposes a `READ SANTA'S ANSWER` action without a full page reload. Client-side requests now use a bounded timeout and preserve the in-flight idempotency key for safe retry behavior after ambiguous failures.
 
 ## Public-use safeguards
 
@@ -432,14 +432,17 @@ The production source of truth for moderation and editable Santa behavior is now
 
 - The homepage fetches the newest public rulings on the server during rendering.
 - Hidden rulings are excluded from homepage and public-page queries.
-- The homepage also shows a Featured Commands section above Latest Commands when at least one public ruling is featured.
+- The homepage also shows a Featured Commands section above Santa's Latest Answers when at least one public ruling is featured.
 - Featured Commands shows up to three rulings, newest featured first, using the same public ruling-card component as the latest feed.
 - If no featured rulings exist, the Featured Commands section is omitted entirely.
 - The optional seasonal greeting appears only on the homepage and only when the Workshop setting contains text.
 - The latest-commands section shows a real semantic list when rulings exist.
 - Each latest-command item links to its permanent public ruling page.
 - The homepage uses the shared public ruling-card component in a compact variant.
-- `VIEW ALL COMMANDS` links from the homepage feed to `/commands`.
+- The public navigation uses `ASK SANTA` and `BROWSE REQUESTS`.
+- `ASK SANTA` links to `/#ask-santa` on the homepage and from other public pages.
+- `BROWSE ALL REQUESTS` and `BROWSE REQUESTS` both lead to `/commands`.
+- Internal technical names may still refer to "commands" for route, repository, and query compatibility.
 - The empty state still works for a brand-new database.
 - If recent-ruling loading fails, the homepage stays usable and shows a quiet unavailable message.
 - After a successful submission, the browser inserts the new ruling at the top of the visible list and keeps only the latest ten items.

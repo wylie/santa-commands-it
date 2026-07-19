@@ -2,26 +2,28 @@
 import { PUBLIC_COMMANDS_PATH } from '@/utils/publicCommands';
 
 interface Props {
-  current?: 'home' | 'commands';
+  current?: 'ask-santa' | 'browse-requests';
 }
 
-const { current = 'home' } = Astro.props;
+const { current } = Astro.props;
 ---
 
 <nav class="public-nav" aria-label="Public navigation">
   <a
-    href="/"
-    class:list={['public-nav__link', current === 'home' && 'is-current']}
-    aria-current={current === 'home' ? 'page' : undefined}
+    href="/#ask-santa"
+    class:list={['public-nav__link', current === 'ask-santa' && 'is-current']}
+    aria-current={current === 'ask-santa' ? 'page' : undefined}
   >
-    HOME
+    ASK SANTA
   </a>
   <a
     href={PUBLIC_COMMANDS_PATH}
-    class:list={['public-nav__link', current === 'commands' && 'is-current']}
-    aria-current={current === 'commands' ? 'page' : undefined}
+    class:list={[
+      'public-nav__link',
+      current === 'browse-requests' && 'is-current',
+    ]}
+    aria-current={current === 'browse-requests' ? 'page' : undefined}
   >
-    COMMANDS
+    BROWSE REQUESTS
   </a>
-  <a class="public-nav__link" href="/#request-form">SUBMIT A REQUEST</a>
 </nav>

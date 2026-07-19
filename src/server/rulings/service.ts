@@ -11,7 +11,7 @@ import {
 import { santaSettings } from '@/config/santa-settings';
 
 export const RECENT_RULINGS_UNAVAILABLE_MESSAGE =
-  "Santa's announcement board is temporarily unavailable.";
+  'Please try again in a little while.';
 export const RULING_LOOKUP_ERROR_MESSAGE =
   "SANTA'S WORKSHOP IS HAVING A SMALL MISHAP. Please try again in a moment.";
 export const PUBLIC_COMMANDS_UNAVAILABLE_MESSAGE =

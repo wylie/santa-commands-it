@@ -20,10 +20,10 @@ const hasRulings = rulings.length > 0;
   data-limit={publicSantaUiSettings.recentRulings.visibleLimit}
 >
   <div class="section-heading">
-    <h2 id="recent-rulings-title">Santa&apos;s Latest Commands</h2>
+    <h2 id="recent-rulings-title">Santa&apos;s Latest Answers</h2>
     <p>
       <a class="text-link" href={buildPublicCommandsPath()}>
-        VIEW ALL COMMANDS
+        BROWSE ALL REQUESTS
       </a>
     </p>
   </div>
@@ -31,7 +31,8 @@ const hasRulings = rulings.length > 0;
   {
     unavailableMessage ? (
       <div class="recent-rulings__empty" data-recent-unavailable>
-        <p>{unavailableMessage}</p>
+        <p>SANTA&apos;S LATEST ANSWERS ARE TEMPORARILY UNAVAILABLE.</p>
+        <p class="recent-rulings__note">{unavailableMessage}</p>
       </div>
     ) : hasRulings ? (
       <ol class="recent-rulings__list" data-recent-list>
@@ -43,14 +44,13 @@ const hasRulings = rulings.length > 0;
       </ol>
     ) : (
       <div class="recent-rulings__empty" data-recent-empty>
-        <p>Santa has not made any public commands yet.</p>
+        <p>SANTA HASN&apos;T ANSWERED ANY PUBLIC REQUESTS YET.</p>
         <p class="recent-rulings__note">
-          Future approvals and coal decrees will appear here once the workshop
-          ledger is ready.
+          Ask Santa something and yours could be the first.
         </p>
         <p>
           <a class="text-link" href={buildPublicCommandsPath()}>
-            BROWSE COMMANDS
+            BROWSE REQUESTS
           </a>
         </p>
       </div>

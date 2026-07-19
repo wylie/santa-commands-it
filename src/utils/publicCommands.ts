@@ -167,14 +167,14 @@ export function getPublicCommandsSummary(
         : query.decision === 'featured'
           ? 'featured '
           : '';
-  const commandLabel = total === 1 ? 'command' : 'commands';
+  const requestLabel = total === 1 ? 'request' : 'requests';
   const matching = query.search ? ` matching "${query.search}"` : '';
 
   if (total === 0) {
-    return `No ${decisionLabel}${commandLabel} matched${matching}.`;
+    return `No ${decisionLabel}${requestLabel} matched${matching}.`;
   }
 
-  return `Showing ${total} ${decisionLabel}${commandLabel}${matching}.`;
+  return `Showing ${total} ${decisionLabel}${requestLabel}${matching}.`;
 }
 
 export function createPublicExcerpt(value: string, maxLength = 180): string {
