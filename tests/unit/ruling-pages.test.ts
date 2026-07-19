@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
 
 import {
   clearTestRulingsStore,
@@ -58,6 +60,22 @@ describe('public ruling identifiers', () => {
     expect(
       isValidPublicRulingId('550e8400-e29b-41d4-a716-44665544000<script>'),
     ).toBe(false);
+  });
+});
+
+describe('crawler boundaries', () => {
+  it('keeps Workshop and API routes out of robots.txt without blocking public rulings or share images', () => {
+    const robots = fs.readFileSync(
+      path.join(process.cwd(), 'public', 'robots.txt'),
+      'utf8',
+    );
+
+    expect(robots).toContain('Disallow: /workshop');
+    expect(robots).toContain('Disallow: /workshop/');
+    expect(robots).toContain('Disallow: /api');
+    expect(robots).toContain('Disallow: /api/');
+    expect(robots).toContain('Allow: /rulings/');
+    expect(robots).toContain('Allow: /rulings/*/og.png');
   });
 });
 

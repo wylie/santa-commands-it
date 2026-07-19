@@ -4,7 +4,7 @@ import { reportReasons } from '@/config/reports';
 import { requireWorkshopPageSession } from '@/server/workshop/auth';
 import {
   getWorkshopOpenReportCount,
-  getWorkshopReportsPageData,
+  getWorkshopReportsPageState,
 } from '@/server/workshop/service';
 import { formatRulingTimestamp, getDecisionLabel } from '@/utils/rulings';
 import {
@@ -19,11 +19,22 @@ if (session instanceof Response) {
   return session;
 }
 
-const data = await getWorkshopReportsPageData(
+const pageState = await getWorkshopReportsPageState(
   Astro.request.headers,
   Astro.url.searchParams,
 );
-const openReportCount = await getWorkshopOpenReportCount(Astro.request.headers);
+const data = pageState.data;
+let openReportCount = 0;
+
+try {
+  openReportCount = await getWorkshopOpenReportCount(Astro.request.headers);
+} catch (error) {
+  console.error(
+    '[santa-commands-it] Failed to load workshop open report count.',
+    error,
+  );
+}
+
 const status = Astro.url.searchParams.get('status');
 const error = Astro.url.searchParams.get('error');
 const bannerMessage =
@@ -183,6 +194,25 @@ function excerpt(value: string, maximum = 120) {
       >
         {bannerMessage.message}
       </p>
+    )
+  }
+
+  {
+    pageState.status === 'unavailable' && (
+      <section
+        class="workshop-panel workshop-panel--error"
+        aria-labelledby="reports-unavailable-title"
+        role="alert"
+      >
+        <h2 id="reports-unavailable-title">
+          Reports are temporarily unavailable
+        </h2>
+        <p class="workshop-empty">{pageState.message}</p>
+        <p class="workshop-form__hint">
+          This private error state avoids exposing database details. Try again
+          shortly, or verify migrations and database connectivity before launch.
+        </p>
+      </section>
     )
   }
 

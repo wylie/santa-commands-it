@@ -1,10 +1,10 @@
 # Santa Commands It!
 
-`Santa Commands It!` is a theatrical holiday web application from Argon Collective LLC. Visitors ask Santa for something, the server makes the authoritative decision, completed rulings are stored in Neon Postgres, and approved or coal outcomes receive permanent public pages that can be shared directly. Version `0.2.5` continues the `v0.2.x` owner-administration milestone with dynamic social-preview images, private workshop preview tooling, and the existing owner dashboard, moderation, settings, and response-template controls.
+`Santa Commands It!` is a theatrical holiday web application from Argon Collective LLC. Visitors ask Santa for something, the server makes the authoritative decision, completed rulings are stored in Neon Postgres, and approved or coal outcomes receive permanent public pages that can be shared directly. Version `0.2.6` is a stabilization and launch-polish release for the existing public site, dynamic social-preview images, and private Workshop tools.
 
 ## Release
 
-- Current version: `v0.2.5`
+- Current version: `v0.2.6`
 - Current scope: the preserved public Santa experience plus a private `Santa's Workshop` owner area with secure single-owner authentication, server-side sessions, range-aware owner dashboard analytics, ruling visibility controls, a report-review queue, database-backed moderation rules, editable Santa settings, response-template management, dynamic ruling share images, and private audit activity
 
 Completed rulings persist across refreshes and can be revisited at permanent public URLs when they remain public. Blocked submissions are still rejected before any database write and never receive public pages, public reports can be submitted without exposing reporter details, and hidden rulings now return the same public not-found experience as unknown identifiers.
@@ -95,7 +95,7 @@ If `DATABASE_URL` is missing, the form remains usable but the server cannot pers
   - Used only for isolated browser-test and local audit flows
   - Must not be enabled for ordinary production traffic
 
-Use `.env.example` as the local template.
+Use `.env.example` as the local template. Active local values belong in `.env`; real secrets must never be committed.
 
 ## Santa's Workshop owner area
 
@@ -443,6 +443,14 @@ The production source of truth for moderation and editable Santa behavior is now
 
 Completed approved and coal rulings are public and accessible to anyone with the URL.
 
+## Crawling and indexing
+
+- `public/robots.txt` allows the homepage and public ruling routes.
+- Workshop routes and API routes are disallowed from ordinary crawling.
+- Workshop pages also emit `noindex, nofollow` metadata and `X-Robots-Tag` headers.
+- Public dynamic share images under `/rulings/[publicId]/og.png` remain accessible for social preview consumers.
+- Public rulings are not currently generated into a sitemap to avoid an unbounded database query during this launch-polish release.
+
 ## Dynamic social preview images
 
 - Public ruling images render at `/rulings/[publicId]/og.png`.
@@ -552,6 +560,16 @@ Generate a strong session secret with a local tool such as:
 - Remember that `public/images/santa-solo.png` and `public/images/snow-black.png` are repository filesystem paths, while `/images/santa-solo.png` and `/images/snow-black.png` are the browser URLs.
 - Any Vercel environment-variable change requires a new deployment before the new login or session configuration is live.
 
+## Neon backup and migration safety
+
+- Application data stored in Neon includes completed rulings, submission idempotency records, report records, Workshop sessions, owner activity, moderation rules, Santa settings, site settings, request availability, public copy, and response templates.
+- Environment variables such as `DATABASE_URL`, `WORKSHOP_USERNAME`, `WORKSHOP_PASSWORD_HASH`, `SESSION_SECRET`, `RATE_LIMIT_SECRET`, `SITE_URL`, and `SITE_TIMEZONE` remain outside Neon and must be backed up through the deployment provider or password manager workflow.
+- Visual assets such as `public/images/santa-solo.png` and `public/images/snow-black.png` remain in Git.
+- Before applying migrations to production, create a Neon branch from the production branch using the Neon console or CLI.
+- Point a local or preview deployment at the safety branch, run `npm run db:migrate`, then run `npm run db:seed:configuration`.
+- Verify public submissions, `/workshop/reports`, settings pages, and dynamic share images against the branch before applying the same migration to production.
+- If a migration fails, stop using the affected branch and restore through Neon-supported branch restore or point the application back to the previous known-good branch. This project does not implement a custom backup system.
+
 ## Production readiness
 
 Required services:
@@ -584,6 +602,8 @@ Preview deployment considerations:
 - If the browser visibly ends on `/api/workshop/login`, inspect the deployment logs for that function invocation and verify the Workshop environment variables are set for the environment you are testing.
 - If Workshop authentication works locally but not on Vercel, verify `WORKSHOP_USERNAME`, `WORKSHOP_PASSWORD_HASH`, `SESSION_SECRET`, `RATE_LIMIT_SECRET`, `DATABASE_URL`, and `SITE_URL` are configured for the correct Vercel environment and redeploy after any change.
 - If `WORKSHOP_PASSWORD_HASH` needs to be regenerated, run `npm run workshop:hash` and update only the hash value in Vercel or your local `.env`.
+- If `/workshop/reports` shows the private unavailable state, confirm migrations have run, the `ruling_reports` table includes the `public_id`, `reviewed_at`, `resolved_at`, and `resolution_note` columns, and the deployment is using the intended `DATABASE_URL`.
+- If dynamic share images fail, verify `/images/santa-solo.png` and `/images/snow-black.png` return `200`, both files are PNG image data, and the server route `/rulings/[publicId]/og.png` returns `Content-Type: image/png` for a public ruling.
 
 Safe Vercel log inspection:
 
@@ -711,4 +731,4 @@ Use [PRELAUNCH.md](/Users/wylie/Repos/santa-commands-it/PRELAUNCH.md) for the co
 
 ## Roadmap
 
-- `v0.2.5`: `v0.2.x` stabilization and launch polish
+- `v0.2.6`: `v0.2.x` stabilization and launch polish

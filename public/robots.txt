@@ -1,0 +1,8 @@
+User-agent: *
+Disallow: /api
+Disallow: /api/
+Disallow: /workshop
+Disallow: /workshop/
+Allow: /
+Allow: /rulings/
+Allow: /rulings/*/og.png

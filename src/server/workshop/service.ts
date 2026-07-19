@@ -1,4 +1,5 @@
 import { securitySettings } from '@/config/security';
+import type { ListWorkshopReportsResult } from '@/server/workshop/reports-repository';
 import { getWorkshopDashboardPageData } from '@/server/workshop/dashboard';
 import {
   getReportTransition,
@@ -125,6 +126,78 @@ export async function getWorkshopReportsPageData(
     filters,
     ...result,
   };
+}
+
+export type WorkshopReportsPageData = Awaited<
+  ReturnType<typeof getWorkshopReportsPageData>
+>;
+
+export type WorkshopReportsPageState =
+  | {
+      status: 'ready';
+      data: WorkshopReportsPageData;
+    }
+  | {
+      status: 'unavailable';
+      data: WorkshopReportsPageData;
+      message: string;
+    };
+
+function buildEmptyWorkshopReportsPageData(
+  filters: ReturnType<typeof parseWorkshopReportFilters>,
+): WorkshopReportsPageData {
+  const fallback: ListWorkshopReportsResult = {
+    reports: [],
+    total: 0,
+    page: filters.page,
+    pageSize: securitySettings.workshop.search.pageSize,
+  };
+
+  return {
+    filters,
+    ...fallback,
+  };
+}
+
+export async function getWorkshopReportsPageState(
+  headers: Headers,
+  searchParams: URLSearchParams,
+): Promise<WorkshopReportsPageState> {
+  const filters = parseWorkshopReportFilters(searchParams);
+
+  if (headers.get('x-santa-test-workshop-reports-failure') === 'list') {
+    return {
+      status: 'unavailable',
+      data: buildEmptyWorkshopReportsPageData(filters),
+      message:
+        'The report queue is temporarily unavailable. Workshop navigation and other tools remain available.',
+    };
+  }
+
+  try {
+    const repository = getWorkshopReportsRepositoryForHeaders(headers);
+    const result = await repository.listWorkshopReports(filters);
+
+    return {
+      status: 'ready',
+      data: {
+        filters,
+        ...result,
+      },
+    };
+  } catch (error) {
+    console.error(
+      '[santa-commands-it] Failed to load workshop reports page.',
+      error,
+    );
+
+    return {
+      status: 'unavailable',
+      data: buildEmptyWorkshopReportsPageData(filters),
+      message:
+        'The report queue is temporarily unavailable. Workshop navigation and other tools remain available.',
+    };
+  }
 }
 
 export async function getWorkshopReportDetailData(

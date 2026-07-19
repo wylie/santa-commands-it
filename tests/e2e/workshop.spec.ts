@@ -244,6 +244,37 @@ test.describe('Santa Workshop owner area', () => {
     );
   });
 
+  test('keeps the reports page private and navigable when the queue is unavailable', async ({
+    page,
+  }) => {
+    const { headers } = await configureSantaTestPage(page);
+    await page.setExtraHTTPHeaders({
+      ...headers,
+      'x-santa-test-workshop-reports-failure': 'list',
+    });
+
+    await page.goto('/workshop/login');
+    await page.getByLabel('Username').fill('owner');
+    await page.getByLabel('Password').fill('northpole-sleigh');
+    await page.getByRole('button', { name: 'Enter workshop' }).click();
+
+    const response = await page.goto('/workshop/reports');
+
+    expect(response?.status()).toBe(200);
+    expect(response?.headers()['cache-control']).toBe('no-store');
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute(
+      'content',
+      'noindex, nofollow',
+    );
+    await expect(
+      page.getByRole('heading', {
+        name: 'Reports are temporarily unavailable',
+      }),
+    ).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Dashboard' })).toBeVisible();
+    await expect(page.getByText('Page 1 of 1')).toBeVisible();
+  });
+
   test('reviews reports in the queue and can hide a ruling from a report', async ({
     page,
   }) => {

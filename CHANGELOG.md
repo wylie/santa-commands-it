@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is inspired by Keep a Changelog, and this project adheres to Semantic Versioning.
 
+## [0.2.6] - 2026-07-19
+
+### Changed
+
+- Workshop Reports now fails closed into a private accessible unavailable state instead of surfacing an unhandled page error when the report queue cannot load
+- Reports-page launch coverage now verifies the private noindex fallback, preserved Workshop navigation, and successful loading for normal report review flows
+- Production-readiness documentation now reflects the `v0.2.6` launch-polish scope, current PNG asset requirements, deployment checks, cache behavior, and Neon backup guidance
+
 ## [0.2.5] - 2026-07-18
 
 ### Changed

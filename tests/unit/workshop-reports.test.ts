@@ -5,6 +5,7 @@ import { createTestRulingsRepository } from '@/server/rulings/test-repository';
 import { getTestRunStore, clearTestRunStore } from '@/server/testing/store';
 import {
   getWorkshopReportDetailData,
+  getWorkshopReportsPageState,
   getWorkshopReportsPageData,
   getWorkshopRulingDetailData,
   hideWorkshopRulingFromReport,
@@ -319,5 +320,35 @@ describe('workshop report moderation workflow', () => {
       openReportCount: 1,
       latestReportAt: expect.any(String),
     });
+  });
+
+  it('returns a private unavailable state instead of throwing when the report queue cannot load', async () => {
+    const runId = 'workshop-report-queue-unavailable';
+    const headers = new Headers({
+      'x-santa-test-run-id': runId,
+      'x-santa-test-workshop-reports-failure': 'list',
+    });
+
+    const state = await getWorkshopReportsPageState(
+      headers,
+      new URLSearchParams('q=holiday&page=3'),
+    );
+
+    expect(state).toMatchObject({
+      status: 'unavailable',
+      data: {
+        filters: {
+          query: 'holiday',
+          page: 3,
+        },
+        reports: [],
+        total: 0,
+      },
+    });
+    if (state.status !== 'unavailable') {
+      throw new Error('Expected unavailable report queue state.');
+    }
+
+    expect(state.message).not.toMatch(/database|sql|stack/i);
   });
 });
