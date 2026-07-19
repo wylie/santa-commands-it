@@ -47,15 +47,29 @@ const nextPagePath =
     : null;
 const firstPagePath = buildPublicCommandsPath({ ...query, page: 1 });
 const emptyTitle =
-  total === 0 && !query.search && query.decision === 'all'
+  total === 0 &&
+  !query.search &&
+  query.decision === 'all' &&
+  !query.featuredOnly
     ? "Santa hasn't answered any public requests yet."
-    : query.search
-      ? 'No requests matched your search.'
-      : query.decision === 'coal'
-        ? 'No coal rulings are available right now.'
-        : query.decision === 'approved'
-          ? 'No approved requests are available right now.'
-          : 'There are no requests on this page.';
+    : total === 0 &&
+        !query.search &&
+        query.decision === 'all' &&
+        query.featuredOnly
+      ? "Santa hasn't featured any requests yet."
+      : query.search
+        ? query.featuredOnly
+          ? 'No featured requests matched.'
+          : 'No requests matched your search.'
+        : query.decision === 'coal'
+          ? query.featuredOnly
+            ? 'No featured coal requests matched.'
+            : 'No coal rulings are available right now.'
+          : query.decision === 'approved'
+            ? query.featuredOnly
+              ? 'No featured approved requests matched.'
+              : 'No approved requests are available right now.'
+            : 'There are no requests on this page.';
 const isBeyondAvailableResults = total > 0 && !hasResults;
 ---
 
@@ -105,8 +119,16 @@ const isBeyondAvailableResults = total > 0 && !hasResults;
               <option value="coal" selected={query.decision === 'coal'}>
                 Coal
               </option>
-              <option value="featured" selected={query.decision === 'featured'}>
-                Featured Requests
+            </select>
+          </div>
+          <div class="commands-form__field">
+            <label for="commands-featured">Featured</label>
+            <select id="commands-featured" name="featured">
+              <option value="" selected={!query.featuredOnly}>
+                All Requests
+              </option>
+              <option value="true" selected={query.featuredOnly}>
+                Featured Only
               </option>
             </select>
           </div>
@@ -168,7 +190,9 @@ const isBeyondAvailableResults = total > 0 && !hasResults;
               <p>
                 {isBeyondAvailableResults
                   ? 'Return to the first page to keep browsing these results.'
-                  : 'Try a different search, clear the filters, or ask Santa for a new request.'}
+                  : query.featuredOnly
+                    ? 'Try changing your search or filters.'
+                    : 'Try a different search, clear the filters, or ask Santa for a new request.'}
               </p>
               <p class="commands-empty__actions">
                 {isBeyondAvailableResults ? (

@@ -25,6 +25,7 @@ describe('public Commands query parsing', () => {
     expect(parse()).toEqual({
       search: '',
       decision: 'all',
+      featuredOnly: false,
       sort: 'newest',
       page: 1,
       pageSize: 12,
@@ -49,8 +50,14 @@ describe('public Commands query parsing', () => {
     expect(parse('decision=all').decision).toBe('all');
     expect(parse('decision=approved').decision).toBe('approved');
     expect(parse('decision=coal').decision).toBe('coal');
-    expect(parse('decision=featured').decision).toBe('featured');
+    expect(parse('decision=featured').decision).toBe('all');
     expect(parse('decision=hidden').decision).toBe('all');
+  });
+
+  it('parses featured-only filtering from the dedicated query parameter', () => {
+    expect(parse('featured=true').featuredOnly).toBe(true);
+    expect(parse('featured=false').featuredOnly).toBe(false);
+    expect(parse('featured=pony').featuredOnly).toBe(false);
   });
 
   it('parses supported sorting and falls invalid values back to newest', () => {
@@ -77,10 +84,13 @@ describe('public Commands query parsing', () => {
       buildPublicCommandsPath({
         search: ' bike ',
         decision: 'approved',
+        featuredOnly: true,
         sort: 'oldest',
         page: 2,
       }),
-    ).toBe('/commands?q=bike&decision=approved&sort=oldest&page=2');
+    ).toBe(
+      '/commands?q=bike&decision=approved&featured=true&sort=oldest&page=2',
+    );
     expect(buildPublicCommandsPagePath(parse('q=bike&sort=oldest'), 1)).toBe(
       '/commands?q=bike&sort=oldest',
     );
@@ -93,9 +103,12 @@ describe('public Commands query parsing', () => {
     expect(getPublicCommandsSummary(0, parse('decision=coal'))).toBe(
       'No coal requests matched.',
     );
-    expect(getPublicCommandsSummary(1, parse('decision=featured'))).toBe(
+    expect(getPublicCommandsSummary(1, parse('featured=true'))).toBe(
       'Showing 1 featured request.',
     );
+    expect(
+      getPublicCommandsSummary(2, parse('decision=approved&featured=true')),
+    ).toBe('Showing 2 featured approved requests.');
   });
 });
 
@@ -219,7 +232,7 @@ describe('public Commands repository behavior', () => {
     coalCousin.featuredAt = '2026-07-19T12:00:00.000Z';
 
     await expect(
-      repository.listPublicRulingsForDiscovery(parse('decision=featured')),
+      repository.listPublicRulingsForDiscovery(parse('featured=true')),
     ).resolves.toMatchObject({
       total: 2,
       rulings: [

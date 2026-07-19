@@ -5,6 +5,7 @@ export type RulingVisibility = 'public' | 'hidden';
 export type WorkshopSort = 'newest' | 'oldest';
 export type WorkshopDecisionFilter = 'all' | PersistedRulingDecision;
 export type WorkshopVisibilityFilter = 'all' | RulingVisibility;
+export type WorkshopFeaturedFilter = 'all' | 'featured' | 'not-featured';
 export type WorkshopReportStatus =
   'open' | 'reviewed' | 'dismissed' | 'actioned';
 export type WorkshopReportStatusFilter = 'all' | WorkshopReportStatus;
@@ -90,6 +91,7 @@ export type WorkshopRulingFilters = {
   query: string;
   decision: WorkshopDecisionFilter;
   visibility: WorkshopVisibilityFilter;
+  featured: WorkshopFeaturedFilter;
   sort: WorkshopSort;
   page: number;
 };
@@ -251,6 +253,16 @@ export function coerceWorkshopVisibilityFilter(
   value: string | null,
 ): WorkshopVisibilityFilter {
   if (value === 'public' || value === 'hidden') {
+    return value;
+  }
+
+  return 'all';
+}
+
+export function coerceWorkshopFeaturedFilter(
+  value: string | null,
+): WorkshopFeaturedFilter {
+  if (value === 'featured' || value === 'not-featured') {
     return value;
   }
 

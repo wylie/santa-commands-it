@@ -17,7 +17,7 @@ export const RULING_LOOKUP_ERROR_MESSAGE =
 export const PUBLIC_COMMANDS_UNAVAILABLE_MESSAGE =
   'Please try again in a little while.';
 export const FEATURED_RULINGS_UNAVAILABLE_MESSAGE =
-  "Santa's featured commands are temporarily unavailable.";
+  "Santa's featured requests are temporarily unavailable.";
 
 export type RecentRulingsResult =
   | {

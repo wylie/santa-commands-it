@@ -207,7 +207,7 @@ describe('workshop dashboard data', () => {
       ['Coal rulings', 1],
       ['Public rulings', 2],
       ['Hidden rulings', 1],
-      ['Featured Commands', 1],
+      ['Featured Requests', 1],
       ['Open reports', 2],
     ]);
     expect(dashboard.overview.data.coalSummary.configuredCoalPercentage).toBe(

@@ -10,6 +10,7 @@ import { validateOptionalText } from '@/utils/validation';
 import {
   coercePositivePage,
   coerceWorkshopDecisionFilter,
+  coerceWorkshopFeaturedFilter,
   coerceWorkshopReportReasonFilter,
   coerceWorkshopReportStatusFilter,
   coerceWorkshopSort,
@@ -49,6 +50,7 @@ export function parseWorkshopRulingFilters(
     query: trimSearchQuery(searchParams.get('q')),
     decision: coerceWorkshopDecisionFilter(searchParams.get('decision')),
     visibility: coerceWorkshopVisibilityFilter(searchParams.get('visibility')),
+    featured: coerceWorkshopFeaturedFilter(searchParams.get('featured')),
     sort: coerceWorkshopSort(searchParams.get('sort')),
     page: coercePositivePage(searchParams.get('page')),
   };

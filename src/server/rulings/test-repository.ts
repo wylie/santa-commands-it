@@ -83,7 +83,7 @@ export function createTestRulingsRepository(runId: string): RulingsRepository {
             return ruling.decision === 'random-coal';
           }
 
-          if (query.decision === 'featured') {
+          if (query.featuredOnly) {
             return ruling.isFeatured;
           }
 
@@ -102,21 +102,6 @@ export function createTestRulingsRepository(runId: string): RulingsRepository {
           );
         })
         .sort((left, right) => {
-          if (query.decision === 'featured') {
-            const leftTime = left.featuredAt
-              ? new Date(left.featuredAt).getTime()
-              : 0;
-            const rightTime = right.featuredAt
-              ? new Date(right.featuredAt).getTime()
-              : 0;
-
-            if (rightTime !== leftTime) {
-              return rightTime - leftTime;
-            }
-
-            return right.id - left.id;
-          }
-
           const leftTime = new Date(left.createdAt).getTime();
           const rightTime = new Date(right.createdAt).getTime();
           const timeComparison =

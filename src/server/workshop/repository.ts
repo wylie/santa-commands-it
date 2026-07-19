@@ -172,6 +172,14 @@ function buildWorkshopRulingWhere(filters: WorkshopRulingFilters) {
     conditions.push(eq(rulings.visibility, filters.visibility));
   }
 
+  if (filters.featured === 'featured') {
+    conditions.push(eq(rulings.isFeatured, true));
+  }
+
+  if (filters.featured === 'not-featured') {
+    conditions.push(eq(rulings.isFeatured, false));
+  }
+
   if (filters.query) {
     const pattern = `%${filters.query}%`;
     const searchCondition = or(
@@ -1158,6 +1166,14 @@ export function createTestWorkshopRepository(
           filters.visibility !== 'all' &&
           ruling.visibility !== filters.visibility
         ) {
+          return false;
+        }
+
+        if (filters.featured === 'featured' && !ruling.isFeatured) {
+          return false;
+        }
+
+        if (filters.featured === 'not-featured' && ruling.isFeatured) {
           return false;
         }
 

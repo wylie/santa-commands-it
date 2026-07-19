@@ -1,11 +1,11 @@
 # Santa Commands It!
 
-`Santa Commands It!` is a theatrical holiday web application from Argon Collective LLC. Visitors ask Santa for something, the server makes the authoritative decision, completed rulings are stored in Neon Postgres, and approved or coal outcomes receive permanent public pages that can be shared directly. Version `0.3.1` adds owner-curated Featured Commands and a short seasonal homepage greeting.
+`Santa Commands It!` is a theatrical holiday web application from Argon Collective LLC. Visitors ask Santa for something, the server makes the authoritative decision, completed rulings are stored in Neon Postgres, and approved or coal outcomes receive permanent public pages that can be shared directly. Version `0.3.1` adds owner-curated Featured Requests and a short seasonal homepage greeting.
 
 ## Release
 
 - Current version: `v0.3.1`
-- Current scope: the preserved public Santa experience, public request browsing at `/commands`, curated Featured Commands, optional seasonal homepage messaging, shareable discovery URLs, and a private `Santa's Workshop` owner area with secure single-owner authentication, server-side sessions, range-aware owner dashboard analytics, ruling visibility controls, a report-review queue, database-backed moderation rules, editable Santa settings, response-template management, dynamic ruling share images, and private audit activity
+- Current scope: the preserved public Santa experience, public request browsing at `/commands`, curated Featured Requests, optional seasonal homepage messaging, shareable discovery URLs, and a private `Santa's Workshop` owner area with secure single-owner authentication, server-side sessions, range-aware owner dashboard analytics, ruling visibility controls, a report-review queue, database-backed moderation rules, editable Santa settings, response-template management, dynamic ruling share images, and private audit activity
 
 Completed rulings persist across refreshes and can be revisited at permanent public URLs when they remain public. Blocked submissions are still rejected before any database write and never receive public pages, public reports can be submitted without exposing reporter details, and hidden rulings now return the same public not-found experience as unknown identifiers.
 
@@ -55,7 +55,7 @@ Completed approvals and coal rulings are public on the homepage and on their own
 - `npm run db:seed:configuration`
 
 13. Start the development server with `npm run dev`.
-14. Submit a request, confirm it appears in Santa's Latest Answers and `/commands`, use the public `BROWSE REQUESTS` page, open its permanent ruling page, load `/rulings/[publicId]/og.png`, sign into `/workshop/login`, and test dashboard ranges, Featured Commands, seasonal greeting editing, moderation rules, Santa settings, response templates, report review, share-preview pages, hide, restore, and delete behavior against local data.
+14. Submit a request, confirm it appears in Santa's Latest Answers and `/commands`, use the public `BROWSE REQUESTS` page, open its permanent ruling page, load `/rulings/[publicId]/og.png`, sign into `/workshop/login`, and test dashboard ranges, Featured Requests, seasonal greeting editing, moderation rules, Santa settings, response templates, report review, share-preview pages, hide, restore, and delete behavior against local data.
 
 If `DATABASE_URL` is missing, the form remains usable but the server cannot persist rulings, recent public requests will be unavailable, and no permanent ruling pages can be created.
 
@@ -143,7 +143,7 @@ The public homepage, public ruling pages, submission flow, reporting flow, Santa
 - Decision percentages are calculated from selected-range rulings only: approved divided by total rulings, and coal divided by total rulings.
 - The coal summary compares the current configured coal percentage with the actual selected-range coal rate. If random coal is disabled, the dashboard says so explicitly. If settings were updated during the selected range, the dashboard notes that the current target may not match every historical ruling in view.
 - Report metrics include current open reports, current reviewed reports, reports created in range, dismissed in range, actioned in range, rulings with multiple open reports, and oldest open-report age.
-- Featured Commands count shows current public rulings marked Featured.
+- Featured Requests count shows current public rulings marked Featured.
 - Recent Featured activity highlights the latest feature and unfeature owner actions separately from the broader activity feed.
 - Moderation and template summaries show counts only. The dashboard does not expose the full blocked-word list, allowed-exception list, report notes, or full private configuration notes.
 - Recent rulings are bounded to `5`, recent owner activity is bounded to `10`, and the owner-activity summary strips private moderation notes and other sensitive free-text details.
@@ -416,7 +416,7 @@ The production source of truth for moderation and editable Santa behavior is now
 - Owner mutations invalidate the current instance cache immediately after successful changes.
 - Other serverless instances may continue serving older configuration until their local TTL expires, so cross-instance propagation can take up to `30` seconds.
 - The cache is only an optimization; the database remains authoritative.
-- Featured Commands are read from the rulings table and share the existing public page, public discovery, and share-image cache behavior. Feature toggles record owner activity immediately; public pages and social previews may reflect the previous response until their normal shared cache window expires.
+- Featured Requests are read from the rulings table and share the existing public page, public discovery, and share-image cache behavior. Feature toggles record owner activity immediately; public pages and social previews may reflect the previous response until their normal shared cache window expires.
 - If required runtime configuration cannot be loaded, public submissions fail closed with the existing generic workshop error rather than accepting unmoderated content.
 
 ### Source defaults and migration
@@ -432,9 +432,9 @@ The production source of truth for moderation and editable Santa behavior is now
 
 - The homepage fetches the newest public rulings on the server during rendering.
 - Hidden rulings are excluded from homepage and public-page queries.
-- The homepage also shows a Featured Commands section above Santa's Latest Answers when at least one public ruling is featured.
-- Featured Commands shows up to three rulings, newest featured first, using the same public ruling-card component as the latest feed.
-- If no featured rulings exist, the Featured Commands section is omitted entirely.
+- The homepage also shows a Featured Requests section above Santa's Latest Answers when at least one public ruling is featured.
+- Featured Requests shows up to three rulings, newest featured first, using the same public ruling-card component as the latest feed.
+- If no featured rulings exist, the Featured Requests section is omitted entirely.
 - The optional seasonal greeting appears only on the homepage and only when the Workshop setting contains text.
 - The latest-commands section shows a real semantic list when rulings exist.
 - Each latest-command item links to its permanent public ruling page.
@@ -455,19 +455,20 @@ The public Commands route lives at `/commands` and is accessible without authent
 - Searchable fields: public display name and public request text
 - Search normalization: trim leading/trailing whitespace, collapse repeated whitespace, strip unsafe control characters, and bound the query to `80` characters
 - Search matching: case-insensitive partial matches through parameterized database queries
-- Decision parameter: `decision=all`, `decision=approved`, `decision=coal`, or `decision=featured`
+- Decision parameter: `decision=all`, `decision=approved`, or `decision=coal`
+- Featured filter parameter: `featured=true`
 - Sort parameter: `sort=newest` or `sort=oldest`
 - Pagination parameter: `page`
 - Page size: fixed at `12` rulings
 - Maximum accepted page: `1000`
 
-Generated discovery links preserve only supported parameters in stable order: `q`, `decision`, `sort`, then `page`. Empty `q`, `decision=all`, `sort=newest`, and `page=1` are omitted from generated canonical-style paths, so `/commands?q=book&decision=approved&sort=newest&page=1` becomes `/commands?q=book&decision=approved`.
+Generated discovery links preserve only supported parameters in stable order: `q`, `decision`, `featured`, `sort`, then `page`. Empty `q`, `decision=all`, `sort=newest`, `featured=false`, and `page=1` are omitted from generated canonical-style paths, so `/commands?q=book&decision=approved&featured=true&sort=newest&page=1` becomes `/commands?q=book&decision=approved&featured=true`.
 
-The Commands repository function selects only public-safe ruling fields: public id, display name, request text, decision, Santa response, created timestamp, and Featured status. It applies `visibility = public`, allowed decision values, the Featured-only filter when `decision=featured`, search filters, deterministic ordering, fixed limit, and bounded offset in the database. It does not return internal ids, report data, hidden reasons, moderation data, owner activity, IP-derived data, session data, or settings metadata.
+The Commands repository function selects only public-safe ruling fields: public id, display name, request text, decision, Santa response, created timestamp, and Featured status. It applies `visibility = public`, allowed decision values, the Featured-only filter when `featured=true`, search filters, deterministic ordering, fixed limit, and bounded offset in the database. It does not return internal ids, report data, hidden reasons, moderation data, owner activity, IP-derived data, session data, or settings metadata.
 
 Hidden rulings disappear from `/commands`, restored rulings return, deleted rulings are absent, and blocked submissions never appear because they are never stored as public rulings. Public search does not reveal whether hidden or deleted rulings would have matched.
 
-Featured rulings remain searchable, pageable, shareable, and part of normal chronological browsing. They do not change default ordering unless the visitor explicitly uses the Featured-only filter.
+Featured rulings remain searchable, pageable, shareable, and part of normal chronological browsing. They do not change default ordering, and Featured Only still uses the selected created-time sort rather than featured-time ordering.
 
 The base `/commands` page may be indexed. URLs with `q`, `decision`, `sort`, or `page` emit `noindex, follow` and canonicalize to `/commands` so arbitrary search-result URLs do not become index targets. Search state lives only in the URL and current request; the app does not add search analytics, saved searches, cookies, profiles, popularity sorting, reactions, comments, personalized recommendations, trending algorithms, public tagging, or infinite scrolling.
 
@@ -783,9 +784,10 @@ Use [PRELAUNCH.md](/Users/wylie/Repos/santa-commands-it/PRELAUNCH.md) for the co
 
 ## Roadmap
 
-- `v0.3.1`: Featured Commands, seasonal homepage messaging, and Workshop editorial controls
-- `v0.3.2`: additional public sharing polish
-- `v0.3.3`: lightweight Workshop operational insights
-- `v0.3.4`: public experience refinement
-- `v0.3.5`: `v0.3.x` stabilization
+- `v0.3.1`: Featured Requests
+- `v0.3.2`: seasonal public presentation controls
+- `v0.3.3`: additional sharing polish
+- `v0.3.4`: lightweight Workshop operational insights
+- `v0.3.5`: public experience refinement
+- `v0.3.6`: `v0.3.x` stabilization
 - `v0.2.6`: `v0.2.x` stabilization and launch polish

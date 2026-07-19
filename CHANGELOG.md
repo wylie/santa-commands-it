@@ -8,8 +8,8 @@ The format is inspired by Keep a Changelog, and this project adheres to Semantic
 
 ### Added
 
-- Featured Commands editorial controls for hand-picking public rulings in Santa's Workshop
-- Homepage Featured Commands section that shows up to three newest featured public rulings above Santa's Latest Answers
+- Featured Requests editorial controls for hand-picking public rulings in Santa's Workshop
+- Homepage Featured Requests section that shows up to three newest featured public rulings above Santa's Latest Answers
 - Featured-only public Commands filtering through server-rendered discovery URLs
 - Workshop featured management actions, dashboard count, and recent featured activity summary
 - Optional seasonal homepage greeting managed separately from announcements or scheduling
@@ -19,7 +19,7 @@ The format is inspired by Keep a Changelog, and this project adheres to Semantic
 ### Changed
 
 - Public ruling cards and ruling detail pages now expose featured status with accessible text while preserving chronological browsing behavior
-- Project documentation now covers Featured Commands, simplified public navigation, seasonal homepage messaging, cache behavior, and the related schema migration
+- Project documentation now covers Featured Requests, simplified public navigation, seasonal homepage messaging, cache behavior, and the related schema migration
 - Unified the Requests page with the homepage two-column layout and centralized the shared public shell
 - Moved public navigation below Santa and kept the footer anchored to the left rail on desktop
 - Removed redundant Requests-page Ask Santa CTA panels for empty and unavailable states

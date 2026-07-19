@@ -281,15 +281,15 @@ const currentLocation = Astro.url.pathname;
             <input type="hidden" name="returnTo" value={currentLocation} />
             <h3>
               {detail.ruling.isFeatured
-                ? 'Remove this featured command?'
-                : 'Feature this command?'}
+                ? 'Remove this featured request?'
+                : 'Feature this request?'}
             </h3>
             <p class="workshop-form__hint">
-              Featured commands are highlighted publicly without exposing any
+              Featured requests are highlighted publicly without exposing any
               private editorial reason.
             </p>
             <button type="submit" class="button-command">
-              {detail.ruling.isFeatured ? 'Remove Feature' : 'Feature Command'}
+              {detail.ruling.isFeatured ? 'Remove Feature' : 'Feature Request'}
             </button>
           </form>
         )

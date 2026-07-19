@@ -198,6 +198,7 @@ describe('workshop search and pagination', () => {
       query: 'observatory',
       decision: 'approved',
       visibility: 'hidden',
+      featured: 'all',
       sort: 'newest',
       page: 1,
     });
@@ -205,6 +206,7 @@ describe('workshop search and pagination', () => {
       query: '',
       decision: 'all',
       visibility: 'all',
+      featured: 'all',
       sort: 'newest',
       page: 2,
     });
@@ -216,5 +218,53 @@ describe('workshop search and pagination', () => {
     });
     expect(secondPage.rulings).toHaveLength(5);
     expect(secondPage.pageSize).toBe(25);
+  });
+
+  it('filters workshop rulings by featured state', async () => {
+    const runId = 'workshop-featured-filter';
+    const publicRepository = createTestRulingsRepository(runId);
+    const workshopRepository = createTestWorkshopRepository(runId);
+
+    await publicRepository.createRuling({
+      publicId: '550e8400-e29b-41d4-a716-446655440031',
+      displayName: 'Featured Holly',
+      requestText: 'A snow globe',
+      decision: 'approved',
+      santaResponse: 'VERY WELL.',
+    });
+    await publicRepository.createRuling({
+      publicId: '550e8400-e29b-41d4-a716-446655440032',
+      displayName: 'Plain Juniper',
+      requestText: 'A warm scarf',
+      decision: 'approved',
+      santaResponse: 'APPROVED.',
+    });
+
+    await workshopRepository.setRulingFeatured(
+      '550e8400-e29b-41d4-a716-446655440031',
+      true,
+      new Date('2026-07-19T12:00:00.000Z'),
+    );
+
+    const featured = await workshopRepository.listWorkshopRulings({
+      query: '',
+      decision: 'all',
+      visibility: 'all',
+      featured: 'featured',
+      sort: 'newest',
+      page: 1,
+    });
+    const notFeatured = await workshopRepository.listWorkshopRulings({
+      query: '',
+      decision: 'all',
+      visibility: 'all',
+      featured: 'not-featured',
+      sort: 'newest',
+      page: 1,
+    });
+
+    expect(featured.total).toBe(1);
+    expect(featured.rulings[0]?.displayName).toBe('Featured Holly');
+    expect(notFeatured.rulings.some((ruling) => ruling.isFeatured)).toBe(false);
   });
 });

@@ -97,7 +97,7 @@ function buildPublicDiscoveryWhere(query: PublicCommandsQuery): SQL {
     conditions.push(eq(rulings.decision, 'random-coal'));
   }
 
-  if (query.decision === 'featured') {
+  if (query.featuredOnly) {
     conditions.push(eq(rulings.isFeatured, true));
   }
 
@@ -204,11 +204,7 @@ export function createDatabaseRulingsRepository(): RulingsRepository {
           })
           .from(rulings)
           .where(where)
-          .orderBy(
-            ...(query.decision === 'featured'
-              ? [desc(rulings.featuredAt), desc(rulings.id)]
-              : orderBy),
-          )
+          .orderBy(...orderBy)
           .limit(query.pageSize)
           .offset(offset),
         database.select({ value: count() }).from(rulings).where(where),

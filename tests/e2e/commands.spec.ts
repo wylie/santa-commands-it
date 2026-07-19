@@ -260,7 +260,7 @@ test.describe('public Commands discovery', () => {
     await page.getByLabel('Password').fill('northpole-sleigh');
     await page.getByRole('button', { name: 'Enter workshop' }).click();
     await page.goto(`/workshop/rulings/${created.ruling.publicId}`);
-    await page.getByRole('button', { name: 'Feature Command' }).click();
+    await page.getByRole('button', { name: 'Feature Request' }).click();
     await expect(page.getByText('The ruling is now featured.')).toBeVisible();
     await expect(page.getByText('Ruling featured')).toBeVisible();
 
@@ -273,7 +273,7 @@ test.describe('public Commands discovery', () => {
       page.locator('[data-featured-list] [data-featured-badge]'),
     ).toContainText('Featured');
 
-    await page.goto('/commands?decision=featured');
+    await page.goto('/commands?featured=true');
     await expect(page.locator('[data-commands-list]')).toContainText(
       'A glass snow globe',
     );
@@ -297,7 +297,7 @@ test.describe('public Commands discovery', () => {
     await expect(
       page.getByText('The ruling is no longer featured.'),
     ).toBeVisible();
-    await page.goto('/commands?decision=featured');
+    await page.goto('/commands?featured=true');
     await expect(page.getByText('A glass snow globe')).toHaveCount(0);
   });
 

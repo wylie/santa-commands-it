@@ -765,7 +765,7 @@ function buildOverviewSection(
         ),
       },
       {
-        label: 'Featured Commands',
+        label: 'Featured Requests',
         value: metrics.current.featuredRulings,
         kind: 'current',
         description: 'Current public rulings hand-picked for featured display.',

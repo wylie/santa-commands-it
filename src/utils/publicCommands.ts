@@ -5,12 +5,13 @@ export const PUBLIC_COMMANDS_PAGE_SIZE = 12;
 export const PUBLIC_COMMANDS_MAX_PAGE = 1000;
 export const PUBLIC_COMMANDS_MAX_SEARCH_LENGTH = 80;
 
-export type PublicCommandsDecision = 'all' | 'approved' | 'coal' | 'featured';
+export type PublicCommandsDecision = 'all' | 'approved' | 'coal';
 export type PublicCommandsSort = 'newest' | 'oldest';
 
 export type PublicCommandsQuery = {
   search: string;
   decision: PublicCommandsDecision;
+  featuredOnly: boolean;
   sort: PublicCommandsSort;
   page: number;
   pageSize: number;
@@ -52,9 +53,11 @@ export function normalizePublicCommandsSearch(value: string): string {
 }
 
 function parseDecision(value: string | null): PublicCommandsDecision {
-  return value === 'approved' || value === 'coal' || value === 'featured'
-    ? value
-    : 'all';
+  return value === 'approved' || value === 'coal' ? value : 'all';
+}
+
+function parseFeaturedOnly(value: string | null): boolean {
+  return value === 'true';
 }
 
 function parseSort(value: string | null): PublicCommandsSort {
@@ -85,6 +88,7 @@ export function parsePublicCommandsQuery(
   return {
     search: normalizePublicCommandsSearch(searchParams.get('q') ?? ''),
     decision: parseDecision(searchParams.get('decision')),
+    featuredOnly: parseFeaturedOnly(searchParams.get('featured')),
     sort: parseSort(searchParams.get('sort')),
     page: parsePage(searchParams.get('page')),
     pageSize: PUBLIC_COMMANDS_PAGE_SIZE,
@@ -97,6 +101,7 @@ export function hasPublicCommandsParameters(
   return (
     searchParams.has('q') ||
     searchParams.has('decision') ||
+    searchParams.has('featured') ||
     searchParams.has('sort') ||
     searchParams.has('page')
   );
@@ -108,6 +113,7 @@ export function buildPublicCommandsPath(
   const params = new URLSearchParams();
   const search = normalizePublicCommandsSearch(query.search ?? '');
   const decision = query.decision ?? 'all';
+  const featuredOnly = query.featuredOnly ?? false;
   const sort = query.sort ?? 'newest';
   const page = query.page ?? 1;
 
@@ -117,6 +123,10 @@ export function buildPublicCommandsPath(
 
   if (decision !== 'all') {
     params.set('decision', decision);
+  }
+
+  if (featuredOnly) {
+    params.set('featured', 'true');
   }
 
   if (sort !== 'newest') {
@@ -159,22 +169,21 @@ export function getPublicCommandsSummary(
   total: number,
   query: PublicCommandsQuery,
 ): string {
+  const featuredLabel = query.featuredOnly ? 'featured ' : '';
   const decisionLabel =
     query.decision === 'approved'
       ? 'approved '
       : query.decision === 'coal'
         ? 'coal '
-        : query.decision === 'featured'
-          ? 'featured '
-          : '';
+        : '';
   const requestLabel = total === 1 ? 'request' : 'requests';
   const matching = query.search ? ` matching "${query.search}"` : '';
 
   if (total === 0) {
-    return `No ${decisionLabel}${requestLabel} matched${matching}.`;
+    return `No ${featuredLabel}${decisionLabel}${requestLabel} matched${matching}.`;
   }
 
-  return `Showing ${total} ${decisionLabel}${requestLabel}${matching}.`;
+  return `Showing ${total} ${featuredLabel}${decisionLabel}${requestLabel}${matching}.`;
 }
 
 export function createPublicExcerpt(value: string, maxLength = 180): string {

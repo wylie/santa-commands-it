@@ -60,7 +60,9 @@ describe('Santa artwork integration', () => {
   it('keeps the ruling page tied to the same Santa portrait component', () => {
     const source = readFile(rulingPagePath);
 
-    expect(source).toContain("import PublicShell from '@/components/PublicShell.astro'");
+    expect(source).toContain(
+      "import PublicShell from '@/components/PublicShell.astro'",
+    );
     expect(source).toContain('<PublicShell current="browse-requests">');
   });
 

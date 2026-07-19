@@ -19,6 +19,9 @@ const { rulings = [] } = Astro.props;
       <div class="section-heading">
         <h2 id="featured-rulings-title">Featured Requests</h2>
       </div>
+      <p class="recent-rulings__note">
+        A few requests Santa found especially memorable.
+      </p>
       <ol class="recent-rulings__list" data-featured-list>
         {rulings.map((ruling) => (
           <li class="recent-rulings__item" data-ruling-id={ruling.publicId}>

@@ -104,6 +104,10 @@ function buildQueryString(page: number) {
     next.set('visibility', data.filters.visibility);
   }
 
+  if (data.filters.featured !== 'all') {
+    next.set('featured', data.filters.featured);
+  }
+
   if (data.filters.sort !== 'newest') {
     next.set('sort', data.filters.sort);
   }
@@ -207,6 +211,27 @@ function excerpt(value: string, maximum = 140) {
         </select>
       </div>
 
+      <div class="workshop-form__field">
+        <label for="workshop-featured">Featured</label>
+        <select id="workshop-featured" name="featured">
+          <option value="all" selected={data.filters.featured === 'all'}>
+            All
+          </option>
+          <option
+            value="featured"
+            selected={data.filters.featured === 'featured'}
+          >
+            Featured
+          </option>
+          <option
+            value="not-featured"
+            selected={data.filters.featured === 'not-featured'}
+          >
+            Not Featured
+          </option>
+        </select>
+      </div>
+
       <div class="workshop-form__actions">
         <button type="submit" class="button-command">Apply</button>
       </div>
@@ -234,6 +259,7 @@ function excerpt(value: string, maximum = 140) {
                 <th scope="col">Name</th>
                 <th scope="col">Request</th>
                 <th scope="col">Decision</th>
+                <th scope="col">Featured</th>
                 <th scope="col">Visibility</th>
                 <th scope="col">Reports</th>
                 <th scope="col">Latest report</th>
@@ -248,6 +274,13 @@ function excerpt(value: string, maximum = 140) {
                   <td data-label="Request">{excerpt(ruling.requestText)}</td>
                   <td data-label="Decision">
                     {getDecisionLabel(ruling.decision)}
+                  </td>
+                  <td data-label="Featured">
+                    {ruling.isFeatured ? (
+                      <span class="workshop-status-pill">Featured</span>
+                    ) : (
+                      'No'
+                    )}
                   </td>
                   <td data-label="Visibility">
                     <span
