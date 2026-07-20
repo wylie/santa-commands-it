@@ -18,6 +18,7 @@ import {
   type WorkshopDashboardRange,
   type WorkshopRulingSummary,
 } from '@/utils/workshop';
+import { getSeasonalPresentationModeLabel } from '@/utils/seasonal';
 
 export const WORKSHOP_DASHBOARD_RANGES = [
   {
@@ -183,6 +184,13 @@ export type WorkshopDashboardReports = WorkshopDashboardReportSummary & {
 export type WorkshopDashboardConfigurationSummary = {
   moderation: WorkshopModerationDashboardSummary;
   templates: WorkshopResponseTemplateDashboardSummary;
+  seasonal: {
+    mode: string;
+    greetingEnabled: boolean;
+    countdownEnabled: boolean;
+    countdownTargetDate: string | null;
+    updatedAt: string | null;
+  };
 };
 
 export type WorkshopDashboardHealthCheck = {
@@ -907,6 +915,33 @@ async function buildHealthSection(
       : 'The dashboard could not validate the coal percentage because settings are unavailable.',
     href: '/workshop/settings',
   });
+  checks.push({
+    label: 'Seasonal presentation mode',
+    status: settings ? 'healthy' : 'unavailable',
+    detail: settings
+      ? `Seasonal mode is set to ${getSeasonalPresentationModeLabel(settings.seasonalMode)}.`
+      : 'Seasonal settings could not be loaded.',
+    href: '/workshop/settings/seasonal',
+  });
+  checks.push({
+    label: 'Seasonal countdown',
+    status:
+      settings &&
+      settings.seasonalCountdownEnabled &&
+      !settings.seasonalCountdownTargetDate
+        ? 'needs-attention'
+        : settings
+          ? 'healthy'
+          : 'unavailable',
+    detail: settings
+      ? settings.seasonalCountdownEnabled
+        ? settings.seasonalCountdownTargetDate
+          ? `Countdown is enabled for ${settings.seasonalCountdownTargetDate} in ${timeZone}.`
+          : 'Countdown is enabled but does not have a valid target date.'
+        : 'Countdown is currently disabled.'
+      : 'Seasonal settings could not be loaded.',
+    href: '/workshop/settings/seasonal',
+  });
 
   checks.push({
     label: 'Site URL',
@@ -1026,6 +1061,18 @@ export async function getWorkshopDashboardPageData(headers: Headers, url: URL) {
     loadDashboardSection(headers, 'configuration', async () => ({
       moderation: await moderationSummaryPromise,
       templates: await templateSummaryPromise,
+      seasonal: {
+        mode: getSeasonalPresentationModeLabel(
+          (await settingsPromise)?.seasonalMode ?? 'standard',
+        ),
+        greetingEnabled:
+          (await settingsPromise)?.seasonalGreetingEnabled ?? false,
+        countdownEnabled:
+          (await settingsPromise)?.seasonalCountdownEnabled ?? false,
+        countdownTargetDate:
+          (await settingsPromise)?.seasonalCountdownTargetDate || null,
+        updatedAt: (await settingsPromise)?.updatedAt ?? null,
+      },
     })),
     loadDashboardSection(headers, 'health', async () =>
       buildHealthSection(headers, timeZone),

@@ -4,18 +4,19 @@ import PublicShell from '@/components/PublicShell.astro';
 import RequestForm from '@/components/RequestForm.astro';
 import RecentRulings from '@/components/RecentRulings.astro';
 import SantaSpeechBubble from '@/components/SantaSpeechBubble.astro';
+import SeasonalPublicNotice from '@/components/SeasonalPublicNotice.astro';
 import BaseLayout from '@/layouts/BaseLayout.astro';
-import { getHomepageSeasonalGreeting } from '@/server/config/service';
+import { getPublicSeasonalPresentation } from '@/server/config/service';
 import {
   listFeaturedRulingsForHeaders,
   listRecentRulingsForHeaders,
 } from '@/server/rulings/service';
 
-const [recentRulingsResult, featuredRulingsResult, seasonalGreeting] =
+const [recentRulingsResult, featuredRulingsResult, seasonalPresentation] =
   await Promise.all([
     listRecentRulingsForHeaders(Astro.request.headers),
     listFeaturedRulingsForHeaders(Astro.request.headers),
-    getHomepageSeasonalGreeting(Astro.request.headers),
+    getPublicSeasonalPresentation(Astro.request.headers),
   ]);
 ---
 
@@ -26,16 +27,13 @@ const [recentRulingsResult, featuredRulingsResult, seasonalGreeting] =
 >
   <a class="skip-link" href="#main-content">Skip to content</a>
   <main id="main-content" class="page-shell">
-    <PublicShell current="ask-santa">
+    <PublicShell current="ask-santa" seasonalMode={seasonalPresentation.mode}>
       <h1 class="sr-only">Santa Commands It!</h1>
       <SantaSpeechBubble />
-      {
-        seasonalGreeting && (
-          <section class="seasonal-greeting" aria-label="Seasonal greeting">
-            <p>{seasonalGreeting}</p>
-          </section>
-        )
-      }
+      <SeasonalPublicNotice
+        presentation={seasonalPresentation}
+        variant="full"
+      />
       <RequestForm />
       <FeaturedRulings
         rulings={featuredRulingsResult.status === 'ok'

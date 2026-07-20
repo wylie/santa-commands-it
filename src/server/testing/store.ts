@@ -95,6 +95,13 @@ export type TestSantaSettingsRecord = {
   randomCoalEnabled: boolean;
   randomCoalPercentage: number;
   seasonalGreeting: string;
+  seasonalMode: import('@/utils/seasonal').SeasonalPresentationMode;
+  seasonalGreetingEnabled: boolean;
+  seasonalStatusEnabled: boolean;
+  seasonalStatusText: string;
+  seasonalCountdownEnabled: boolean;
+  seasonalCountdownTargetDate: string;
+  seasonalCountdownLabel: string;
   version: number;
   createdSource: string | null;
   createdAt: string;
@@ -265,6 +272,24 @@ export function getTestRunStore(runId: string): TestRunStore {
         configurationSeedDefaults.santaSettings.randomCoalPercentage,
       seasonalGreeting:
         configurationSeedDefaults.santaSettings.seasonalGreeting ?? '',
+      seasonalMode:
+        configurationSeedDefaults.santaSettings.seasonalMode ?? 'standard',
+      seasonalGreetingEnabled:
+        configurationSeedDefaults.santaSettings.seasonalGreetingEnabled ??
+        false,
+      seasonalStatusEnabled:
+        configurationSeedDefaults.santaSettings.seasonalStatusEnabled ?? false,
+      seasonalStatusText:
+        configurationSeedDefaults.santaSettings.seasonalStatusText ?? '',
+      seasonalCountdownEnabled:
+        configurationSeedDefaults.santaSettings.seasonalCountdownEnabled ??
+        false,
+      seasonalCountdownTargetDate:
+        configurationSeedDefaults.santaSettings.seasonalCountdownTargetDate ??
+        '',
+      seasonalCountdownLabel:
+        configurationSeedDefaults.santaSettings.seasonalCountdownLabel ??
+        'UNTIL CHRISTMAS',
       version: 1,
       createdSource: 'source-migration',
       createdAt: seededAt,

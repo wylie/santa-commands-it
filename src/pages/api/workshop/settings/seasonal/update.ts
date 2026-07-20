@@ -7,7 +7,7 @@ import {
   sanitizeWorkshopNextPath,
 } from '@/server/workshop/auth';
 import { parseWorkshopFormRequest } from '@/server/workshop/forms';
-import { updateWorkshopSantaSettings } from '@/server/config/service';
+import { updateWorkshopSeasonalSettings } from '@/server/config/service';
 
 export const POST: APIRoute = async (context) => {
   const session = await requireWorkshopApiSession(context);
@@ -36,15 +36,25 @@ export const POST: APIRoute = async (context) => {
   }
 
   const returnTo = sanitizeWorkshopNextPath(
-    String(parsedForm.formData.get('returnTo') ?? '/workshop/settings'),
-  );
-  const result = await updateWorkshopSantaSettings({
-    expectedVersion: String(parsedForm.formData.get('expectedVersion') ?? ''),
-    randomCoalEnabled:
-      String(parsedForm.formData.get('randomCoalEnabled') ?? '') === 'true',
-    randomCoalPercentage: String(
-      parsedForm.formData.get('randomCoalPercentage') ?? '',
+    String(
+      parsedForm.formData.get('returnTo') ?? '/workshop/settings/seasonal',
     ),
+  );
+  const result = await updateWorkshopSeasonalSettings({
+    expectedVersion: String(parsedForm.formData.get('expectedVersion') ?? ''),
+    seasonalMode: String(parsedForm.formData.get('seasonalMode') ?? ''),
+    greetingEnabled:
+      String(parsedForm.formData.get('greetingEnabled') ?? '') === 'true',
+    greetingText: String(parsedForm.formData.get('greetingText') ?? ''),
+    statusEnabled:
+      String(parsedForm.formData.get('statusEnabled') ?? '') === 'true',
+    statusText: String(parsedForm.formData.get('statusText') ?? ''),
+    countdownEnabled:
+      String(parsedForm.formData.get('countdownEnabled') ?? '') === 'true',
+    countdownTargetDate: String(
+      parsedForm.formData.get('countdownTargetDate') ?? '',
+    ),
+    countdownLabel: String(parsedForm.formData.get('countdownLabel') ?? ''),
     headers: context.request.headers,
   });
 
@@ -60,7 +70,11 @@ export const POST: APIRoute = async (context) => {
       ? 'conflict'
       : result.status === 'not-found'
         ? 'not-found'
-        : 'invalid-percentage';
+        : result.status === 'invalid-greeting'
+          ? 'invalid-greeting'
+          : result.status === 'invalid-status'
+            ? 'invalid-status'
+            : 'invalid-countdown';
 
   return context.redirect(
     appendWorkshopRedirectParam(returnTo, 'error', error),

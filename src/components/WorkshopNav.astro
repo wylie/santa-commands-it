@@ -31,7 +31,14 @@ const links = [
   {
     href: '/workshop/settings',
     label: 'Santa Settings',
-    active: currentPath.startsWith('/workshop/settings'),
+    active:
+      currentPath === '/workshop/settings' ||
+      currentPath.startsWith('/workshop/settings/responses'),
+  },
+  {
+    href: '/workshop/settings/seasonal',
+    label: 'Seasonal',
+    active: currentPath.startsWith('/workshop/settings/seasonal'),
   },
 ];
 ---

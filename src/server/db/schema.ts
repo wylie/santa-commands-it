@@ -6,6 +6,7 @@ import {
   check,
   integer,
   index,
+  date,
   pgEnum,
   pgTable,
   text,
@@ -62,6 +63,17 @@ export const ownerActivityActionEnum = pgEnum('owner_activity_action', [
   'moderation-rule-disabled',
   'moderation-rule-deleted',
   'santa-settings-updated',
+  'seasonal-mode-updated',
+  'seasonal-greeting-enabled',
+  'seasonal-greeting-disabled',
+  'seasonal-greeting-updated',
+  'seasonal-status-enabled',
+  'seasonal-status-disabled',
+  'seasonal-status-updated',
+  'seasonal-countdown-enabled',
+  'seasonal-countdown-disabled',
+  'seasonal-countdown-updated',
+  'seasonal-defaults-restored',
   'response-template-created',
   'response-template-updated',
   'response-template-enabled',
@@ -106,6 +118,11 @@ export const responseTemplateGroupEnum = pgEnum('response_template_group', [
   'coal',
   'blocked-warning',
 ]);
+
+export const seasonalPresentationModeEnum = pgEnum(
+  'seasonal_presentation_mode',
+  ['standard', 'festive', 'christmas-eve', 'post-christmas'],
+);
 
 export const rulings = pgTable(
   'rulings',
@@ -374,6 +391,21 @@ export const santaSettings = pgTable(
     randomCoalEnabled: boolean('random_coal_enabled').default(true).notNull(),
     randomCoalPercentage: integer('random_coal_percentage').notNull(),
     seasonalGreeting: text('seasonal_greeting'),
+    seasonalMode: seasonalPresentationModeEnum('seasonal_mode')
+      .default('standard')
+      .notNull(),
+    seasonalGreetingEnabled: boolean('seasonal_greeting_enabled')
+      .default(false)
+      .notNull(),
+    seasonalStatusEnabled: boolean('seasonal_status_enabled')
+      .default(false)
+      .notNull(),
+    seasonalStatusText: text('seasonal_status_text'),
+    seasonalCountdownEnabled: boolean('seasonal_countdown_enabled')
+      .default(false)
+      .notNull(),
+    seasonalCountdownTargetDate: date('seasonal_countdown_target_date'),
+    seasonalCountdownLabel: text('seasonal_countdown_label'),
     version: integer('version').default(1).notNull(),
     createdSource: text('created_source'),
     createdAt: timestamp('created_at', { withTimezone: true })
@@ -391,6 +423,14 @@ export const santaSettings = pgTable(
     check(
       'santa_settings_seasonal_greeting_length_check',
       sql`${table.seasonalGreeting} is null or char_length(${table.seasonalGreeting}) <= 120`,
+    ),
+    check(
+      'santa_settings_seasonal_status_text_length_check',
+      sql`${table.seasonalStatusText} is null or char_length(${table.seasonalStatusText}) <= 160`,
+    ),
+    check(
+      'santa_settings_seasonal_countdown_label_length_check',
+      sql`${table.seasonalCountdownLabel} is null or char_length(${table.seasonalCountdownLabel}) <= 40`,
     ),
     check('santa_settings_version_check', sql`${table.version} >= 1`),
   ],

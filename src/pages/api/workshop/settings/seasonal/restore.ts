@@ -7,7 +7,7 @@ import {
   sanitizeWorkshopNextPath,
 } from '@/server/workshop/auth';
 import { parseWorkshopFormRequest } from '@/server/workshop/forms';
-import { updateWorkshopSantaSettings } from '@/server/config/service';
+import { restoreWorkshopSeasonalSettings } from '@/server/config/service';
 
 export const POST: APIRoute = async (context) => {
   const session = await requireWorkshopApiSession(context);
@@ -36,33 +36,34 @@ export const POST: APIRoute = async (context) => {
   }
 
   const returnTo = sanitizeWorkshopNextPath(
-    String(parsedForm.formData.get('returnTo') ?? '/workshop/settings'),
-  );
-  const result = await updateWorkshopSantaSettings({
-    expectedVersion: String(parsedForm.formData.get('expectedVersion') ?? ''),
-    randomCoalEnabled:
-      String(parsedForm.formData.get('randomCoalEnabled') ?? '') === 'true',
-    randomCoalPercentage: String(
-      parsedForm.formData.get('randomCoalPercentage') ?? '',
+    String(
+      parsedForm.formData.get('returnTo') ?? '/workshop/settings/seasonal',
     ),
+  );
+
+  if (String(parsedForm.formData.get('restoreConfirm') ?? '') !== 'RESTORE') {
+    return context.redirect(
+      appendWorkshopRedirectParam(returnTo, 'error', 'restore-confirm'),
+    );
+  }
+
+  const result = await restoreWorkshopSeasonalSettings({
+    expectedVersion: String(parsedForm.formData.get('expectedVersion') ?? ''),
     headers: context.request.headers,
   });
 
   if (result.status === 'success') {
-    const suffix = result.activityLogged ? 'saved' : 'saved-with-warning';
+    const suffix = result.activityLogged ? 'restored' : 'restored-with-warning';
     return context.redirect(
       appendWorkshopRedirectParam(returnTo, 'status', suffix),
     );
   }
 
-  const error =
-    result.status === 'conflict'
-      ? 'conflict'
-      : result.status === 'not-found'
-        ? 'not-found'
-        : 'invalid-percentage';
-
   return context.redirect(
-    appendWorkshopRedirectParam(returnTo, 'error', error),
+    appendWorkshopRedirectParam(
+      returnTo,
+      'error',
+      result.status === 'conflict' ? 'conflict' : 'not-found',
+    ),
   );
 };

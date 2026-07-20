@@ -7,7 +7,14 @@
   "santaSettings": {
     "randomCoalEnabled": true,
     "randomCoalPercentage": 5,
-    "seasonalGreeting": ""
+    "seasonalGreeting": "",
+    "seasonalMode": "standard",
+    "seasonalGreetingEnabled": false,
+    "seasonalStatusEnabled": false,
+    "seasonalStatusText": "",
+    "seasonalCountdownEnabled": false,
+    "seasonalCountdownTargetDate": "",
+    "seasonalCountdownLabel": "UNTIL CHRISTMAS"
   },
   "responseTemplates": {
     "approved": [

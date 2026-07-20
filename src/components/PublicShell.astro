@@ -5,12 +5,13 @@ import SiteFooter from '@/components/SiteFooter.astro';
 
 interface Props {
   current?: 'ask-santa' | 'browse-requests';
+  seasonalMode?: import('@/utils/seasonal').SeasonalPresentationMode;
 }
 
-const { current } = Astro.props;
+const { current, seasonalMode = 'standard' } = Astro.props;
 ---
 
-<div class="public-shell" data-public-shell>
+<div class="public-shell" data-public-shell data-seasonal-mode={seasonalMode}>
   <div class="public-shell__rail" data-public-rail>
     <div class="public-shell__portrait" data-public-portrait>
       <SantaPortrait />

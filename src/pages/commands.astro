@@ -1,7 +1,9 @@
 ---
 import PublicShell from '@/components/PublicShell.astro';
 import PublicRulingCard from '@/components/PublicRulingCard.astro';
+import SeasonalPublicNotice from '@/components/SeasonalPublicNotice.astro';
 import BaseLayout from '@/layouts/BaseLayout.astro';
+import { getPublicSeasonalPresentation } from '@/server/config/service';
 import { listPublicCommandsForHeaders } from '@/server/rulings/service';
 import {
   PUBLIC_COMMANDS_PATH,
@@ -24,6 +26,9 @@ const hasDiscoveryParameters = hasPublicCommandsParameters(
 );
 const commandsResult = await listPublicCommandsForHeaders(
   query,
+  Astro.request.headers,
+);
+const seasonalPresentation = await getPublicSeasonalPresentation(
   Astro.request.headers,
 );
 
@@ -81,7 +86,14 @@ const isBeyondAvailableResults = total > 0 && !hasResults;
 >
   <a class="skip-link" href="#main-content">Skip to content</a>
   <main id="main-content" class="page-shell">
-    <PublicShell current="browse-requests">
+    <PublicShell
+      current="browse-requests"
+      seasonalMode={seasonalPresentation.mode}
+    >
+      <SeasonalPublicNotice
+        presentation={seasonalPresentation}
+        variant="compact"
+      />
       <header class="commands-header">
         <p class="commands-header__eyebrow">BROWSE REQUESTS</p>
         <h1>REQUESTS ANSWERED BY SANTA</h1>

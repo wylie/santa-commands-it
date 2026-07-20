@@ -554,6 +554,7 @@ test.describe('Santa Workshop owner area', () => {
     const { headers } = await configureSantaTestPage(page, {
       randomValue: 0.99,
       consideringDelayMs: 0,
+      nowIso: '2026-12-13T15:00:00.000Z',
     });
 
     await page.goto('/workshop/login');
@@ -620,13 +621,30 @@ test.describe('Santa Workshop owner area', () => {
       .click();
     await expect(page).toHaveURL('/workshop/settings');
     await page.getByLabel('Random coal percentage').fill('100');
-    await page
-      .getByLabel('Seasonal homepage greeting')
-      .fill('Merry Christmas from Santa!');
     await page.getByRole('button', { name: 'Save settings' }).click();
     await expect(page.getByText('Santa settings were updated.')).toBeVisible();
+
+    await page.getByRole('link', { name: 'Seasonal', exact: true }).click();
+    await expect(page).toHaveURL('/workshop/settings/seasonal');
+    await page.getByLabel('Presentation mode').selectOption('festive');
+    await page.getByLabel('Enable seasonal greeting').check();
+    await page.getByLabel('Greeting text').fill('Merry Christmas from Santa!');
+    await page.getByLabel('Enable seasonal status').check();
+    await page.getByLabel('Status text').fill('The sleigh is nearly ready.');
+    await page.getByLabel('Enable seasonal countdown').check();
+    await page.getByLabel('Target date').fill('2026-12-25');
+    await page.getByLabel('Public label').fill('UNTIL CHRISTMAS');
+    await page.getByRole('button', { name: 'Save seasonal settings' }).click();
+    await expect(
+      page.getByText('Seasonal settings were updated.'),
+    ).toBeVisible();
+
     await page.goto('/');
     await expect(page.getByText('Merry Christmas from Santa!')).toBeVisible();
+    await expect(page.getByText('The sleigh is nearly ready.')).toBeVisible();
+    await expect(page.getByText('12 DAYS UNTIL CHRISTMAS')).toBeVisible();
+    await page.goto('/commands');
+    await expect(page.getByText('12 DAYS UNTIL CHRISTMAS')).toBeVisible();
     await page.goto('/workshop/settings');
 
     const coalSubmission = await createRulingViaApi(page, headers, {

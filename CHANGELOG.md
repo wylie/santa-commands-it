@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 The format is inspired by Keep a Changelog, and this project adheres to Semantic Versioning.
 
+## [0.3.2] - 2026-07-20
+
+### Added
+
+- Manual seasonal public presentation controls with predefined `standard`, `festive`, `christmas-eve`, and `post-christmas` modes
+- A dedicated Workshop Seasonal Settings page with greeting, status, countdown, restore-defaults, and version-protected save flows
+- A shared public seasonal notice that can render on the homepage, `/commands`, and public ruling pages
+- Countdown utilities that use the configured site time zone and whole calendar-day math
+- Seasonal dashboard summary, configuration-health checks, and owner activity coverage
+
+### Changed
+
+- The old homepage-only seasonal greeting moved out of Santa Settings into the dedicated seasonal presentation flow
+- Public ruling share images now apply a restrained seasonal-mode treatment without embedding stale countdown numbers or full owner text
+- Documentation now covers seasonal modes, manual activation, countdown behavior, cache propagation, and the additive schema migration
+
 ## [0.3.1] - 2026-07-19
 
 ### Added
@@ -12,9 +28,8 @@ The format is inspired by Keep a Changelog, and this project adheres to Semantic
 - Homepage Featured Requests section that shows up to three newest featured public rulings above Santa's Latest Answers
 - Featured-only public Commands filtering through server-rendered discovery URLs
 - Workshop featured management actions, dashboard count, and recent featured activity summary
-- Optional seasonal homepage greeting managed separately from announcements or scheduling
 - Subtle Featured treatment in dynamic ruling Open Graph images
-- Automated coverage for feature toggles, public badges, filtering, dashboard counts, activity logging, share images, and seasonal settings
+- Automated coverage for feature toggles, public badges, filtering, dashboard counts, activity logging, and share images
 
 ### Changed
 

@@ -70,6 +70,13 @@ export type UpdateSantaSettingsInput = {
   randomCoalEnabled: boolean;
   randomCoalPercentage: number;
   seasonalGreeting: string | null;
+  seasonalMode: import('@/utils/seasonal').SeasonalPresentationMode;
+  seasonalGreetingEnabled: boolean;
+  seasonalStatusEnabled: boolean;
+  seasonalStatusText: string | null;
+  seasonalCountdownEnabled: boolean;
+  seasonalCountdownTargetDate: string | null;
+  seasonalCountdownLabel: string | null;
   now: Date;
 };
 
@@ -181,6 +188,13 @@ function mapSantaSettingsRow(
     randomCoalEnabled: row.randomCoalEnabled,
     randomCoalPercentage: row.randomCoalPercentage,
     seasonalGreeting: row.seasonalGreeting ?? '',
+    seasonalMode: row.seasonalMode,
+    seasonalGreetingEnabled: row.seasonalGreetingEnabled,
+    seasonalStatusEnabled: row.seasonalStatusEnabled,
+    seasonalStatusText: row.seasonalStatusText ?? '',
+    seasonalCountdownEnabled: row.seasonalCountdownEnabled,
+    seasonalCountdownTargetDate: row.seasonalCountdownTargetDate ?? '',
+    seasonalCountdownLabel: row.seasonalCountdownLabel ?? '',
     version: row.version,
     updatedAt: serializeCreatedAt(row.updatedAt),
   };
@@ -425,6 +439,13 @@ export function createDatabaseConfigurationRepository(): ConfigurationRepository
           randomCoalEnabled: input.randomCoalEnabled,
           randomCoalPercentage: input.randomCoalPercentage,
           seasonalGreeting: input.seasonalGreeting,
+          seasonalMode: input.seasonalMode,
+          seasonalGreetingEnabled: input.seasonalGreetingEnabled,
+          seasonalStatusEnabled: input.seasonalStatusEnabled,
+          seasonalStatusText: input.seasonalStatusText,
+          seasonalCountdownEnabled: input.seasonalCountdownEnabled,
+          seasonalCountdownTargetDate: input.seasonalCountdownTargetDate,
+          seasonalCountdownLabel: input.seasonalCountdownLabel,
           version: input.expectedVersion + 1,
           updatedAt: input.now,
         })
@@ -816,6 +837,13 @@ export function createTestConfigurationRepository(
         randomCoalEnabled: settings.randomCoalEnabled,
         randomCoalPercentage: settings.randomCoalPercentage,
         seasonalGreeting: settings.seasonalGreeting,
+        seasonalMode: settings.seasonalMode,
+        seasonalGreetingEnabled: settings.seasonalGreetingEnabled,
+        seasonalStatusEnabled: settings.seasonalStatusEnabled,
+        seasonalStatusText: settings.seasonalStatusText,
+        seasonalCountdownEnabled: settings.seasonalCountdownEnabled,
+        seasonalCountdownTargetDate: settings.seasonalCountdownTargetDate,
+        seasonalCountdownLabel: settings.seasonalCountdownLabel,
         version: settings.version,
         updatedAt: settings.updatedAt,
       };
@@ -830,6 +858,14 @@ export function createTestConfigurationRepository(
       settings.randomCoalEnabled = input.randomCoalEnabled;
       settings.randomCoalPercentage = input.randomCoalPercentage;
       settings.seasonalGreeting = input.seasonalGreeting ?? '';
+      settings.seasonalMode = input.seasonalMode;
+      settings.seasonalGreetingEnabled = input.seasonalGreetingEnabled;
+      settings.seasonalStatusEnabled = input.seasonalStatusEnabled;
+      settings.seasonalStatusText = input.seasonalStatusText ?? '';
+      settings.seasonalCountdownEnabled = input.seasonalCountdownEnabled;
+      settings.seasonalCountdownTargetDate =
+        input.seasonalCountdownTargetDate ?? '';
+      settings.seasonalCountdownLabel = input.seasonalCountdownLabel ?? '';
       settings.version += 1;
       settings.updatedAt = input.now.toISOString();
 
@@ -837,6 +873,13 @@ export function createTestConfigurationRepository(
         randomCoalEnabled: settings.randomCoalEnabled,
         randomCoalPercentage: settings.randomCoalPercentage,
         seasonalGreeting: settings.seasonalGreeting,
+        seasonalMode: settings.seasonalMode,
+        seasonalGreetingEnabled: settings.seasonalGreetingEnabled,
+        seasonalStatusEnabled: settings.seasonalStatusEnabled,
+        seasonalStatusText: settings.seasonalStatusText,
+        seasonalCountdownEnabled: settings.seasonalCountdownEnabled,
+        seasonalCountdownTargetDate: settings.seasonalCountdownTargetDate,
+        seasonalCountdownLabel: settings.seasonalCountdownLabel,
         version: settings.version,
         updatedAt: settings.updatedAt,
       };

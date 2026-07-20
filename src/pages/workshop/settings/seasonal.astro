@@ -1,0 +1,381 @@
+---
+import WorkshopLayout from '@/layouts/WorkshopLayout.astro';
+import { requireWorkshopPageSession } from '@/server/workshop/auth';
+import {
+  getPublicSeasonalPresentation,
+  getWorkshopSeasonalSettingsPageData,
+} from '@/server/config/service';
+import { getWorkshopOpenReportCount } from '@/server/workshop/service';
+import { formatRulingTimestamp } from '@/utils/rulings';
+import { getOwnerActivityLabel } from '@/utils/workshop';
+import {
+  DEFAULT_SEASONAL_COUNTDOWN_LABEL,
+  seasonalPresentationModes,
+} from '@/utils/seasonal';
+
+const session = await requireWorkshopPageSession(Astro);
+
+if (session instanceof Response) {
+  return session;
+}
+
+const [data, openReportCount, preview] = await Promise.all([
+  getWorkshopSeasonalSettingsPageData(Astro.request.headers),
+  getWorkshopOpenReportCount(Astro.request.headers),
+  getPublicSeasonalPresentation(Astro.request.headers),
+]);
+
+if (!data.settings) {
+  return Astro.redirect('/workshop?error=settings-unavailable');
+}
+
+const settings = data.settings;
+
+const status = Astro.url.searchParams.get('status');
+const error = Astro.url.searchParams.get('error');
+const bannerMessage =
+  status === 'saved'
+    ? {
+        tone: 'success',
+        message: 'Seasonal settings were updated.',
+      }
+    : status === 'saved-with-warning'
+      ? {
+          tone: 'warning',
+          message:
+            'Seasonal settings were updated, but the owner activity entry could not be recorded.',
+        }
+      : status === 'restored'
+        ? {
+            tone: 'success',
+            message: 'Seasonal defaults were restored.',
+          }
+        : status === 'restored-with-warning'
+          ? {
+              tone: 'warning',
+              message:
+                'Seasonal defaults were restored, but the owner activity entry could not be recorded.',
+            }
+          : error === 'conflict'
+            ? {
+                tone: 'warning',
+                message:
+                  'These seasonal settings changed in another tab. The latest saved values are shown below.',
+              }
+            : error === 'invalid-greeting'
+              ? {
+                  tone: 'error',
+                  message:
+                    'Please enter valid seasonal greeting text before enabling it.',
+                }
+              : error === 'invalid-status'
+                ? {
+                    tone: 'error',
+                    message:
+                      'Please enter valid seasonal status text before enabling it.',
+                  }
+                : error === 'invalid-countdown'
+                  ? {
+                      tone: 'error',
+                      message:
+                        'Please enter a valid countdown label and target date before enabling the countdown.',
+                    }
+                  : error === 'restore-confirm'
+                    ? {
+                        tone: 'error',
+                        message:
+                          'Type RESTORE exactly to confirm resetting the seasonal presentation.',
+                      }
+                    : error === 'not-found'
+                      ? {
+                          tone: 'error',
+                          message: 'Seasonal settings could not be loaded.',
+                        }
+                      : null;
+---
+
+<WorkshopLayout
+  title="Seasonal Settings"
+  description="Adjust the public seasonal presentation without redeploying the site."
+  currentPath="/workshop/settings/seasonal"
+  csrfToken={session.csrfToken}
+  openReportCount={openReportCount}
+>
+  {
+    bannerMessage && (
+      <p
+        class={`workshop-banner workshop-banner--${bannerMessage.tone}`}
+        role="status"
+      >
+        {bannerMessage.message}
+      </p>
+    )
+  }
+
+  <section class="workshop-grid workshop-grid--detail">
+    <article class="workshop-card">
+      <div class="workshop-card__header">
+        <h2>Seasonal presentation</h2>
+        <a class="workshop-inline-link" href="/"> Preview public site </a>
+      </div>
+
+      <form
+        class="workshop-form"
+        method="post"
+        action="/api/workshop/settings/seasonal/update"
+      >
+        <input type="hidden" name="csrfToken" value={session.csrfToken} />
+        <input
+          type="hidden"
+          name="returnTo"
+          value="/workshop/settings/seasonal"
+        />
+        <input
+          type="hidden"
+          name="expectedVersion"
+          value={String(settings.version)}
+        />
+
+        <div class="workshop-form__field">
+          <label for="seasonal-mode">Presentation mode</label>
+          <select
+            id="seasonal-mode"
+            name="seasonalMode"
+            class="workshop-select"
+          >
+            {
+              seasonalPresentationModes.map((mode) => (
+                <option
+                  value={mode.value}
+                  selected={settings.seasonalMode === mode.value}
+                >
+                  {mode.label}
+                </option>
+              ))
+            }
+          </select>
+          <p class="workshop-form__hint">
+            Manual mode selection only. The public site never changes modes
+            automatically.
+          </p>
+        </div>
+
+        <label class="workshop-checkbox">
+          <input
+            type="checkbox"
+            name="greetingEnabled"
+            value="true"
+            checked={settings.seasonalGreetingEnabled}
+          />
+          <span>Enable seasonal greeting</span>
+        </label>
+        <div class="workshop-form__field">
+          <label for="seasonal-greeting">Greeting text</label>
+          <input
+            id="seasonal-greeting"
+            name="greetingText"
+            type="text"
+            maxlength="120"
+            value={settings.seasonalGreeting}
+            autocomplete="off"
+          />
+          <p class="workshop-form__hint">
+            Plain text only. Shown on the homepage above the request form.
+          </p>
+        </div>
+
+        <label class="workshop-checkbox">
+          <input
+            type="checkbox"
+            name="statusEnabled"
+            value="true"
+            checked={settings.seasonalStatusEnabled}
+          />
+          <span>Enable seasonal status</span>
+        </label>
+        <div class="workshop-form__field">
+          <label for="seasonal-status">Status text</label>
+          <textarea
+            id="seasonal-status"
+            name="statusText"
+            rows="3"
+            maxlength="160">{settings.seasonalStatusText}</textarea
+          >
+          <p class="workshop-form__hint">
+            Keep this consistent with current request availability.
+          </p>
+        </div>
+
+        <label class="workshop-checkbox">
+          <input
+            type="checkbox"
+            name="countdownEnabled"
+            value="true"
+            checked={settings.seasonalCountdownEnabled}
+          />
+          <span>Enable seasonal countdown</span>
+        </label>
+        <div class="workshop-field-row">
+          <div class="workshop-form__field">
+            <label for="countdown-target-date">Target date</label>
+            <input
+              id="countdown-target-date"
+              name="countdownTargetDate"
+              type="date"
+              value={settings.seasonalCountdownTargetDate}
+            />
+          </div>
+          <div class="workshop-form__field">
+            <label for="countdown-label">Public label</label>
+            <input
+              id="countdown-label"
+              name="countdownLabel"
+              type="text"
+              maxlength="40"
+              value={settings.seasonalCountdownLabel ||
+                DEFAULT_SEASONAL_COUNTDOWN_LABEL}
+              autocomplete="off"
+            />
+          </div>
+        </div>
+        <p class="workshop-form__hint">
+          The countdown uses the configured site time zone and shows whole
+          calendar days only.
+        </p>
+
+        <div class="workshop-form__actions">
+          <button type="submit" class="button-command"
+            >Save seasonal settings</button
+          >
+        </div>
+      </form>
+    </article>
+
+    <article class="workshop-card">
+      <div class="workshop-card__section">
+        <h3>Current state</h3>
+        <dl class="workshop-detail-list">
+          <div>
+            <dt>Mode</dt>
+            <dd>{preview.mode}</dd>
+          </div>
+          <div>
+            <dt>Greeting</dt>
+            <dd>{settings.seasonalGreetingEnabled ? 'Enabled' : 'Disabled'}</dd>
+          </div>
+          <div>
+            <dt>Status</dt>
+            <dd>{settings.seasonalStatusEnabled ? 'Enabled' : 'Disabled'}</dd>
+          </div>
+          <div>
+            <dt>Countdown</dt>
+            <dd>
+              {
+                settings.seasonalCountdownEnabled
+                  ? settings.seasonalCountdownTargetDate || 'Enabled'
+                  : 'Disabled'
+              }
+            </dd>
+          </div>
+          <div>
+            <dt>Updated</dt>
+            <dd>
+              <time datetime={data.settings.updatedAt}>
+                {formatRulingTimestamp(settings.updatedAt)}
+              </time>
+            </dd>
+          </div>
+        </dl>
+        {
+          (preview.greeting || preview.status || preview.countdown) && (
+            <div class="workshop-card__section">
+              <h3>Public preview summary</h3>
+              <p class="workshop-prose">
+                {preview.greeting || 'Greeting disabled.'}
+              </p>
+              {preview.status && (
+                <p class="workshop-summary-list__meta">{preview.status}</p>
+              )}
+              {preview.countdown && (
+                <p class="workshop-summary-list__meta">
+                  {preview.countdown.message}
+                </p>
+              )}
+            </div>
+          )
+        }
+      </div>
+
+      <div class="workshop-card__section">
+        <h3>Recent seasonal activity</h3>
+        {
+          data.recentActivity.length === 0 ? (
+            <p class="workshop-empty">
+              No seasonal settings changes are recorded yet.
+            </p>
+          ) : (
+            <ol class="workshop-summary-list">
+              {data.recentActivity.map((entry) => (
+                <li class="workshop-summary-list__item">
+                  <div>
+                    <p class="workshop-summary-list__title">
+                      {getOwnerActivityLabel(entry.action)}
+                    </p>
+                    <p class="workshop-summary-list__meta">
+                      {formatRulingTimestamp(entry.createdAt)}
+                    </p>
+                    {entry.details && (
+                      <p class="workshop-summary-list__detail">
+                        {entry.details}
+                      </p>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          )
+        }
+      </div>
+
+      <div class="workshop-card__section">
+        <h3>Restore defaults</h3>
+        <p class="workshop-prose">
+          Reset the seasonal presentation to Standard mode and disable all
+          public seasonal messaging.
+        </p>
+        <form
+          class="workshop-form"
+          method="post"
+          action="/api/workshop/settings/seasonal/restore"
+        >
+          <input type="hidden" name="csrfToken" value={session.csrfToken} />
+          <input
+            type="hidden"
+            name="returnTo"
+            value="/workshop/settings/seasonal"
+          />
+          <input
+            type="hidden"
+            name="expectedVersion"
+            value={String(settings.version)}
+          />
+          <div class="workshop-form__field">
+            <label for="restore-seasonal-confirm">Type RESTORE to confirm</label
+            >
+            <input
+              id="restore-seasonal-confirm"
+              name="restoreConfirm"
+              type="text"
+              autocomplete="off"
+            />
+          </div>
+          <div class="workshop-form__actions">
+            <button type="submit" class="button-link-secondary">
+              Restore seasonal defaults
+            </button>
+          </div>
+        </form>
+      </div>
+    </article>
+  </section>
+</WorkshopLayout>

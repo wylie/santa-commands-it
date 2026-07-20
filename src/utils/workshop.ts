@@ -33,6 +33,17 @@ export type OwnerActivityAction =
   | 'moderation-rule-disabled'
   | 'moderation-rule-deleted'
   | 'santa-settings-updated'
+  | 'seasonal-mode-updated'
+  | 'seasonal-greeting-enabled'
+  | 'seasonal-greeting-disabled'
+  | 'seasonal-greeting-updated'
+  | 'seasonal-status-enabled'
+  | 'seasonal-status-disabled'
+  | 'seasonal-status-updated'
+  | 'seasonal-countdown-enabled'
+  | 'seasonal-countdown-disabled'
+  | 'seasonal-countdown-updated'
+  | 'seasonal-defaults-restored'
   | 'response-template-created'
   | 'response-template-updated'
   | 'response-template-enabled'
@@ -201,6 +212,28 @@ export function getOwnerActivityLabel(action: OwnerActivityAction): string {
       return 'Moderation rule deleted';
     case 'santa-settings-updated':
       return 'Santa settings updated';
+    case 'seasonal-mode-updated':
+      return 'Seasonal mode updated';
+    case 'seasonal-greeting-enabled':
+      return 'Seasonal greeting enabled';
+    case 'seasonal-greeting-disabled':
+      return 'Seasonal greeting disabled';
+    case 'seasonal-greeting-updated':
+      return 'Seasonal greeting updated';
+    case 'seasonal-status-enabled':
+      return 'Seasonal status enabled';
+    case 'seasonal-status-disabled':
+      return 'Seasonal status disabled';
+    case 'seasonal-status-updated':
+      return 'Seasonal status updated';
+    case 'seasonal-countdown-enabled':
+      return 'Seasonal countdown enabled';
+    case 'seasonal-countdown-disabled':
+      return 'Seasonal countdown disabled';
+    case 'seasonal-countdown-updated':
+      return 'Seasonal countdown updated';
+    case 'seasonal-defaults-restored':
+      return 'Seasonal defaults restored';
     case 'response-template-created':
       return 'Response template created';
     case 'response-template-updated':

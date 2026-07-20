@@ -1,11 +1,11 @@
 # Santa Commands It!
 
-`Santa Commands It!` is a theatrical holiday web application from Argon Collective LLC. Visitors ask Santa for something, the server makes the authoritative decision, completed rulings are stored in Neon Postgres, and approved or coal outcomes receive permanent public pages that can be shared directly. Version `0.3.1` adds owner-curated Featured Requests and a short seasonal homepage greeting.
+`Santa Commands It!` is a theatrical holiday web application from Argon Collective LLC. Visitors ask Santa for something, the server makes the authoritative decision, completed rulings are stored in Neon Postgres, and approved or coal outcomes receive permanent public pages that can be shared directly. Version `0.3.2` adds manual seasonal public presentation controls alongside the existing Featured Requests workflow.
 
 ## Release
 
-- Current version: `v0.3.1`
-- Current scope: the preserved public Santa experience, public request browsing at `/commands`, curated Featured Requests, optional seasonal homepage messaging, shareable discovery URLs, and a private `Santa's Workshop` owner area with secure single-owner authentication, server-side sessions, range-aware owner dashboard analytics, ruling visibility controls, a report-review queue, database-backed moderation rules, editable Santa settings, response-template management, dynamic ruling share images, and private audit activity
+- Current version: `v0.3.2`
+- Current scope: the preserved public Santa experience, public request browsing at `/commands`, curated Featured Requests, manual seasonal public presentation controls, shareable discovery URLs, and a private `Santa's Workshop` owner area with secure single-owner authentication, server-side sessions, range-aware owner dashboard analytics, ruling visibility controls, a report-review queue, database-backed moderation rules, editable Santa settings, seasonal settings, response-template management, dynamic ruling share images, and private audit activity
 
 Completed rulings persist across refreshes and can be revisited at permanent public URLs when they remain public. Blocked submissions are still rejected before any database write and never receive public pages, public reports can be submitted without exposing reporter details, and hidden rulings now return the same public not-found experience as unknown identifiers.
 
@@ -55,7 +55,7 @@ Completed approvals and coal rulings are public on the homepage and on their own
 - `npm run db:seed:configuration`
 
 13. Start the development server with `npm run dev`.
-14. Submit a request, confirm it appears in Santa's Latest Answers and `/commands`, use the public `BROWSE REQUESTS` page, open its permanent ruling page, load `/rulings/[publicId]/og.png`, sign into `/workshop/login`, and test dashboard ranges, Featured Requests, seasonal greeting editing, moderation rules, Santa settings, response templates, report review, share-preview pages, hide, restore, and delete behavior against local data.
+14. Submit a request, confirm it appears in Santa's Latest Answers and `/commands`, use the public `BROWSE REQUESTS` page, open its permanent ruling page, load `/rulings/[publicId]/og.png`, sign into `/workshop/login`, and test dashboard ranges, Featured Requests, seasonal settings, moderation rules, Santa settings, response templates, report review, share-preview pages, hide, restore, and delete behavior against local data.
 
 If `DATABASE_URL` is missing, the form remains usable but the server cannot persist rulings, recent public requests will be unavailable, and no permanent ruling pages can be created.
 
@@ -107,6 +107,7 @@ Private owner routes now live under:
 - `/workshop/moderation/new`
 - `/workshop/moderation/[ruleId]`
 - `/workshop/settings`
+- `/workshop/settings/seasonal`
 - `/workshop/settings/responses`
 - `/workshop/rulings`
 - `/workshop/rulings/[publicId]`
@@ -387,10 +388,19 @@ The production source of truth for moderation and editable Santa behavior is now
 
 - Editable Santa settings live in the `santa_settings` table.
 - `v0.2.3` exposes `randomCoalEnabled` and `randomCoalPercentage` for editing and surfaces the current configured value in the private dashboard.
-- `v0.3.1` adds an optional short plain-text seasonal homepage greeting that is managed separately from announcements, is not scheduled, and appears only on the homepage when present.
 - The stored coal percentage is retained even when random coal is disabled.
 - Settings updates use a version field for optimistic concurrency so stale tabs do not silently overwrite newer values.
 - The default coal percentage remains `5%`.
+
+### Seasonal settings
+
+- Seasonal presentation settings live in the same singleton `santa_settings` record and remain database authoritative.
+- Supported modes are `standard`, `festive`, `christmas-eve`, and `post-christmas`.
+- Seasonal greeting, seasonal status, and the optional countdown are all manual owner controls. There is no scheduling, no automatic date detection, and no visitor-specific personalization.
+- The countdown uses the configured `SITE_TIMEZONE`, stores a target date rather than a timestamp, and renders whole calendar days only.
+- Seasonal public messaging is plain text only and is escaped everywhere it renders.
+- The Seasonal Settings page lives at `/workshop/settings/seasonal`.
+- Restoring seasonal defaults resets the mode to `standard`, disables greeting, status, and countdown, and leaves unrelated Santa settings untouched.
 
 ### Response templates
 
@@ -426,7 +436,8 @@ The production source of truth for moderation and editable Santa behavior is now
 - The one-time seed command is `npm run db:seed:configuration`.
 - The seed is intentionally idempotent: it inserts missing rules, settings, and templates, skips existing rows, and does not overwrite later owner changes.
 - Startup does not synchronize source defaults into the database automatically.
-- The `v0.3.1` migration adds `rulings.is_featured`, `rulings.featured_at`, related owner-activity enum values, and `santa_settings.seasonal_greeting`.
+- The `v0.3.1` migration adds `rulings.is_featured`, `rulings.featured_at`, and related owner-activity enum values.
+- The `v0.3.2` migration adds seasonal presentation mode, greeting-enable, status, and countdown fields to the singleton `santa_settings` record.
 
 ## Latest commands behavior
 
@@ -435,7 +446,8 @@ The production source of truth for moderation and editable Santa behavior is now
 - The homepage also shows a Featured Requests section above Santa's Latest Answers when at least one public ruling is featured.
 - Featured Requests shows up to three rulings, newest featured first, using the same public ruling-card component as the latest feed.
 - If no featured rulings exist, the Featured Requests section is omitted entirely.
-- The optional seasonal greeting appears only on the homepage and only when the Workshop setting contains text.
+- Seasonal notices appear on the homepage in the full presentation and on `/commands` plus individual ruling pages in a compact presentation when enabled.
+- Seasonal mode styling is restrained, server-rendered, and limited to the fixed `standard`, `festive`, `christmas-eve`, and `post-christmas` allowlist.
 - The latest-commands section shows a real semantic list when rulings exist.
 - Each latest-command item links to its permanent public ruling page.
 - The homepage uses the shared public ruling-card component in a compact variant.

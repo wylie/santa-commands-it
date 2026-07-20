@@ -340,17 +340,79 @@ h2 {
   scroll-margin-top: 1.5rem;
 }
 
-.seasonal-greeting {
+.seasonal-notice {
+  display: grid;
+  gap: 0.6rem;
   padding: 1.15rem 1.35rem;
+  border: 1px solid rgb(97 130 118 / 0.14);
+  border-radius: var(--radius-panel);
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.96), #f6fbf8);
 }
 
-.seasonal-greeting p {
+.seasonal-notice--compact {
+  gap: 0.45rem;
+  padding: 1rem 1.15rem;
+}
+
+.seasonal-notice__greeting,
+.seasonal-notice__status,
+.seasonal-notice__countdown {
   margin: 0;
-  color: var(--color-evergreen-deep);
   font-family: var(--font-ui);
+  overflow-wrap: anywhere;
+}
+
+.seasonal-notice__greeting {
+  color: var(--color-evergreen-deep);
   font-size: var(--font-size-md);
   font-weight: var(--font-weight-bold);
-  overflow-wrap: anywhere;
+}
+
+.seasonal-notice__status {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.seasonal-notice__countdown {
+  color: var(--color-cranberry-deep);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+[data-public-shell][data-seasonal-mode='festive'] .seasonal-notice {
+  border-color: rgb(127 105 91 / 0.16);
+  background: linear-gradient(180deg, #fffaf8, #f7fbf7);
+}
+
+[data-public-shell][data-seasonal-mode='christmas-eve'] .seasonal-notice {
+  border-color: rgb(142 84 93 / 0.18);
+  background: linear-gradient(180deg, #fff7f8, #f8fbff);
+}
+
+[data-public-shell][data-seasonal-mode='post-christmas'] .seasonal-notice {
+  border-color: rgb(128 145 161 / 0.16);
+  background: linear-gradient(180deg, #f8fbfe, #f7fafc);
+}
+
+[data-public-shell][data-seasonal-mode='festive'] .commands-header__eyebrow,
+[data-public-shell][data-seasonal-mode='festive'] .section-heading h2,
+[data-public-shell][data-seasonal-mode='festive'] .ruling-card__featured {
+  color: var(--color-evergreen-deep);
+}
+
+[data-public-shell][data-seasonal-mode='christmas-eve']
+  .commands-header__eyebrow,
+[data-public-shell][data-seasonal-mode='christmas-eve'] .section-heading h2,
+[data-public-shell][data-seasonal-mode='christmas-eve'] .ruling-card__featured {
+  color: var(--color-cranberry-deep);
+}
+
+[data-public-shell][data-seasonal-mode='post-christmas']
+  .commands-header__eyebrow,
+[data-public-shell][data-seasonal-mode='post-christmas'] .section-heading h2 {
+  color: #47626e;
 }
 
 .request-form {
@@ -1349,7 +1411,7 @@ h2 {
 
   .speech-panel,
   .request-panel,
-  .seasonal-greeting,
+  .seasonal-notice,
   .recent-rulings,
   .commands-header,
   .commands-panel,
@@ -1705,6 +1767,7 @@ h2 {
 }
 
 .workshop-form input,
+.workshop-form select,
 .workshop-form textarea,
 .workshop-filters input,
 .workshop-filters select {
@@ -1719,6 +1782,12 @@ h2 {
 .workshop-form textarea {
   min-height: 8rem;
   resize: vertical;
+}
+
+.workshop-field-row {
+  display: grid;
+  gap: 0.85rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .workshop-checkbox {
@@ -2055,6 +2124,10 @@ h2 {
   .workshop-pagination {
     grid-auto-flow: row;
     justify-content: start;
+  }
+
+  .workshop-field-row {
+    grid-template-columns: 1fr;
   }
 
   .workshop-health-list__item,

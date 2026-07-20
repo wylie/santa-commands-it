@@ -25,13 +25,26 @@ import {
   type RuntimeSantaSettings,
   type WorkshopModerationFilters,
 } from '@/utils/configuration';
+import {
+  buildSeasonalCountdownMessage,
+  coerceSeasonalPresentationMode,
+  DEFAULT_SEASONAL_COUNTDOWN_LABEL,
+  getSeasonalPresentationModeLabel,
+  normalizeSeasonalPlainText,
+  parseCountdownTargetDate,
+  SEASONAL_COUNTDOWN_LABEL_MAX_LENGTH,
+  SEASONAL_GREETING_MAX_LENGTH,
+  SEASONAL_STATUS_MAX_LENGTH,
+  type SeasonalPublicPresentation,
+} from '@/utils/seasonal';
 import type { ConfigurationRepository } from '@/server/config/repository';
 import { getConfigurationRepositoryForHeaders } from '@/server/config/test-mode';
+import { getRequestNow } from '@/server/rulings/test-mode';
 import { getWorkshopRepositoryForHeaders } from '@/server/workshop/test-mode';
+import { getSiteTimeZone } from '@/server/env';
 
 const PLACEHOLDER_PATTERN = /\{([^{}]+)\}/g;
 const CONFIG_ACTIVITY_LIMIT = 8;
-const SEASONAL_GREETING_MAX_LENGTH = 120;
 export const REQUIRED_BLOCKED_WARNING_TEMPLATE =
   'THAT IS UNACCEPTABLE. ASK FOR SOMETHING ELSE OR RECEIVE COAL!';
 
@@ -300,6 +313,14 @@ async function loadRuntimeConfigurationFromRepository(
       randomCoalEnabled: settings.randomCoalEnabled,
       randomCoalPercentage: settings.randomCoalPercentage,
       seasonalGreeting: settings.seasonalGreeting,
+      seasonalMode: settings.seasonalMode,
+      seasonalGreetingEnabled: settings.seasonalGreetingEnabled,
+      seasonalStatusEnabled: settings.seasonalStatusEnabled,
+      seasonalStatusText: settings.seasonalStatusText,
+      seasonalCountdownEnabled: settings.seasonalCountdownEnabled,
+      seasonalCountdownTargetDate: settings.seasonalCountdownTargetDate,
+      seasonalCountdownLabel:
+        settings.seasonalCountdownLabel || DEFAULT_SEASONAL_COUNTDOWN_LABEL,
       version: settings.version,
     },
     responseTemplates: {
@@ -369,14 +390,42 @@ export function invalidateRuntimeConfigurationCache(headers: Headers) {
   runtimeConfigurationCaches.get(buildCacheKey(headers))?.invalidate();
 }
 
-export async function getHomepageSeasonalGreeting(headers: Headers) {
+export async function getPublicSeasonalPresentation(
+  headers: Headers,
+): Promise<SeasonalPublicPresentation> {
   try {
-    const settings =
-      await getConfigurationRepositoryForHeaders(headers).getSantaSettings();
+    const configuration = await getRuntimeConfigurationForHeaders(headers);
+    const settings = configuration.santaSettings;
+    const greeting =
+      settings.seasonalGreetingEnabled && settings.seasonalGreeting
+        ? settings.seasonalGreeting
+        : '';
+    const status =
+      settings.seasonalStatusEnabled && settings.seasonalStatusText
+        ? settings.seasonalStatusText
+        : '';
+    const countdown = settings.seasonalCountdownEnabled
+      ? buildSeasonalCountdownMessage({
+          targetDate: settings.seasonalCountdownTargetDate,
+          label: settings.seasonalCountdownLabel,
+          timeZone: getSiteTimeZone(),
+          now: getRequestNow(headers),
+        })
+      : null;
 
-    return settings?.seasonalGreeting.trim() ?? '';
+    return {
+      mode: settings.seasonalMode,
+      greeting,
+      status,
+      countdown,
+    };
   } catch {
-    return '';
+    return {
+      mode: 'standard',
+      greeting: '',
+      status: '',
+      countdown: null,
+    };
   }
 }
 
@@ -745,13 +794,11 @@ export async function updateWorkshopSantaSettings(input: {
   expectedVersion: string;
   randomCoalEnabled: boolean;
   randomCoalPercentage: string;
-  seasonalGreeting: string;
   headers: Headers;
   now?: Date;
 }) {
   const expectedVersion = Number.parseInt(input.expectedVersion, 10);
   const parsedPercentage = Number.parseInt(input.randomCoalPercentage, 10);
-  const seasonalGreeting = input.seasonalGreeting.trim();
 
   if (!Number.isInteger(expectedVersion) || expectedVersion < 1) {
     return { status: 'conflict' as const };
@@ -768,13 +815,6 @@ export async function updateWorkshopSantaSettings(input: {
     };
   }
 
-  if (seasonalGreeting.length > SEASONAL_GREETING_MAX_LENGTH) {
-    return {
-      status: 'invalid-greeting' as const,
-      message: `Please keep the seasonal greeting to ${SEASONAL_GREETING_MAX_LENGTH} characters or fewer.`,
-    };
-  }
-
   const repository = getConfigurationRepositoryForHeaders(input.headers);
   const existing = await repository.getSantaSettings();
 
@@ -786,7 +826,14 @@ export async function updateWorkshopSantaSettings(input: {
     expectedVersion,
     randomCoalEnabled: input.randomCoalEnabled,
     randomCoalPercentage: parsedPercentage,
-    seasonalGreeting: seasonalGreeting || null,
+    seasonalGreeting: existing.seasonalGreeting || null,
+    seasonalMode: existing.seasonalMode,
+    seasonalGreetingEnabled: existing.seasonalGreetingEnabled,
+    seasonalStatusEnabled: existing.seasonalStatusEnabled,
+    seasonalStatusText: existing.seasonalStatusText || null,
+    seasonalCountdownEnabled: existing.seasonalCountdownEnabled,
+    seasonalCountdownTargetDate: existing.seasonalCountdownTargetDate || null,
+    seasonalCountdownLabel: existing.seasonalCountdownLabel || null,
     now: input.now ?? new Date(),
   });
 
@@ -805,12 +852,296 @@ export async function updateWorkshopSantaSettings(input: {
     targetPublicId: 'santa-settings',
     details: [
       `Random coal ${existing.randomCoalEnabled ? 'enabled' : 'disabled'} → ${updated.randomCoalEnabled ? 'enabled' : 'disabled'} · ${existing.randomCoalPercentage}% → ${updated.randomCoalPercentage}%`,
-      existing.seasonalGreeting !== updated.seasonalGreeting
-        ? 'Seasonal greeting updated'
-        : null,
     ]
       .filter(Boolean)
       .join(' · '),
+  });
+
+  return {
+    status: 'success' as const,
+    settings: updated,
+    activityLogged,
+  };
+}
+
+export async function getWorkshopSeasonalSettingsPageData(headers: Headers) {
+  const repository = getConfigurationRepositoryForHeaders(headers);
+  const [settings, recentActivity] = await Promise.all([
+    repository.getSantaSettings(),
+    getRelevantConfigurationActivity(headers, [
+      'seasonal-mode-updated',
+      'seasonal-greeting-enabled',
+      'seasonal-greeting-disabled',
+      'seasonal-greeting-updated',
+      'seasonal-status-enabled',
+      'seasonal-status-disabled',
+      'seasonal-status-updated',
+      'seasonal-countdown-enabled',
+      'seasonal-countdown-disabled',
+      'seasonal-countdown-updated',
+      'seasonal-defaults-restored',
+    ]),
+  ]);
+
+  return {
+    settings,
+    recentActivity,
+  };
+}
+
+function validateSeasonalMessage(
+  value: string,
+  maximum: number,
+  fieldLabel: string,
+) {
+  const normalizedValue = normalizeSeasonalPlainText(value);
+
+  if (normalizedValue.length > maximum) {
+    return {
+      valid: false as const,
+      message: `Please keep the ${fieldLabel} to ${maximum} characters or fewer.`,
+    };
+  }
+
+  return {
+    valid: true as const,
+    value: normalizedValue,
+  };
+}
+
+function summarizeSeasonalChanges(input: {
+  existing: Awaited<ReturnType<ConfigurationRepository['getSantaSettings']>>;
+  updated: Awaited<ReturnType<ConfigurationRepository['getSantaSettings']>>;
+}) {
+  if (!input.existing || !input.updated) {
+    return 'Seasonal settings updated.';
+  }
+
+  const details: string[] = [];
+
+  if (input.existing.seasonalMode !== input.updated.seasonalMode) {
+    details.push(
+      `Mode: ${getSeasonalPresentationModeLabel(input.updated.seasonalMode)}`,
+    );
+  }
+
+  if (
+    input.existing.seasonalGreetingEnabled !==
+    input.updated.seasonalGreetingEnabled
+  ) {
+    details.push(
+      `Greeting ${input.updated.seasonalGreetingEnabled ? 'enabled' : 'disabled'}`,
+    );
+  } else if (
+    input.existing.seasonalGreeting !== input.updated.seasonalGreeting
+  ) {
+    details.push('Greeting text updated');
+  }
+
+  if (
+    input.existing.seasonalStatusEnabled !== input.updated.seasonalStatusEnabled
+  ) {
+    details.push(
+      `Status ${input.updated.seasonalStatusEnabled ? 'enabled' : 'disabled'}`,
+    );
+  } else if (
+    input.existing.seasonalStatusText !== input.updated.seasonalStatusText
+  ) {
+    details.push('Status text updated');
+  }
+
+  if (
+    input.existing.seasonalCountdownEnabled !==
+    input.updated.seasonalCountdownEnabled
+  ) {
+    details.push(
+      `Countdown ${input.updated.seasonalCountdownEnabled ? 'enabled' : 'disabled'}`,
+    );
+  } else if (
+    input.existing.seasonalCountdownTargetDate !==
+      input.updated.seasonalCountdownTargetDate ||
+    input.existing.seasonalCountdownLabel !==
+      input.updated.seasonalCountdownLabel
+  ) {
+    details.push('Countdown updated');
+  }
+
+  return details.join(' · ') || 'Seasonal settings updated.';
+}
+
+export async function updateWorkshopSeasonalSettings(input: {
+  expectedVersion: string;
+  seasonalMode: string;
+  greetingEnabled: boolean;
+  greetingText: string;
+  statusEnabled: boolean;
+  statusText: string;
+  countdownEnabled: boolean;
+  countdownTargetDate: string;
+  countdownLabel: string;
+  headers: Headers;
+  now?: Date;
+}) {
+  const expectedVersion = Number.parseInt(input.expectedVersion, 10);
+
+  if (!Number.isInteger(expectedVersion) || expectedVersion < 1) {
+    return { status: 'conflict' as const };
+  }
+
+  const seasonalMode = coerceSeasonalPresentationMode(input.seasonalMode);
+  const greeting = validateSeasonalMessage(
+    input.greetingText,
+    SEASONAL_GREETING_MAX_LENGTH,
+    'seasonal greeting',
+  );
+
+  if (!greeting.valid) {
+    return { status: 'invalid-greeting' as const, message: greeting.message };
+  }
+
+  if (input.greetingEnabled && !greeting.value) {
+    return {
+      status: 'invalid-greeting' as const,
+      message: 'Please enter seasonal greeting text before enabling it.',
+    };
+  }
+
+  const statusText = validateSeasonalMessage(
+    input.statusText,
+    SEASONAL_STATUS_MAX_LENGTH,
+    'seasonal status',
+  );
+
+  if (!statusText.valid) {
+    return { status: 'invalid-status' as const, message: statusText.message };
+  }
+
+  if (input.statusEnabled && !statusText.value) {
+    return {
+      status: 'invalid-status' as const,
+      message: 'Please enter seasonal status text before enabling it.',
+    };
+  }
+
+  const countdownLabel = validateSeasonalMessage(
+    input.countdownLabel || DEFAULT_SEASONAL_COUNTDOWN_LABEL,
+    SEASONAL_COUNTDOWN_LABEL_MAX_LENGTH,
+    'countdown label',
+  );
+
+  if (!countdownLabel.valid) {
+    return {
+      status: 'invalid-countdown' as const,
+      message: countdownLabel.message,
+    };
+  }
+
+  const countdownTargetDate = parseCountdownTargetDate(
+    input.countdownTargetDate,
+  );
+
+  if (input.countdownEnabled && !countdownTargetDate) {
+    return {
+      status: 'invalid-countdown' as const,
+      message: 'Please choose a valid countdown target date.',
+    };
+  }
+
+  const repository = getConfigurationRepositoryForHeaders(input.headers);
+  const existing = await repository.getSantaSettings();
+
+  if (!existing) {
+    return { status: 'not-found' as const };
+  }
+
+  const updated = await repository.updateSantaSettings({
+    expectedVersion,
+    randomCoalEnabled: existing.randomCoalEnabled,
+    randomCoalPercentage: existing.randomCoalPercentage,
+    seasonalGreeting: greeting.value || null,
+    seasonalMode,
+    seasonalGreetingEnabled: input.greetingEnabled,
+    seasonalStatusEnabled: input.statusEnabled,
+    seasonalStatusText: statusText.value || null,
+    seasonalCountdownEnabled: input.countdownEnabled,
+    seasonalCountdownTargetDate: countdownTargetDate || null,
+    seasonalCountdownLabel: countdownLabel.value || null,
+    now: input.now ?? new Date(),
+  });
+
+  if (updated === 'conflict') {
+    return { status: 'conflict' as const, current: existing };
+  }
+
+  if (!updated) {
+    return { status: 'not-found' as const };
+  }
+
+  invalidateRuntimeConfigurationCache(input.headers);
+  const activityLogged = await recordConfigurationActivity(input.headers, {
+    action: 'seasonal-mode-updated',
+    targetType: 'setting',
+    targetPublicId: 'seasonal-settings',
+    details: summarizeSeasonalChanges({
+      existing,
+      updated,
+    }),
+  });
+
+  return {
+    status: 'success' as const,
+    settings: updated,
+    activityLogged,
+  };
+}
+
+export async function restoreWorkshopSeasonalSettings(input: {
+  expectedVersion: string;
+  headers: Headers;
+  now?: Date;
+}) {
+  const expectedVersion = Number.parseInt(input.expectedVersion, 10);
+
+  if (!Number.isInteger(expectedVersion) || expectedVersion < 1) {
+    return { status: 'conflict' as const };
+  }
+
+  const repository = getConfigurationRepositoryForHeaders(input.headers);
+  const existing = await repository.getSantaSettings();
+
+  if (!existing) {
+    return { status: 'not-found' as const };
+  }
+
+  const updated = await repository.updateSantaSettings({
+    expectedVersion,
+    randomCoalEnabled: existing.randomCoalEnabled,
+    randomCoalPercentage: existing.randomCoalPercentage,
+    seasonalGreeting: null,
+    seasonalMode: 'standard',
+    seasonalGreetingEnabled: false,
+    seasonalStatusEnabled: false,
+    seasonalStatusText: null,
+    seasonalCountdownEnabled: false,
+    seasonalCountdownTargetDate: null,
+    seasonalCountdownLabel: DEFAULT_SEASONAL_COUNTDOWN_LABEL,
+    now: input.now ?? new Date(),
+  });
+
+  if (updated === 'conflict') {
+    return { status: 'conflict' as const, current: existing };
+  }
+
+  if (!updated) {
+    return { status: 'not-found' as const };
+  }
+
+  invalidateRuntimeConfigurationCache(input.headers);
+  const activityLogged = await recordConfigurationActivity(input.headers, {
+    action: 'seasonal-defaults-restored',
+    targetType: 'setting',
+    targetPublicId: 'seasonal-settings',
+    details: 'Restored the default seasonal presentation settings.',
   });
 
   return {

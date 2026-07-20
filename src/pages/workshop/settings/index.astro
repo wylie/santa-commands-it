@@ -51,13 +51,7 @@ const bannerMessage =
                 tone: 'error',
                 message: 'Santa settings could not be loaded.',
               }
-            : error === 'invalid-greeting'
-              ? {
-                  tone: 'error',
-                  message:
-                    'Please keep the seasonal greeting to 120 characters or fewer.',
-                }
-              : null;
+            : null;
 ---
 
 <WorkshopLayout
@@ -137,23 +131,11 @@ const bannerMessage =
           </p>
         </div>
 
-        <div class="workshop-form__field">
-          <label for="seasonal-greeting">Seasonal homepage greeting</label>
-          <input
-            id="seasonal-greeting"
-            name="seasonalGreeting"
-            type="text"
-            maxlength="120"
-            value={data.settings.seasonalGreeting}
-            autocomplete="off"
-          />
-          <p class="workshop-form__hint">
-            Optional plain text shown only on the public homepage.
-          </p>
-        </div>
-
         <div class="workshop-form__actions">
           <button type="submit" class="button-command">Save settings</button>
+          <a class="button-link-secondary" href="/workshop/settings/seasonal">
+            Seasonal settings
+          </a>
         </div>
       </form>
     </article>
@@ -173,10 +155,6 @@ const bannerMessage =
           <div>
             <dt>Version</dt>
             <dd>{data.settings.version}</dd>
-          </div>
-          <div>
-            <dt>Seasonal greeting</dt>
-            <dd>{data.settings.seasonalGreeting || 'None'}</dd>
           </div>
           <div>
             <dt>Updated</dt>

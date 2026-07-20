@@ -15,6 +15,7 @@ import {
   SANTA_ARTWORK_BROWSER_PATH,
 } from '@/config/share-images';
 import type { PublicRuling } from '@/utils/rulings';
+import type { SeasonalPresentationMode } from '@/utils/seasonal';
 
 const SANTA_ARTWORK_FILE_PATH = path.join(
   process.cwd(),
@@ -65,6 +66,7 @@ export type PreparedRulingShareImage = {
   treatment: ShareImageTreatment;
   visibility: ShareImageVisibility;
   isFeatured: boolean;
+  seasonalMode: SeasonalPresentationMode;
   displayName: PreparedShareImageText;
   requestText: PreparedShareImageText;
   santaResponse: PreparedShareImageText;
@@ -288,12 +290,14 @@ export function prepareRulingShareImage(
   ruling: PublicRuling,
   options: {
     visibility?: ShareImageVisibility;
+    seasonalMode?: SeasonalPresentationMode;
   } = {},
 ): PreparedRulingShareImage {
   return {
     treatment: selectShareImageTreatment(ruling.decision),
     visibility: options.visibility ?? 'public',
     isFeatured: ruling.isFeatured,
+    seasonalMode: options.seasonalMode ?? 'standard',
     displayName: prepareShareImageText(ruling.displayName, NAME_CONSTRAINTS),
     requestText: prepareShareImageText(ruling.requestText, REQUEST_CONSTRAINTS),
     santaResponse: prepareShareImageText(
@@ -386,6 +390,22 @@ function createShareImageElement(
   snowPatternDataUrl: string,
 ): ReactElement {
   const { treatment } = prepared;
+  const seasonalLabel =
+    prepared.seasonalMode === 'christmas-eve'
+      ? 'CHRISTMAS EVE'
+      : prepared.seasonalMode === 'post-christmas'
+        ? 'POST CHRISTMAS'
+        : prepared.seasonalMode === 'festive'
+          ? 'FESTIVE'
+          : null;
+  const background =
+    prepared.seasonalMode === 'festive'
+      ? 'linear-gradient(135deg, #edf6f2 0%, #dcebee 42%, #f9f4f1 100%)'
+      : prepared.seasonalMode === 'christmas-eve'
+        ? 'linear-gradient(135deg, #f4f0f0 0%, #e8edf3 42%, #faf4f2 100%)'
+        : prepared.seasonalMode === 'post-christmas'
+          ? 'linear-gradient(135deg, #f3f7fb 0%, #dde7ef 42%, #f8fbfd 100%)'
+          : 'linear-gradient(135deg, #eef5f8 0%, #dbe8ef 42%, #f5faf8 100%)';
 
   return createElement(
     'div',
@@ -396,8 +416,7 @@ function createShareImageElement(
         display: 'flex',
         position: 'relative',
         overflow: 'hidden',
-        background:
-          'linear-gradient(135deg, #eef5f8 0%, #dbe8ef 42%, #f5faf8 100%)',
+        background,
         color: '#162a2d',
         fontFamily: '"Noto Sans", sans-serif',
         padding: '42px',
@@ -673,6 +692,26 @@ function createShareImageElement(
                     'FEATURED',
                   )
                 : null,
+              seasonalLabel
+                ? createElement(
+                    'span',
+                    {
+                      style: {
+                        display: 'flex',
+                        alignItems: 'center',
+                        padding: '12px 18px',
+                        borderRadius: '9999px',
+                        border: '2px solid rgba(64, 92, 92, 0.18)',
+                        background: 'rgba(255, 255, 255, 0.7)',
+                        color: '#355043',
+                        fontSize: '20px',
+                        fontWeight: 800,
+                        letterSpacing: 0,
+                      },
+                    },
+                    seasonalLabel,
+                  )
+                : null,
             ),
           ),
           createElement(
@@ -820,11 +859,13 @@ export async function renderRulingShareImage(
   ruling: PublicRuling,
   options: {
     visibility?: ShareImageVisibility;
+    seasonalMode?: SeasonalPresentationMode;
     cacheControl?: string;
   } = {},
 ): Promise<Response> {
   const prepared = prepareRulingShareImage(ruling, {
     visibility: options.visibility,
+    seasonalMode: options.seasonalMode,
   });
   const [santaArtworkDataUrl, snowPatternDataUrl] = await Promise.all([
     getSantaArtworkDataUrl(),

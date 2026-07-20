@@ -392,6 +392,9 @@ const trendMaxValue = Math.max(
           <a class="workshop-inline-link" href="/workshop/settings/responses">
             Manage templates
           </a>
+          <a class="workshop-inline-link" href="/workshop/settings/seasonal">
+            Seasonal settings
+          </a>
         </div>
       </div>
       {
@@ -438,6 +441,42 @@ const trendMaxValue = Math.max(
                           dashboard.configuration.data.moderation.lastUpdatedAt,
                         )
                       : 'No moderation rules yet'}
+                  </dd>
+                </div>
+              </dl>
+            </div>
+            <div class="workshop-template-card">
+              <h3>Seasonal presentation</h3>
+              <dl class="workshop-stat-list">
+                <div>
+                  <dt>Current mode</dt>
+                  <dd>{dashboard.configuration.data.seasonal.mode}</dd>
+                </div>
+                <div>
+                  <dt>Greeting</dt>
+                  <dd>
+                    {dashboard.configuration.data.seasonal.greetingEnabled
+                      ? 'Enabled'
+                      : 'Disabled'}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Countdown</dt>
+                  <dd>
+                    {dashboard.configuration.data.seasonal.countdownEnabled
+                      ? dashboard.configuration.data.seasonal
+                          .countdownTargetDate || 'Enabled'
+                      : 'Disabled'}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Last updated</dt>
+                  <dd>
+                    {dashboard.configuration.data.seasonal.updatedAt
+                      ? formatRulingTimestamp(
+                          dashboard.configuration.data.seasonal.updatedAt,
+                        )
+                      : 'No seasonal changes yet'}
                   </dd>
                 </div>
               </dl>

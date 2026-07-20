@@ -1,0 +1,42 @@
+---
+import type { SeasonalPublicPresentation } from '@/utils/seasonal';
+
+interface Props {
+  presentation: SeasonalPublicPresentation;
+  variant?: 'full' | 'compact';
+}
+
+const { presentation, variant = 'compact' } = Astro.props;
+const hasContent =
+  Boolean(presentation.greeting) ||
+  Boolean(presentation.status) ||
+  Boolean(presentation.countdown);
+---
+
+{
+  hasContent && (
+    <section
+      class:list={[
+        'seasonal-notice',
+        variant === 'compact' && 'seasonal-notice--compact',
+      ]}
+      aria-label="Seasonal notice"
+      data-seasonal-notice
+    >
+      {presentation.greeting && (
+        <p class="seasonal-notice__greeting">{presentation.greeting}</p>
+      )}
+      {presentation.status && (
+        <p class="seasonal-notice__status">{presentation.status}</p>
+      )}
+      {presentation.countdown && (
+        <p
+          class="seasonal-notice__countdown"
+          data-countdown-state={presentation.countdown.state}
+        >
+          {presentation.countdown.message}
+        </p>
+      )}
+    </section>
+  )
+}

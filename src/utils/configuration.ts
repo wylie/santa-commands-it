@@ -1,4 +1,8 @@
 import seedDefaults from '@/config/configuration-seed-defaults.json';
+import type {
+  SeasonalPresentationMode,
+  WorkshopSeasonalSettings,
+} from '@/utils/seasonal';
 
 export const moderationRuleTypes = [
   {
@@ -124,9 +128,18 @@ export type WorkshopSantaSettings = {
   randomCoalEnabled: boolean;
   randomCoalPercentage: number;
   seasonalGreeting: string;
+  seasonalMode: SeasonalPresentationMode;
+  seasonalGreetingEnabled: boolean;
+  seasonalStatusEnabled: boolean;
+  seasonalStatusText: string;
+  seasonalCountdownEnabled: boolean;
+  seasonalCountdownTargetDate: string;
+  seasonalCountdownLabel: string;
   version: number;
   updatedAt: string;
 };
+
+export type WorkshopSeasonalSettingsSummary = WorkshopSeasonalSettings;
 
 export type WorkshopResponseTemplateSummary = {
   publicId: string;
@@ -146,6 +159,13 @@ export type RuntimeSantaSettings = {
   randomCoalEnabled: boolean;
   randomCoalPercentage: number;
   seasonalGreeting: string;
+  seasonalMode: SeasonalPresentationMode;
+  seasonalGreetingEnabled: boolean;
+  seasonalStatusEnabled: boolean;
+  seasonalStatusText: string;
+  seasonalCountdownEnabled: boolean;
+  seasonalCountdownTargetDate: string;
+  seasonalCountdownLabel: string;
   version: number;
 };
 
@@ -172,6 +192,13 @@ export const configurationSeedDefaults = seedDefaults as {
     randomCoalEnabled: boolean;
     randomCoalPercentage: number;
     seasonalGreeting?: string;
+    seasonalMode?: SeasonalPresentationMode;
+    seasonalGreetingEnabled?: boolean;
+    seasonalStatusEnabled?: boolean;
+    seasonalStatusText?: string;
+    seasonalCountdownEnabled?: boolean;
+    seasonalCountdownTargetDate?: string;
+    seasonalCountdownLabel?: string;
   };
   responseTemplates: {
     approved: string[];

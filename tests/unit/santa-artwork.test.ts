@@ -63,7 +63,8 @@ describe('Santa artwork integration', () => {
     expect(source).toContain(
       "import PublicShell from '@/components/PublicShell.astro'",
     );
-    expect(source).toContain('<PublicShell current="browse-requests">');
+    expect(source).toContain('seasonalMode={seasonalPresentation.mode}');
+    expect(source).toContain('current="browse-requests"');
   });
 
   it('uses the repeating snow background with a centralized background-size token', () => {

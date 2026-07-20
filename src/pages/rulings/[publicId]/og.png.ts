@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 
 import { methodNotAllowed } from '@/server/api/responses';
+import { getPublicSeasonalPresentation } from '@/server/config/service';
 import {
   buildShareImageErrorResponse,
   renderRulingShareImage,
@@ -21,8 +22,13 @@ export const GET: APIRoute = async ({ params, request }) => {
   }
 
   try {
+    const seasonalPresentation = await getPublicSeasonalPresentation(
+      request.headers,
+    );
+
     return await renderRulingShareImage(result.ruling, {
       visibility: 'public',
+      seasonalMode: seasonalPresentation.mode,
       cacheControl: RULING_SHARE_IMAGE_PUBLIC_CACHE_CONTROL,
     });
   } catch (error) {
