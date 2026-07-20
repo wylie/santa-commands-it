@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 The format is inspired by Keep a Changelog, and this project adheres to Semantic Versioning.
 
+## [0.3.3] - 2026-07-20
+
+### Added
+
+- A grouped public ruling-actions panel that keeps `Share`, `Copy Link`, `Back to Requests`, and `Report` distinct while preserving the existing ruling page flow
+- Workshop share-preview diagnostics for canonical ruling URLs, native-share title and text, public readiness status, seasonal mode, and private preview verification
+
+### Changed
+
+- Public sharing now uses one canonical ruling URL helper plus a deterministic share payload that truncates safely, strips unsafe controls, and stays bounded for browser share sheets
+- Copy-link and native-share actions now provide clearer status feedback, pending-state protection, and a manual fallback field when automatic sharing or clipboard access fails
+- Browser and unit coverage now exercise canonical share URLs, deterministic payload text, manual fallback behavior, and hidden-ruling preview diagnostics
+
 ## [0.3.2] - 2026-07-20
 
 ### Added

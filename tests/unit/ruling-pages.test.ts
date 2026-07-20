@@ -9,6 +9,7 @@ import {
 import type { PublicRuling } from '@/utils/rulings';
 import {
   buildCanonicalUrl,
+  buildCanonicalRulingUrl,
   buildRulingOgImageAlt,
   buildRulingOgImagePath,
   buildRulingPageDescription,
@@ -163,6 +164,14 @@ describe('ruling metadata', () => {
     ).toBe(`http://127.0.0.1:4321/rulings/${approvedRuling.publicId}`);
   });
 
+  it('builds canonical ruling URLs through the shared helper', () => {
+    expect(
+      buildCanonicalRulingUrl(approvedRuling.publicId, {
+        siteUrl: 'https://santa.example',
+      }),
+    ).toBe(`https://santa.example/rulings/${approvedRuling.publicId}`);
+  });
+
   it('falls back to Vercel preview request URLs without trusting arbitrary hosts', () => {
     expect(
       buildCanonicalUrl(buildRulingPath(approvedRuling.publicId), {
@@ -230,8 +239,8 @@ describe('ruling share payloads', () => {
         'https://santa.example/rulings/approved',
       ),
     ).toEqual({
-      title: "Santa Commands It! - <Holly>'s Request",
-      text: 'Santa approved this request with "Santa Commands It!"',
+      title: 'Santa Commands It!',
+      text: "Santa approved <Holly>'s request: “<img src=x onerror=alert(1)> A brass telescope for winter stargazing”",
       url: 'https://santa.example/rulings/approved',
     });
   });
@@ -240,9 +249,24 @@ describe('ruling share payloads', () => {
     expect(
       buildRulingSharePayload(coalRuling, 'https://santa.example/rulings/coal'),
     ).toEqual({
-      title: "Coal from Santa - <Holly>'s Request",
-      text: 'Santa decided this request deserved coal.',
+      title: 'Santa Commands It!',
+      text: "Santa answered <Holly>'s request with coal: “<img src=x onerror=alert(1)> A brass telescope for winter stargazing”",
       url: 'https://santa.example/rulings/coal',
     });
+  });
+
+  it('truncates long share text deterministically and strips unsafe controls', () => {
+    const payload = buildRulingSharePayload(
+      {
+        ...approvedRuling,
+        requestText: `Line one\u0007\n${'star '.repeat(80)}🎁🎁🎁`,
+      },
+      'https://santa.example/rulings/approved',
+    );
+
+    expect(payload.title).toBe('Santa Commands It!');
+    expect(payload.text.length).toBeLessThanOrEqual(220);
+    expect(payload.text).not.toContain('\u0007');
+    expect(payload.text).toContain('...');
   });
 });

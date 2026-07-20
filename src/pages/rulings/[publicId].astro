@@ -1,5 +1,4 @@
 ---
-import RulingReportForm from '@/components/RulingReportForm.astro';
 import RulingShareActions from '@/components/RulingShareActions.astro';
 import PublicShell from '@/components/PublicShell.astro';
 import SeasonalPublicNotice from '@/components/SeasonalPublicNotice.astro';
@@ -134,12 +133,6 @@ if (rulingResult.status === 'ok') {
                 canonicalUrl={canonicalUrl}
               />
             )}
-            <RulingReportForm publicId={rulingResult.ruling.publicId} />
-            <p class="ruling-card__return">
-              <a class="text-link" href="/commands">
-                BACK TO REQUESTS
-              </a>
-            </p>
           </article>
         ) : rulingResult.status === 'not-found' ? (
           <section class="ruling-card ruling-card--message">

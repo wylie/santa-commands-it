@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import { expect, type Page } from '@playwright/test';
 
-type ShareMode = 'supported' | 'cancel';
+type ShareMode = 'supported' | 'cancel' | 'fail';
 type CopyMode = 'success' | 'fail';
 
 export async function configureSantaTestPage(
@@ -81,7 +81,11 @@ export async function configureSantaTestPage(
       });
     }
 
-    if (config.shareMode === 'supported' || config.shareMode === 'cancel') {
+    if (
+      config.shareMode === 'supported' ||
+      config.shareMode === 'cancel' ||
+      config.shareMode === 'fail'
+    ) {
       Object.defineProperty(navigator, 'share', {
         configurable: true,
         value: async (payload: ShareData) => {
@@ -94,6 +98,10 @@ export async function configureSantaTestPage(
               'The share dialog was canceled.',
               'AbortError',
             );
+          }
+
+          if (config.shareMode === 'fail') {
+            throw new Error('share failed');
           }
         },
       });

@@ -181,10 +181,17 @@ test.describe('public ruling pages', () => {
     await expect(
       page.getByRole('button', { name: 'Share this Santa ruling' }),
     ).toHaveCount(0);
+    await expect(
+      page.getByRole('link', { name: 'BACK TO REQUESTS' }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: 'REPORT THIS COMMAND' }),
+    ).toBeVisible();
     await page
       .getByRole('button', { name: 'Copy a link to this Santa ruling' })
       .click();
     await expect(page.locator('[data-copy-link]')).toHaveText('LINK COPIED');
+    await expect(page.getByText('Ruling link copied.')).toBeVisible();
 
     const copiedUrl = await page.evaluate(() => {
       return (window as Window & { __lastCopiedText?: string })
@@ -196,13 +203,13 @@ test.describe('public ruling pages', () => {
     );
   });
 
-  test('copy failures show fallback guidance and native-share cancellation stays quiet', async ({
+  test('copy and share failures reveal a manual fallback while native-share cancellation stays quiet', async ({
     page,
   }) => {
     const { headers } = await configureSantaTestPage(page, {
       randomValue: 0.5,
       copyMode: 'fail',
-      shareMode: 'cancel',
+      shareMode: 'fail',
     });
     const created = await createRulingViaApi(page, headers, {
       name: 'Holly',
@@ -216,14 +223,75 @@ test.describe('public ruling pages', () => {
       .click();
     await expect(
       page.getByText(
-        'Could not copy the link. You can copy it from your browser',
+        'Could not copy the link automatically. Copy the link shown below.',
       ),
     ).toBeVisible();
+    await expect(page.locator('[data-manual-copy-input]')).toHaveValue(
+      `http://127.0.0.1:4321/rulings/${created.ruling.publicId}`,
+    );
 
     await page.getByRole('button', { name: 'Share this Santa ruling' }).click();
     await expect(
-      page.getByText('Could not open sharing. You can still copy the link.'),
+      page.getByText('Could not open sharing. Copy the ruling link instead.'),
+    ).toBeVisible();
+  });
+
+  test('native sharing uses the deterministic public payload and share cancellation stays quiet', async ({
+    page,
+  }) => {
+    const { headers } = await configureSantaTestPage(page, {
+      randomValue: 0.5,
+      shareMode: 'supported',
+      copyMode: 'success',
+    });
+    const created = await createRulingViaApi(page, headers, {
+      name: 'Holly',
+      request:
+        'A brass telescope for the observatory balcony and a star chart for winter skies',
+    });
+
+    await page.goto(`/rulings/${created.ruling.publicId}`);
+    await page.getByRole('button', { name: 'Share this Santa ruling' }).click();
+
+    const sharePayload = await page.evaluate(() => {
+      return (window as Window & { __lastSharePayload?: ShareData })
+        .__lastSharePayload;
+    });
+
+    expect(sharePayload).toEqual({
+      title: 'Santa Commands It!',
+      text: "Santa approved Holly's request: “A brass telescope for the observatory balcony and a star chart for winter skies”",
+      url: `http://127.0.0.1:4321/rulings/${created.ruling.publicId}`,
+    });
+    await expect(page.getByText('Share options opened.')).toBeVisible();
+
+    const cancelledPage = page.context().newPage();
+    const cancelTarget = await cancelledPage;
+    const cancelConfig = await configureSantaTestPage(cancelTarget, {
+      randomValue: 0.5,
+      shareMode: 'cancel',
+      copyMode: 'success',
+    });
+    const cancelledCreated = await createRulingViaApi(
+      cancelTarget,
+      cancelConfig.headers,
+      {
+        name: 'Holly',
+        request: 'A brass telescope',
+      },
+    );
+
+    await cancelTarget.goto(`/rulings/${cancelledCreated.ruling.publicId}`);
+    await cancelTarget
+      .getByRole('button', { name: 'Share this Santa ruling' })
+      .click();
+    await expect(
+      cancelTarget.getByText(
+        'Could not open sharing. Copy the ruling link instead.',
+      ),
     ).toHaveCount(0);
+    await expect(cancelTarget.locator('[data-share-status]')).toHaveText('');
+    await cancelTarget.close();
   });
 
   test('opens and closes the report form with keyboard controls, validates the reason, and accepts a report', async ({

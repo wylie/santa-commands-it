@@ -206,8 +206,20 @@ test.describe('Santa Workshop owner area', () => {
     );
     await expect(page.getByText('Share image preview')).toBeVisible();
     await expect(
+      page.locator('.workshop-share-preview__status strong'),
+    ).toHaveText('Ready to share');
+    await expect(
       page.getByText("Santa Commands It! - Holly's Request"),
     ).toBeVisible();
+    await expect(page.getByLabel('Canonical ruling URL')).toHaveValue(
+      `http://127.0.0.1:4321/rulings/${created.ruling.publicId}`,
+    );
+    await expect(page.getByLabel('Native share title')).toHaveValue(
+      'Santa Commands It!',
+    );
+    await expect(page.getByLabel('Native share text')).toContainText(
+      "Santa approved Holly's request",
+    );
     await expect(
       page.getByText(
         `http://127.0.0.1:4321/rulings/${created.ruling.publicId}/og.png`,
@@ -233,6 +245,9 @@ test.describe('Santa Workshop owner area', () => {
     const hiddenPreviewImageResponsePromise =
       page.waitForResponse(previewImagePath);
     await page.goto(previewPath);
+    await expect(
+      page.locator('.workshop-share-preview__status strong'),
+    ).toHaveText('Not publicly shareable');
     await expect(
       page.getByText('Hidden rulings do not expose a public share image URL.'),
     ).toBeVisible();

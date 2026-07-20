@@ -37,82 +37,184 @@ async function copyText(text: string): Promise<boolean> {
   return fallbackCopyText(text);
 }
 
-export function initRulingShareActions(): void {
-  const shareRoot = document.querySelector('[data-ruling-share]');
-
-  if (!(shareRoot instanceof HTMLElement)) {
-    return;
-  }
-
-  const copyButton = shareRoot.querySelector('[data-copy-link]');
-  const shareButton = shareRoot.querySelector('[data-native-share]');
-  const status = shareRoot.querySelector('[data-share-status]');
-  const shareUrl = shareRoot.dataset.url;
-  const shareTitle = shareRoot.dataset.title ?? 'Santa Commands It!';
-  const shareText = shareRoot.dataset.text ?? '';
-
-  if (
-    !(copyButton instanceof HTMLButtonElement) ||
-    !(shareButton instanceof HTMLButtonElement) ||
-    !(status instanceof HTMLElement) ||
-    !shareUrl
-  ) {
-    return;
-  }
-
-  const initialCopyLabel = copyButton.textContent?.trim() || 'COPY LINK';
-  const successLabel = copyButton.dataset.successLabel ?? 'LINK COPIED';
-  const copyFailureMessage =
-    'Could not copy the link. You can copy it from your browser address bar.';
-  let resetTimer: number | undefined;
-
-  const announce = (message: string) => {
-    status.textContent = message;
-  };
-
-  const resetCopyButton = () => {
-    copyButton.textContent = initialCopyLabel;
-    copyButton.dataset.state = 'idle';
-  };
-
-  if (typeof navigator.share === 'function') {
-    shareButton.hidden = false;
-  } else {
-    shareButton.hidden = true;
-  }
-
-  copyButton.addEventListener('click', async () => {
-    const copied = await copyText(shareUrl);
-
-    if (!copied) {
-      announce(copyFailureMessage);
-      return;
-    }
-
-    window.clearTimeout(resetTimer);
-    copyButton.textContent = successLabel;
-    copyButton.dataset.state = 'copied';
-    announce('Link copied.');
-    resetTimer = window.setTimeout(resetCopyButton, 2200);
+function selectCopyInput(input: HTMLInputElement): void {
+  window.requestAnimationFrame(() => {
+    input.hidden = false;
+    input.focus();
+    input.select();
+    input.setSelectionRange(0, input.value.length);
   });
+}
 
-  shareButton.addEventListener('click', async () => {
-    if (typeof navigator.share !== 'function') {
-      return;
+function isShareSupported(shareData: ShareData): boolean {
+  if (typeof navigator.share !== 'function') {
+    return false;
+  }
+
+  if (typeof navigator.canShare === 'function') {
+    try {
+      return navigator.canShare(shareData);
+    } catch {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+export function initRulingShareActions(): void {
+  const shareRoots = document.querySelectorAll('[data-ruling-share]');
+
+  for (const shareRoot of shareRoots) {
+    if (!(shareRoot instanceof HTMLElement)) {
+      continue;
     }
 
-    try {
-      await navigator.share({
-        title: shareTitle,
-        text: shareText,
-        url: shareUrl,
-      });
-    } catch (error) {
-      if (error instanceof DOMException && error.name === 'AbortError') {
+    const copyButton = shareRoot.querySelector('[data-copy-link]');
+    const shareButton = shareRoot.querySelector('[data-native-share]');
+    const status = shareRoot.querySelector('[data-share-status]');
+    const manualCopy = shareRoot.querySelector('[data-manual-copy]');
+    const manualCopyInput = shareRoot.querySelector('[data-manual-copy-input]');
+    const shareUrl = shareRoot.dataset.url;
+    const shareTitle = shareRoot.dataset.title ?? 'Santa Commands It!';
+    const shareText = shareRoot.dataset.text ?? '';
+
+    if (
+      !(copyButton instanceof HTMLButtonElement) ||
+      !(shareButton instanceof HTMLButtonElement) ||
+      !(status instanceof HTMLElement) ||
+      !(manualCopy instanceof HTMLElement) ||
+      !(manualCopyInput instanceof HTMLInputElement) ||
+      !shareUrl
+    ) {
+      continue;
+    }
+
+    const shareData: ShareData = {
+      title: shareTitle,
+      text: shareText,
+      url: shareUrl,
+    };
+    const copyDefaultLabel =
+      copyButton.dataset.defaultLabel ??
+      copyButton.textContent?.trim() ??
+      'COPY LINK';
+    const copyPendingLabel = copyButton.dataset.pendingLabel ?? 'COPYING...';
+    const copySuccessLabel = copyButton.dataset.successLabel ?? 'LINK COPIED';
+    const shareDefaultLabel =
+      shareButton.dataset.defaultLabel ??
+      shareButton.textContent?.trim() ??
+      'SHARE';
+    const sharePendingLabel = shareButton.dataset.pendingLabel ?? 'SHARING...';
+    const copyFailureMessage =
+      'Could not copy the link automatically. Copy the link shown below.';
+    const shareFailureMessage =
+      'Could not open sharing. Copy the ruling link instead.';
+    let busyAction: 'copy' | 'share' | null = null;
+    let resetTimer: number | undefined;
+
+    const setButtonState = (
+      button: HTMLButtonElement,
+      label: string,
+      disabled: boolean,
+      state: 'idle' | 'pending' | 'copied',
+    ) => {
+      button.textContent = label;
+      button.disabled = disabled;
+      button.dataset.state = state;
+    };
+
+    const announce = (message: string) => {
+      status.textContent = message;
+    };
+
+    const setManualCopyVisible = (visible: boolean) => {
+      manualCopy.hidden = !visible;
+    };
+
+    const resetButtons = () => {
+      busyAction = null;
+      setButtonState(copyButton, copyDefaultLabel, false, 'idle');
+      setButtonState(shareButton, shareDefaultLabel, false, 'idle');
+    };
+
+    const beginAction = (action: 'copy' | 'share') => {
+      if (busyAction) {
+        return false;
+      }
+
+      busyAction = action;
+      window.clearTimeout(resetTimer);
+      setButtonState(
+        copyButton,
+        action === 'copy' ? copyPendingLabel : copyDefaultLabel,
+        true,
+        action === 'copy' ? 'pending' : 'idle',
+      );
+      setButtonState(
+        shareButton,
+        action === 'share' ? sharePendingLabel : shareDefaultLabel,
+        true,
+        action === 'share' ? 'pending' : 'idle',
+      );
+      return true;
+    };
+
+    if (isShareSupported(shareData)) {
+      shareButton.hidden = false;
+    } else {
+      shareButton.hidden = true;
+    }
+
+    manualCopyInput.addEventListener('focus', () => {
+      manualCopyInput.select();
+    });
+
+    copyButton.addEventListener('click', async () => {
+      if (!beginAction('copy')) {
         return;
       }
 
-      announce('Could not open sharing. You can still copy the link.');
-    }
-  });
+      const copied = await copyText(shareUrl);
+
+      if (!copied) {
+        resetButtons();
+        setManualCopyVisible(true);
+        announce(copyFailureMessage);
+        selectCopyInput(manualCopyInput);
+        return;
+      }
+
+      setManualCopyVisible(false);
+      setButtonState(copyButton, copySuccessLabel, true, 'copied');
+      setButtonState(shareButton, shareDefaultLabel, false, 'idle');
+      announce('Ruling link copied.');
+      busyAction = null;
+      resetTimer = window.setTimeout(resetButtons, 2200);
+    });
+
+    shareButton.addEventListener('click', async () => {
+      if (!beginAction('share')) {
+        return;
+      }
+
+      try {
+        await navigator.share(shareData);
+        setManualCopyVisible(false);
+        announce('Share options opened.');
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          announce('');
+          resetButtons();
+          return;
+        }
+
+        setManualCopyVisible(true);
+        announce(shareFailureMessage);
+        selectCopyInput(manualCopyInput);
+      }
+
+      resetButtons();
+    });
+  }
 }

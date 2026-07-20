@@ -1,5 +1,6 @@
 ---
 import WorkshopLayout from '@/layouts/WorkshopLayout.astro';
+import { getPublicSeasonalPresentation } from '@/server/config/service';
 import { getSiteUrl } from '@/server/env';
 import { requireWorkshopPageSession } from '@/server/workshop/auth';
 import {
@@ -7,7 +8,9 @@ import {
   getWorkshopRulingDetailData,
 } from '@/server/workshop/service';
 import {
+  buildCanonicalRulingUrl,
   buildRulingPath,
+  buildRulingSharePayload,
   buildRulingSocialMetadata,
   buildWorkshopRulingSharePreviewImagePath,
 } from '@/utils/rulingPages';
@@ -27,6 +30,9 @@ const detail = await getWorkshopRulingDetailData(
   Astro.request.headers,
 );
 const openReportCount = await getWorkshopOpenReportCount(Astro.request.headers);
+const seasonalPresentation = await getPublicSeasonalPresentation(
+  Astro.request.headers,
+);
 
 if (!detail) {
   return Astro.redirect('/workshop/rulings?error=not-found');
@@ -45,14 +51,109 @@ const socialMetadata = buildRulingSocialMetadata(ruling, {
   siteUrl: getSiteUrl() ?? Astro.site,
   requestUrl: Astro.url,
 });
+const canonicalRulingUrl = buildCanonicalRulingUrl(detail.ruling.publicId, {
+  siteUrl: getSiteUrl() ?? Astro.site,
+  requestUrl: Astro.url,
+});
+const sharePayload = canonicalRulingUrl
+  ? buildRulingSharePayload(ruling, canonicalRulingUrl)
+  : null;
 const previewImagePath = buildWorkshopRulingSharePreviewImagePath(
   detail.ruling.publicId,
 );
+const publicShareStatus =
+  detail.ruling.visibility !== 'public'
+    ? {
+        label: 'Not publicly shareable',
+        state: 'needs-attention',
+        detail:
+          'This ruling is hidden, so owners can preview the image privately but visitors should not share it.',
+      }
+    : !socialMetadata.canonicalUrl
+      ? {
+          label: 'Needs attention',
+          state: 'needs-attention',
+          detail:
+            'A canonical public ruling URL could not be resolved from the current SITE_URL or safe request origin.',
+        }
+      : !socialMetadata.imageUrl
+        ? {
+            label: 'Needs attention',
+            state: 'needs-attention',
+            detail:
+              'The public ruling URL exists, but the public Open Graph image URL could not be resolved.',
+          }
+        : {
+            label: 'Ready to share',
+            state: 'healthy',
+            detail:
+              'This ruling has a public canonical URL, a public image URL, and a deterministic share payload.',
+          };
+
+const metadataChecks = [
+  {
+    label: 'Visibility',
+    value: detail.ruling.visibility,
+  },
+  {
+    label: 'Share readiness',
+    value: publicShareStatus.label,
+  },
+  {
+    label: 'Metadata title',
+    value: socialMetadata.title,
+  },
+  {
+    label: 'Metadata description',
+    value: socialMetadata.description,
+  },
+  {
+    label: 'Native share title',
+    value: sharePayload?.title ?? 'Unavailable',
+  },
+  {
+    label: 'Native share text',
+    value:
+      sharePayload?.text ??
+      'Unavailable until a canonical public URL is available.',
+  },
+  {
+    label: 'Image alt',
+    value: socialMetadata.imageAlt,
+  },
+  {
+    label: 'Image dimensions',
+    value: `${socialMetadata.imageWidth} x ${socialMetadata.imageHeight}`,
+  },
+  {
+    label: 'Seasonal mode',
+    value: seasonalPresentation.mode,
+  },
+  {
+    label: 'Featured',
+    value: detail.ruling.isFeatured ? 'Yes' : 'No',
+  },
+  {
+    label: 'Private preview image',
+    value: new URL(previewImagePath, Astro.url).toString(),
+  },
+  {
+    label: 'Canonical ruling URL',
+    value: socialMetadata.canonicalUrl ?? 'Unavailable',
+  },
+  {
+    label: 'Public image URL',
+    value:
+      detail.ruling.visibility === 'public'
+        ? (socialMetadata.imageUrl ?? 'Unavailable')
+        : 'Hidden rulings do not expose a public share image URL.',
+  },
+];
 ---
 
 <WorkshopLayout
-  title={`Share Preview ${detail.ruling.publicId}`}
-  description="A private preview of the current ruling share image and metadata."
+  title={`Share Preview for ${detail.ruling.displayName}`}
+  description="A private preview of the current ruling share image, canonical URLs, and metadata diagnostics."
   currentPath="/workshop/rulings"
   csrfToken={session.csrfToken}
   openReportCount={openReportCount}
@@ -69,6 +170,13 @@ const previewImagePath = buildWorkshopRulingSharePreviewImagePath(
         </a>
       </div>
 
+      <div
+        class={`workshop-share-preview__status is-${publicShareStatus.state}`}
+      >
+        <strong>{publicShareStatus.label}</strong>
+        <p>{publicShareStatus.detail}</p>
+      </div>
+
       <p class="workshop-form__hint">
         This private renderer preview shows the current social image exactly as
         it will appear for public rulings. Hidden rulings stay previewable here
@@ -82,52 +190,51 @@ const previewImagePath = buildWorkshopRulingSharePreviewImagePath(
         width={socialMetadata.imageWidth}
         height={socialMetadata.imageHeight}
       />
+
+      <div class="workshop-card__section">
+        <h3>Share payload</h3>
+        <div class="workshop-form workshop-share-preview__fields">
+          <div class="workshop-form__field">
+            <label for="share-preview-canonical-url">Canonical ruling URL</label
+            >
+            <input
+              id="share-preview-canonical-url"
+              type="text"
+              readonly
+              value={canonicalRulingUrl ?? ''}
+            />
+          </div>
+          <div class="workshop-form__field">
+            <label for="share-preview-share-title">Native share title</label>
+            <input
+              id="share-preview-share-title"
+              type="text"
+              readonly
+              value={sharePayload?.title ?? ''}
+            />
+          </div>
+          <div class="workshop-form__field">
+            <label for="share-preview-share-text">Native share text</label>
+            <textarea id="share-preview-share-text" rows="4" readonly
+              >{sharePayload?.text ?? ''}</textarea
+            >
+          </div>
+        </div>
+      </div>
     </article>
 
     <article class="workshop-card">
-      <h2>Current metadata</h2>
+      <h2>Share diagnostics</h2>
 
       <dl class="workshop-detail-list">
-        <div>
-          <dt>Visibility</dt>
-          <dd>{detail.ruling.visibility}</dd>
-        </div>
-        <div>
-          <dt>Metadata title</dt>
-          <dd>{socialMetadata.title}</dd>
-        </div>
-        <div>
-          <dt>Metadata description</dt>
-          <dd>{socialMetadata.description}</dd>
-        </div>
-        <div>
-          <dt>Image alt</dt>
-          <dd>{socialMetadata.imageAlt}</dd>
-        </div>
-        <div>
-          <dt>Image dimensions</dt>
-          <dd>
-            {socialMetadata.imageWidth} x {socialMetadata.imageHeight}
-          </dd>
-        </div>
-        <div>
-          <dt>Private preview image</dt>
-          <dd>{new URL(previewImagePath, Astro.url).toString()}</dd>
-        </div>
-        <div>
-          <dt>Canonical ruling URL</dt>
-          <dd>{socialMetadata.canonicalUrl ?? 'Unavailable'}</dd>
-        </div>
-        <div>
-          <dt>Public image URL</dt>
-          <dd>
-            {
-              detail.ruling.visibility === 'public'
-                ? (socialMetadata.imageUrl ?? 'Unavailable')
-                : 'Hidden rulings do not expose a public share image URL.'
-            }
-          </dd>
-        </div>
+        {
+          metadataChecks.map((check) => (
+            <div>
+              <dt>{check.label}</dt>
+              <dd>{check.value}</dd>
+            </div>
+          ))
+        }
       </dl>
 
       {
@@ -150,6 +257,42 @@ const previewImagePath = buildWorkshopRulingSharePreviewImagePath(
 </WorkshopLayout>
 
 <style>
+  .workshop-share-preview__status {
+    display: grid;
+    gap: 0.4rem;
+    padding: 0.9rem 1rem;
+    border: 1px solid rgb(73 99 84 / 0.15);
+    border-radius: 1rem;
+    background: rgb(255 255 255 / 0.78);
+  }
+
+  .workshop-share-preview__status strong,
+  .workshop-share-preview__status p {
+    margin: 0;
+  }
+
+  .workshop-share-preview__status strong {
+    font-family: var(--font-ui);
+    font-size: var(--font-size-sm);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-evergreen-deep);
+  }
+
+  .workshop-share-preview__status.is-needs-attention {
+    border-color: rgb(166 83 85 / 0.22);
+    background: linear-gradient(180deg, #fffafa, rgb(255 255 255 / 0.96));
+  }
+
+  .workshop-share-preview__fields {
+    display: grid;
+    gap: 0.9rem;
+  }
+
+  .workshop-share-preview__fields textarea {
+    min-height: 7.5rem;
+  }
+
   .workshop-share-preview__image {
     width: 100%;
     height: auto;

@@ -9,6 +9,8 @@ const PUBLIC_RULING_ID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const DEFAULT_METADATA_LENGTH = 160;
+const DEFAULT_SHARE_TEXT_LENGTH = 220;
+const DEFAULT_SHARE_NAME_LENGTH = 48;
 
 function normalizeTextForMetadata(value: string): string {
   return Array.from(value.replace(/\r\n?/g, '\n'))
@@ -31,6 +33,24 @@ function normalizeTextForMetadata(value: string): string {
     .join('')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+function truncateNormalizedText(value: string, maxLength: number): string {
+  const characters = Array.from(value);
+
+  if (characters.length <= maxLength) {
+    return value;
+  }
+
+  const ellipsis = '...';
+
+  if (maxLength <= ellipsis.length) {
+    return characters.slice(0, maxLength).join('');
+  }
+
+  const visibleLength = maxLength - ellipsis.length;
+
+  return `${characters.slice(0, visibleLength).join('')}${ellipsis}`;
 }
 
 function resolveUrlOrigin(
@@ -115,21 +135,8 @@ export function truncateMetadataText(
   maxLength = DEFAULT_METADATA_LENGTH,
 ): string {
   const normalized = normalizeTextForMetadata(value);
-  const characters = Array.from(normalized);
 
-  if (characters.length <= maxLength) {
-    return normalized;
-  }
-
-  const ellipsis = '...';
-
-  if (maxLength <= ellipsis.length) {
-    return characters.slice(0, maxLength).join('');
-  }
-
-  const visibleLength = maxLength - ellipsis.length;
-
-  return `${characters.slice(0, visibleLength).join('')}${ellipsis}`;
+  return truncateNormalizedText(normalized, maxLength);
 }
 
 export function buildCanonicalUrl(
@@ -148,6 +155,16 @@ export function buildCanonicalUrl(
   }
 
   return new URL(path, origin).toString();
+}
+
+export function buildCanonicalRulingUrl(
+  publicId: string,
+  options: {
+    siteUrl?: string | URL | null;
+    requestUrl?: string | URL | null;
+  } = {},
+): string | null {
+  return buildCanonicalUrl(buildRulingPath(publicId), options);
 }
 
 export function buildRulingPageTitle(ruling: PublicRuling): string {
@@ -184,13 +201,32 @@ export function buildRulingSharePayload(
   ruling: PublicRuling,
   canonicalUrl: string,
 ): RulingSharePayload {
-  const text =
+  const title = 'Santa Commands It!';
+  const displayName = truncateMetadataText(
+    ruling.displayName,
+    DEFAULT_SHARE_NAME_LENGTH,
+  );
+  const sharePrefix =
     ruling.decision === 'approved'
-      ? `Santa approved this request with "Santa Commands It!"`
-      : 'Santa decided this request deserved coal.';
+      ? `Santa approved ${displayName}'s request: `
+      : `Santa answered ${displayName}'s request with coal: `;
+  const quotePrefix = '\u201c';
+  const quoteSuffix = '\u201d';
+  const availableExcerptLength = Math.max(
+    0,
+    DEFAULT_SHARE_TEXT_LENGTH -
+      Array.from(sharePrefix).length -
+      Array.from(quotePrefix).length -
+      Array.from(quoteSuffix).length,
+  );
+  const requestExcerpt = truncateNormalizedText(
+    normalizeTextForMetadata(ruling.requestText),
+    availableExcerptLength,
+  );
+  const text = `${sharePrefix}${quotePrefix}${requestExcerpt}${quoteSuffix}`;
 
   return {
-    title: buildRulingPageTitle(ruling),
+    title,
     text,
     url: canonicalUrl,
   };
@@ -203,10 +239,7 @@ export function buildRulingSocialMetadata(
     requestUrl?: string | URL | null;
   } = {},
 ): RulingSocialMetadata {
-  const canonicalUrl = buildCanonicalUrl(
-    buildRulingPath(ruling.publicId),
-    options,
-  );
+  const canonicalUrl = buildCanonicalRulingUrl(ruling.publicId, options);
   const imageUrl = buildCanonicalUrl(
     buildRulingOgImagePath(ruling.publicId),
     options,
