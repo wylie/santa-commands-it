@@ -14,6 +14,9 @@ export async function configureSantaTestPage(
     randomValue?: number;
     scenario?:
       | 'submit-error'
+      | 'database-unavailable'
+      | 'missing-rulings-column'
+      | 'configuration-unavailable'
       | 'recent-unavailable'
       | 'commands-unavailable'
       | 'report-error';

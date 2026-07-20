@@ -257,6 +257,81 @@ test.describe('Santa Commands It homepage', () => {
     ).toHaveValue('A brass telescope');
   });
 
+  test('shows an unavailable Latest Answers state and preserves input during a simulated database outage', async ({
+    page,
+  }) => {
+    await configureSantaTestPage(page, {
+      scenario: 'database-unavailable',
+      consideringDelayMs: 0,
+    });
+    const response = await page.goto('/');
+
+    expect(response?.status()).toBe(200);
+    await expect(
+      page.getByText("SANTA'S LATEST ANSWERS ARE TEMPORARILY UNAVAILABLE."),
+    ).toBeVisible();
+    await expect(
+      page.getByText('Please try again in a little while.'),
+    ).toBeVisible();
+
+    await fillRequestForm(page, 'A brass telescope');
+    await page.getByRole('button', { name: 'ASK SANTA' }).click();
+
+    await expect(
+      page.locator('[data-response-panel][data-mode="error"]'),
+    ).toBeVisible();
+    await expect(page.locator('[data-response-supporting]')).toHaveText(
+      'Your request was not submitted. Please try again in a little while.',
+    );
+    await expect(page.getByLabel('What should Santa call you?')).toHaveValue(
+      'Holly',
+    );
+    await expect(
+      page.getByRole('textbox', {
+        name: 'What would you like from Santa?',
+      }),
+    ).toHaveValue('A brass telescope');
+    await expect(page.locator('[data-recent-list]')).toHaveCount(0);
+  });
+
+  test('keeps Latest Answers available when submission-only configuration is unavailable', async ({
+    page,
+  }) => {
+    const { headers } = await configureSantaTestPage(page, {
+      randomValue: 0.5,
+      consideringDelayMs: 0,
+    });
+
+    await createRulingViaApi(page, headers, {
+      name: 'Holly',
+      request: 'A brass telescope',
+      nowIso: '2026-07-20T12:00:00.000Z',
+    });
+
+    await page.setExtraHTTPHeaders({
+      ...headers,
+      'x-santa-test-scenario': 'configuration-unavailable',
+    });
+    await page.goto('/');
+
+    await expect(page.locator('[data-recent-list]')).toContainText(
+      'A brass telescope',
+    );
+
+    await fillRequestForm(page, 'A toy boat');
+    await page.getByRole('button', { name: 'ASK SANTA' }).click();
+
+    await expect(
+      page.locator('[data-response-panel][data-mode="error"]'),
+    ).toBeVisible();
+    await expect(page.locator('[data-recent-list]')).toContainText(
+      'A brass telescope',
+    );
+    await expect(page.locator('[data-recent-list]')).not.toContainText(
+      'A toy boat',
+    );
+  });
+
   test('recovers cleanly when a submission request times out', async ({
     page,
   }) => {

@@ -5,6 +5,24 @@ afterEach(() => {
 });
 
 describe('server environment helpers', () => {
+  it('throws when DATABASE_URL is missing', async () => {
+    vi.stubEnv('DATABASE_URL', '');
+    const { getDatabaseUrl } = await import('@/server/env');
+
+    expect(() => getDatabaseUrl()).toThrow(
+      'DATABASE_URL is required for Santa rulings persistence.',
+    );
+  });
+
+  it('throws when DATABASE_URL is not a valid postgres connection string', async () => {
+    vi.stubEnv('DATABASE_URL', 'not-a-database-url');
+    const { getDatabaseUrl } = await import('@/server/env');
+
+    expect(() => getDatabaseUrl()).toThrow(
+      'DATABASE_URL must be a valid postgres connection string.',
+    );
+  });
+
   it('normalizes a valid SITE_URL to its origin', async () => {
     vi.stubEnv('SITE_URL', 'https://example.com/path?query=yes');
     const { getSiteUrl } = await import('@/server/env');

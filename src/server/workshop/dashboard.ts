@@ -1,14 +1,22 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
+import { sql } from 'drizzle-orm';
+
 import { getConfigurationRepositoryForHeaders } from '@/server/config/test-mode';
 import { getRuntimeConfigurationForHeaders } from '@/server/config/service';
+import { summarizeDependencyFailure } from '@/server/dependency-errors';
+import { getDatabase } from '@/server/db/client';
 import {
   getSiteTimeZone,
   getSiteUrl,
   isProductionEnvironment,
 } from '@/server/env';
-import { getRequestNow } from '@/server/rulings/test-mode';
+import {
+  getRequestNow,
+  getRulingsRepositoryForHeaders,
+  readRequestTestOptions,
+} from '@/server/rulings/test-mode';
 import { getWorkshopReportsRepositoryForHeaders } from '@/server/workshop/test-mode';
 import { getWorkshopRepositoryForHeaders } from '@/server/workshop/test-mode';
 import {
@@ -829,6 +837,99 @@ function buildHealthCheckStatus(
   return valid ? 'healthy' : 'needs-attention';
 }
 
+async function loadRulingsSchemaHealthCheck(
+  headers: Headers,
+): Promise<WorkshopDashboardHealthCheck> {
+  const testOptions = readRequestTestOptions(headers);
+
+  if (headers.has('x-santa-test-run-id')) {
+    if (testOptions.scenario === 'database-unavailable') {
+      return {
+        label: 'Public rulings schema',
+        status: 'unavailable',
+        detail:
+          'The dashboard could not reach the database to verify the public rulings schema.',
+        href: null,
+      };
+    }
+
+    if (testOptions.scenario === 'missing-rulings-column') {
+      return {
+        label: 'Public rulings schema',
+        status: 'needs-attention',
+        detail:
+          'The current deployment expects the rulings table to include the featured-request columns from the latest schema migration.',
+        href: null,
+      };
+    }
+
+    return {
+      label: 'Public rulings schema',
+      status: 'healthy',
+      detail:
+        'The in-memory test store is active for this request, so database schema checks are simulated separately.',
+      href: null,
+    };
+  }
+
+  const database = getDatabase();
+  const result = await database.execute<{
+    column_name: string;
+  }>(sql`
+    select column_name
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'rulings'
+      and column_name in (
+        'public_id',
+        'decision',
+        'visibility',
+        'is_featured',
+        'featured_at',
+        'created_at'
+      )
+  `);
+  const presentColumns = new Set(
+    result.rows.map((row) => row.column_name).filter(Boolean),
+  );
+  const requiredColumns = [
+    'public_id',
+    'decision',
+    'visibility',
+    'is_featured',
+    'featured_at',
+    'created_at',
+  ];
+  const missingColumns = requiredColumns.filter(
+    (columnName) => !presentColumns.has(columnName),
+  );
+
+  return {
+    label: 'Public rulings schema',
+    status: missingColumns.length ? 'needs-attention' : 'healthy',
+    detail: missingColumns.length
+      ? `The rulings table is missing required deployment columns: ${missingColumns.join(', ')}.`
+      : 'The rulings table includes the columns required by Latest Answers, Featured Requests, and public ruling submission.',
+    href: null,
+  };
+}
+
+async function loadLatestAnswersHealthCheck(
+  headers: Headers,
+): Promise<WorkshopDashboardHealthCheck> {
+  const repository = getRulingsRepositoryForHeaders(headers);
+
+  await repository.listRecentRulings(1);
+
+  return {
+    label: 'Latest Answers query',
+    status: 'healthy',
+    detail:
+      'The public Latest Answers query loaded successfully with the current visibility and ruling mapping rules.',
+    href: '/',
+  };
+}
+
 async function buildHealthSection(
   headers: Headers,
   timeZone: string,
@@ -869,6 +970,42 @@ async function buildHealthSection(
       status: 'unavailable',
       detail: 'The dashboard could not confirm database availability.',
       href: null,
+    });
+  }
+
+  try {
+    checks.push(await loadRulingsSchemaHealthCheck(headers));
+  } catch (error) {
+    const summary = summarizeDependencyFailure(error);
+
+    checks.push({
+      label: 'Public rulings schema',
+      status:
+        summary.category === 'dependency-unavailable'
+          ? 'unavailable'
+          : 'needs-attention',
+      detail:
+        summary.detail ??
+        'The dashboard could not verify whether the rulings table matches the current deployment.',
+      href: null,
+    });
+  }
+
+  try {
+    checks.push(await loadLatestAnswersHealthCheck(headers));
+  } catch (error) {
+    const summary = summarizeDependencyFailure(error);
+
+    checks.push({
+      label: 'Latest Answers query',
+      status:
+        summary.category === 'dependency-unavailable'
+          ? 'unavailable'
+          : 'needs-attention',
+      detail:
+        summary.detail ??
+        'The public Latest Answers query could not be verified.',
+      href: '/',
     });
   }
 

@@ -9,6 +9,9 @@ import { isEndToEndTestMode } from '@/server/env';
 export type RulingsTestScenario =
   | 'normal'
   | 'submit-error'
+  | 'database-unavailable'
+  | 'missing-rulings-column'
+  | 'configuration-unavailable'
   | 'recent-unavailable'
   | 'commands-unavailable'
   | 'report-error';
@@ -37,6 +40,9 @@ export function readRequestTestOptions(headers: Headers): RequestTestOptions {
   const scenarioHeader = headers.get('x-santa-test-scenario');
   const scenario: RulingsTestScenario =
     scenarioHeader === 'submit-error' ||
+    scenarioHeader === 'database-unavailable' ||
+    scenarioHeader === 'missing-rulings-column' ||
+    scenarioHeader === 'configuration-unavailable' ||
     scenarioHeader === 'recent-unavailable' ||
     scenarioHeader === 'commands-unavailable' ||
     scenarioHeader === 'report-error'

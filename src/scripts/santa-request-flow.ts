@@ -31,7 +31,8 @@ type PanelMode =
 const SUBMIT_LABEL = 'ASK SANTA';
 const CONSIDERING_LABEL = 'SANTA IS CONSIDERING...';
 const RESET_LABEL = 'ASK SANTA SOMETHING ELSE';
-const ERROR_MESSAGE = "Santa's workshop had a small mishap. Please try again.";
+const ERROR_MESSAGE =
+  'Your request was not submitted. Please try again in a little while.';
 const TIMEOUT_MESSAGE =
   "Santa's workshop is taking longer than usual. Please try again.";
 
@@ -567,7 +568,7 @@ export function initSantaRequestFlow(): void {
     }
 
     if (responseBody.status === 'error') {
-      handleRecoverableError(responseBody.message);
+      handleRecoverableError();
       return;
     }
 

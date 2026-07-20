@@ -16,6 +16,9 @@ The format is inspired by Keep a Changelog, and this project adheres to Semantic
 - Public sharing now uses one canonical ruling URL helper plus a deterministic share payload that truncates safely, strips unsafe controls, and stays bounded for browser share sheets
 - Copy-link and native-share actions now provide clearer status feedback, pending-state protection, and a manual fallback field when automatic sharing or clipboard access fails
 - Browser and unit coverage now exercise canonical share URLs, deterministic payload text, manual fallback behavior, and hidden-ruling preview diagnostics
+- Repaired production `503` handling for public request submission by classifying configuration outages, database outages, and schema mismatches into sanitized dependency failures
+- Repaired Santa's Latest Answers and `/commands` degradation so database or migration failures render an unavailable state instead of a misleading empty result
+- Added private Workshop health checks for the public rulings schema and Latest Answers query path, plus documentation for the required `v0.3.1` rulings migration sequence
 
 ## [0.3.2] - 2026-07-20
 

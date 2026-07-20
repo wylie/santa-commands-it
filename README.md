@@ -57,12 +57,13 @@ Completed approvals and coal rulings are public on the homepage and on their own
 13. Start the development server with `npm run dev`.
 14. Submit a request, confirm it appears in Santa's Latest Answers and `/commands`, use the public `BROWSE REQUESTS` page, open its permanent ruling page, load `/rulings/[publicId]/og.png`, sign into `/workshop/login`, and test dashboard ranges, Featured Requests, seasonal settings, moderation rules, Santa settings, response templates, report review, share-preview pages, hide, restore, and delete behavior against local data.
 
-If `DATABASE_URL` is missing, the form remains usable but the server cannot persist rulings, recent public requests will be unavailable, and no permanent ruling pages can be created.
+If `DATABASE_URL` is missing or invalid, the form remains usable but the server cannot persist rulings, Latest Answers will be unavailable, and no permanent ruling pages can be created.
 
 ## Environment variables
 
 - `DATABASE_URL`
   - Required for local submissions, persisted rulings, database reads, and database migrations
+  - Must be a valid `postgres://` or `postgresql://` connection string
   - Must never use a `PUBLIC_` prefix
   - Must never be committed
 - `RATE_LIMIT_SECRET`
@@ -148,7 +149,7 @@ The public homepage, public ruling pages, submission flow, reporting flow, Santa
 - Recent Featured activity highlights the latest feature and unfeature owner actions separately from the broader activity feed.
 - Moderation and template summaries show counts only. The dashboard does not expose the full blocked-word list, allowed-exception list, report notes, or full private configuration notes.
 - Recent rulings are bounded to `5`, recent owner activity is bounded to `10`, and the owner-activity summary strips private moderation notes and other sensitive free-text details.
-- Dashboard health checks are lightweight and private. They cover runtime moderation/template loading, Santa settings availability, random coal percentage validity, database reachability, `SITE_URL`, `SITE_TIMEZONE`, required production environment presence, and the canonical `public/images/santa-solo.png` asset.
+- Dashboard health checks are lightweight and private. They cover database reachability, the public `rulings` schema, the Latest Answers query path, runtime moderation/template loading, Santa settings availability, random coal percentage validity, `SITE_URL`, `SITE_TIMEZONE`, required production environment presence, and the canonical `public/images/santa-solo.png` asset.
 - The trend view is decorative HTML/CSS only; the accessible source of truth is the semantic table rendered directly below it.
 - Dashboard aggregates come from focused database summary queries and bounded recent-item queries. No client-side filtering over all-time data is used.
 - Blocked submission attempts are not counted on the dashboard because this release does not persist privacy-safe aggregate counts for them.
@@ -439,7 +440,7 @@ The production source of truth for moderation and editable Santa behavior is now
 - The `v0.3.1` migration adds `rulings.is_featured`, `rulings.featured_at`, and related owner-activity enum values.
 - The `v0.3.2` migration adds seasonal presentation mode, greeting-enable, status, and countdown fields to the singleton `santa_settings` record.
 
-## Latest commands behavior
+## Latest Answers behavior
 
 - The homepage fetches the newest public rulings on the server during rendering.
 - Hidden rulings are excluded from homepage and public-page queries.
@@ -448,15 +449,15 @@ The production source of truth for moderation and editable Santa behavior is now
 - If no featured rulings exist, the Featured Requests section is omitted entirely.
 - Seasonal notices appear on the homepage in the full presentation and on `/commands` plus individual ruling pages in a compact presentation when enabled.
 - Seasonal mode styling is restrained, server-rendered, and limited to the fixed `standard`, `festive`, `christmas-eve`, and `post-christmas` allowlist.
-- The latest-commands section shows a real semantic list when rulings exist.
-- Each latest-command item links to its permanent public ruling page.
+- The Santa's Latest Answers section shows a real semantic list when rulings exist.
+- Each Latest Answers item links to its permanent public ruling page.
 - The homepage uses the shared public ruling-card component in a compact variant.
 - The public navigation uses `ASK SANTA` and `BROWSE REQUESTS`.
 - `ASK SANTA` links to `/#ask-santa` on the homepage and from other public pages.
 - `BROWSE ALL REQUESTS` and `BROWSE REQUESTS` both lead to `/commands`.
 - Internal technical names may still refer to "commands" for route, repository, and query compatibility.
 - The empty state still works for a brand-new database.
-- If recent-ruling loading fails, the homepage stays usable and shows a quiet unavailable message.
+- If Latest Answers loading fails, the homepage stays usable and shows `SANTA'S LATEST ANSWERS ARE TEMPORARILY UNAVAILABLE.` instead of an empty state.
 - After a successful submission, the browser inserts the new ruling at the top of the visible list and keeps only the latest ten items.
 
 ## Public Commands discovery
@@ -572,6 +573,8 @@ Completed approved and coal rulings are public and accessible to anyone with the
 
 If the homepage can read recent rulings but valid submissions fail, run `npm run db:migrate` and `npm run db:seed:configuration` against the same database the app is using and then retry the submission. Reads only require the `rulings` table, while submissions also require the moderation, settings, template, submission-attempt, and idempotency tables.
 
+If both public submission and Latest Answers fail together, inspect the production logs and Workshop health checks first. The most likely shared causes are an invalid `DATABASE_URL`, database connectivity loss, or an unapplied migration that leaves the `rulings` table without `is_featured` and `featured_at`.
+
 ## Local and Vercel environment setup
 
 Local development:
@@ -615,10 +618,20 @@ Generate a strong session secret with a local tool such as:
 - Apply local schema updates with `npm run db:migrate`.
 - Seed initial configuration with `npm run db:seed:configuration`.
 - Apply the same migration command against the production or preview database before expecting new submission or reporting code paths to work.
+- The `v0.3.1` migration must be present before `v0.3.3` public submission and Latest Answers can both work correctly because the current code expects `rulings.is_featured` and `rulings.featured_at`.
 - Run the configuration seed once per environment after the new tables exist. Re-running it later is safe and will skip already-seeded rows.
 - After deployment, verify the ruling flow and open `/images/santa-solo.png` and `/images/snow-black.png` directly to confirm both deployed asset paths are correct.
 - Remember that `public/images/santa-solo.png` and `public/images/snow-black.png` are repository filesystem paths, while `/images/santa-solo.png` and `/images/snow-black.png` are the browser URLs.
 - Any Vercel environment-variable change requires a new deployment before the new login or session configuration is live.
+- Safe production checklist:
+  1. Configure the Production Vercel environment values, especially `DATABASE_URL`, `RATE_LIMIT_SECRET`, `SITE_URL`, `WORKSHOP_USERNAME`, `WORKSHOP_PASSWORD_HASH`, and `SESSION_SECRET`.
+  2. Verify the target Neon branch or database.
+  3. Run `npm run db:migrate`.
+  4. Run `npm run db:seed:configuration`.
+  5. Deploy or redeploy the app.
+  6. Open Workshop health diagnostics and confirm Database connection, Public rulings schema, Latest Answers query, and Runtime moderation and templates are healthy.
+  7. Submit one isolated public test request.
+  8. Confirm it appears in Santa's Latest Answers and `/commands`.
 
 ## Neon backup and migration safety
 
@@ -670,6 +683,17 @@ Safe Vercel log inspection:
 - Review only the `/api/workshop/login` function logs for the affected deployment.
 - Keep diagnostics at the level of error class, status, or failing stage.
 - Do not print submitted usernames, passwords, password hashes, session tokens, or secrets into logs or screenshots.
+
+## Public ruling outage troubleshooting
+
+- A `503` from `POST /api/rulings` means the app rejected a valid-looking request because a required dependency was unavailable. Public validation failures, moderation blocks, and rate limits use different statuses.
+- Latest Answers and `/commands` should distinguish empty results from dependency failures. An empty database shows the normal empty state; a broken dependency shows an unavailable state.
+- If both submission and Latest Answers fail together, check the private health panel in Workshop first. The shared dependency is usually the database connection or `rulings` schema.
+- On Monday, July 20, 2026, the current deployment expects the `v0.3.1` rulings migration that adds `is_featured` and `featured_at`.
+- Run `npm run db:migrate` against the same Neon database the deployment is using, then run `npm run db:seed:configuration`.
+- Verify `DATABASE_URL` is set in the correct Vercel environment and points to the intended Neon database. Do not use localhost in production.
+- Verify `SITE_URL=https://santa-commands-it.vercel.app` in Production so origin validation and canonical public URLs remain correct.
+- After any Vercel environment change, trigger a new deployment before retesting.
 
 ## Migrations
 

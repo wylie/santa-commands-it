@@ -15,7 +15,8 @@ export const santaResponses = {
   },
   error: {
     title: "SANTA'S WORKSHOP HAD A SMALL MISHAP.",
-    supporting: 'Please try again.',
+    supporting:
+      'Your request was not submitted. Please try again in a little while.',
   },
 } as const satisfies {
   opening: StaticSantaResponseCopy;

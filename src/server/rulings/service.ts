@@ -8,6 +8,7 @@ import {
   getRulingsRepositoryForHeaders,
   readRequestTestOptions,
 } from '@/server/rulings/test-mode';
+import { summarizeDependencyFailure } from '@/server/dependency-errors';
 import { santaSettings } from '@/config/santa-settings';
 
 export const RECENT_RULINGS_UNAVAILABLE_MESSAGE =
@@ -56,6 +57,50 @@ export type PublicCommandsDiscoveryResult =
       message: string;
     };
 
+function createSimulatedPublicRulingsError(
+  code: '08006' | '42703',
+  options: {
+    message: string;
+    column?: string;
+  },
+) {
+  return Object.assign(new Error(options.message), {
+    code,
+    column: options.column,
+  });
+}
+
+function maybeThrowSimulatedPublicRulingsFailure(
+  scenario: ReturnType<typeof readRequestTestOptions>['scenario'],
+) {
+  if (scenario === 'database-unavailable') {
+    throw createSimulatedPublicRulingsError('08006', {
+      message: 'Simulated database outage for public rulings.',
+    });
+  }
+
+  if (scenario === 'missing-rulings-column') {
+    throw createSimulatedPublicRulingsError('42703', {
+      message: 'Simulated missing rulings column for public reads.',
+      column: 'is_featured',
+    });
+  }
+}
+
+function logPublicRulingsFailure(
+  operation:
+    | 'latest-answers'
+    | 'featured-requests'
+    | 'public-ruling'
+    | 'browse-requests',
+  error: unknown,
+) {
+  console.error('[santa-commands-it]', {
+    route: operation,
+    ...summarizeDependencyFailure(error),
+  });
+}
+
 export async function listRecentRulingsForHeaders(
   headers: Headers,
 ): Promise<RecentRulingsResult> {
@@ -70,6 +115,7 @@ export async function listRecentRulingsForHeaders(
   }
 
   try {
+    maybeThrowSimulatedPublicRulingsFailure(testOptions.scenario);
     const rulings = await repository.listRecentRulings(
       santaSettings.recentRulings.visibleLimit,
     );
@@ -78,7 +124,9 @@ export async function listRecentRulingsForHeaders(
       status: 'ok',
       rulings,
     };
-  } catch {
+  } catch (error) {
+    logPublicRulingsFailure('latest-answers', error);
+
     return {
       status: 'unavailable',
       message: RECENT_RULINGS_UNAVAILABLE_MESSAGE,
@@ -90,15 +138,19 @@ export async function listFeaturedRulingsForHeaders(
   headers: Headers,
 ): Promise<RecentRulingsResult> {
   const repository = getRulingsRepositoryForHeaders(headers);
+  const testOptions = readRequestTestOptions(headers);
 
   try {
+    maybeThrowSimulatedPublicRulingsFailure(testOptions.scenario);
     const rulings = await repository.listFeaturedRulings(3);
 
     return {
       status: 'ok',
       rulings,
     };
-  } catch {
+  } catch (error) {
+    logPublicRulingsFailure('featured-requests', error);
+
     return {
       status: 'unavailable',
       message: FEATURED_RULINGS_UNAVAILABLE_MESSAGE,
@@ -118,6 +170,9 @@ export async function getPublicRulingForHeaders(
 
   try {
     const repository = getRulingsRepositoryForHeaders(headers);
+    maybeThrowSimulatedPublicRulingsFailure(
+      readRequestTestOptions(headers).scenario,
+    );
     const ruling = await repository.getRulingByPublicId(publicId);
 
     if (!ruling) {
@@ -130,7 +185,9 @@ export async function getPublicRulingForHeaders(
       status: 'ok',
       ruling,
     };
-  } catch {
+  } catch (error) {
+    logPublicRulingsFailure('public-ruling', error);
+
     return {
       status: 'unavailable',
       message: RULING_LOOKUP_ERROR_MESSAGE,
@@ -153,13 +210,16 @@ export async function listPublicCommandsForHeaders(
   }
 
   try {
+    maybeThrowSimulatedPublicRulingsFailure(testOptions.scenario);
     const result = await repository.listPublicRulingsForDiscovery(query);
 
     return {
       status: 'ok',
       ...result,
     };
-  } catch {
+  } catch (error) {
+    logPublicRulingsFailure('browse-requests', error);
+
     return {
       status: 'unavailable',
       message: PUBLIC_COMMANDS_UNAVAILABLE_MESSAGE,

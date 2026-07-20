@@ -90,11 +90,40 @@ function normalizeAbsoluteUrl(value: string): string | null {
   }
 }
 
+function isValidDatabaseProtocol(protocol: string): boolean {
+  return protocol === 'postgres:' || protocol === 'postgresql:';
+}
+
 export function getDatabaseUrl(): string {
   const databaseUrl = readEnvValue('DATABASE_URL');
 
   if (!databaseUrl) {
     throw new DatabaseConfigurationError();
+  }
+
+  let parsedUrl: URL;
+
+  try {
+    parsedUrl = new URL(databaseUrl);
+  } catch {
+    throw new DatabaseConfigurationError(
+      'DATABASE_URL must be a valid postgres connection string.',
+    );
+  }
+
+  if (!isValidDatabaseProtocol(parsedUrl.protocol) || !parsedUrl.hostname) {
+    throw new DatabaseConfigurationError(
+      'DATABASE_URL must be a valid postgres connection string.',
+    );
+  }
+
+  if (
+    isProductionEnvironment() &&
+    ['localhost', '127.0.0.1', '::1'].includes(parsedUrl.hostname)
+  ) {
+    throw new DatabaseConfigurationError(
+      'DATABASE_URL must point to a reachable PostgreSQL database in production.',
+    );
   }
 
   return databaseUrl;

@@ -365,6 +365,23 @@ test.describe('public Commands discovery', () => {
     });
   });
 
+  test('treats a missing rulings column as an unavailable Browse Requests dependency failure', async ({
+    page,
+  }) => {
+    await configureSantaTestPage(page, {
+      scenario: 'missing-rulings-column',
+    });
+    const response = await page.goto('/commands');
+
+    expect(response?.status()).toBe(503);
+    await expect(
+      page.getByText('REQUESTS ANSWERED BY SANTA ARE TEMPORARILY UNAVAILABLE.'),
+    ).toBeVisible();
+    await expect(
+      page.getByText('Please try again in a little while.'),
+    ).toBeVisible();
+  });
+
   test('includes only public entry points in the sitemap', async ({ page }) => {
     await configureSantaTestPage(page);
     const response = await page.request.get('/sitemap.xml');
