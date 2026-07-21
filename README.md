@@ -573,7 +573,7 @@ Completed approved and coal rulings are public and accessible to anyone with the
 
 If the homepage can read recent rulings but valid submissions fail, run `npm run db:migrate` and `npm run db:seed:configuration` against the same database the app is using and then retry the submission. Reads only require the `rulings` table, while submissions also require the moderation, settings, template, submission-attempt, and idempotency tables.
 
-If both public submission and Latest Answers fail together, inspect the production logs and Workshop health checks first. The most likely shared causes are an invalid `DATABASE_URL`, database connectivity loss, or an unapplied migration that leaves the `rulings` table without `is_featured` and `featured_at`.
+If both public submission and Latest Answers fail together, inspect the production logs and Workshop health checks first. The most likely shared causes are an invalid `DATABASE_URL`, database connectivity loss, or a schema problem deeper than the recoverable Featured Requests drift. Before `v0.3.4`, the most common production failure was PostgreSQL error `42703`, `column "is_featured" does not exist`, when the active `rulings` table had not yet received the `v0.3.1` Featured Requests migration.
 
 ## Local and Vercel environment setup
 
@@ -618,7 +618,7 @@ Generate a strong session secret with a local tool such as:
 - Apply local schema updates with `npm run db:migrate`.
 - Seed initial configuration with `npm run db:seed:configuration`.
 - Apply the same migration command against the production or preview database before expecting new submission or reporting code paths to work.
-- The `v0.3.1` migration must be present before `v0.3.3` public submission and Latest Answers can both work correctly because the current code expects `rulings.is_featured` and `rulings.featured_at`.
+- The `v0.3.1` migration is still required for full Featured Requests behavior, Workshop featured controls, and Workshop schema health to report fully ready. As of `v0.3.4`, ordinary public submission, Latest Answers, `/commands`, and public ruling pages fall back safely when only `rulings.is_featured` and `rulings.featured_at` are missing.
 - Run the configuration seed once per environment after the new tables exist. Re-running it later is safe and will skip already-seeded rows.
 - After deployment, verify the ruling flow and open `/images/santa-solo.png` and `/images/snow-black.png` directly to confirm both deployed asset paths are correct.
 - Remember that `public/images/santa-solo.png` and `public/images/snow-black.png` are repository filesystem paths, while `/images/santa-solo.png` and `/images/snow-black.png` are the browser URLs.
@@ -689,8 +689,9 @@ Safe Vercel log inspection:
 - A `503` from `POST /api/rulings` means the app rejected a valid-looking request because a required dependency was unavailable. Public validation failures, moderation blocks, and rate limits use different statuses.
 - Latest Answers and `/commands` should distinguish empty results from dependency failures. An empty database shows the normal empty state; a broken dependency shows an unavailable state.
 - If both submission and Latest Answers fail together, check the private health panel in Workshop first. The shared dependency is usually the database connection or `rulings` schema.
-- On Monday, July 20, 2026, the current deployment expects the `v0.3.1` rulings migration that adds `is_featured` and `featured_at`.
+- On Tuesday, July 21, 2026, the exact recoverable schema-drift signature is PostgreSQL `42703`, `column "is_featured" does not exist`, usually paired with a `rulings` table that also lacks `featured_at`.
 - Run `npm run db:migrate` against the same Neon database the deployment is using, then run `npm run db:seed:configuration`.
+- Public reads and standard public submissions now tolerate that specific missing-column state, but you should still apply the migration so Featured Requests and Workshop health diagnostics become fully current.
 - Verify `DATABASE_URL` is set in the correct Vercel environment and points to the intended Neon database. Do not use localhost in production.
 - Verify `SITE_URL=https://santa-commands-it.vercel.app` in Production so origin validation and canonical public URLs remain correct.
 - After any Vercel environment change, trigger a new deployment before retesting.
