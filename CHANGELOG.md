@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is inspired by Keep a Changelog, and this project adheres to Semantic Versioning.
 
+## [0.3.4] - 2026-07-21
+
+### Changed
+
+- Repaired production Latest Answers and Browse Requests loading when the deployment can reach the database but the `rulings` table is still missing the later Featured Requests columns
+- Repaired public ruling creation so ordinary approved and coal submissions can persist safely against that older schema while defaulting new rulings to non-featured
+- Distinguished recoverable featured-column schema drift from genuine public-rulings outages, while keeping empty results and dependency failures separate
+- Reduced coupling between public reads and submission-only configuration by preserving existing public rulings when templates or related runtime configuration are unavailable
+- Improved typed submission diagnostics, database URL validation, and private Workshop health checks for rulings schema and public query readiness
+- Added outage, schema-compatibility, environment, and browser coverage for public ruling availability
+
 ## [0.3.3] - 2026-07-20
 
 ### Added

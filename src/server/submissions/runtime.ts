@@ -40,7 +40,7 @@ function wrapSubmissionRepositoryForScenario(
       async createRulingWithIdempotency() {
         throw createSimulatedDatabaseError('42703', {
           message: 'Simulated missing rulings column for persistence.',
-          column: 'is_featured',
+          column: 'public_id',
         });
       },
     };

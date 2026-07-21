@@ -1,10 +1,10 @@
 # Santa Commands It!
 
-`Santa Commands It!` is a theatrical holiday web application from Argon Collective LLC. Visitors ask Santa for something, the server makes the authoritative decision, completed rulings are stored in Neon Postgres, and approved or coal outcomes receive permanent public pages that can be shared directly. Version `0.3.3` refines the public ruling sharing experience with a more reliable native-share and copy-link flow plus clearer Workshop diagnostics.
+`Santa Commands It!` is a theatrical holiday web application from Argon Collective LLC. Visitors ask Santa for something, the server makes the authoritative decision, completed rulings are stored in Neon Postgres, and approved or coal outcomes receive permanent public pages that can be shared directly. Version `0.3.4` restores public ruling availability when production is still on the pre-featured-rulings schema while keeping migration diagnostics explicit.
 
 ## Release
 
-- Current version: `v0.3.3`
+- Current version: `v0.3.4`
 - Current scope: the preserved public Santa experience, public request browsing at `/commands`, curated Featured Requests, manual seasonal public presentation controls, shareable discovery URLs, and a private `Santa's Workshop` owner area with secure single-owner authentication, server-side sessions, range-aware owner dashboard analytics, ruling visibility controls, a report-review queue, database-backed moderation rules, editable Santa settings, seasonal settings, response-template management, dynamic ruling share images, and private audit activity
 
 Completed rulings persist across refreshes and can be revisited at permanent public URLs when they remain public. Blocked submissions are still rejected before any database write and never receive public pages, public reports can be submitted without exposing reporter details, and hidden rulings now return the same public not-found experience as unknown identifiers.

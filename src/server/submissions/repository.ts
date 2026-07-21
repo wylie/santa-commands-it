@@ -68,6 +68,13 @@ type PersistedRulingInsertRow = {
   createdAt: Date | string;
 };
 
+type PublicRulingSelectRow = PersistedRulingInsertRow;
+
+type DatabaseErrorLike = {
+  code?: unknown;
+  column?: unknown;
+};
+
 function mapInsertedRowToPublicRuling(
   row: PersistedRulingInsertRow,
 ): PublicRuling {
@@ -82,6 +89,22 @@ function mapInsertedRowToPublicRuling(
     createdAt:
       row.createdAt instanceof Date ? row.createdAt : new Date(row.createdAt),
   });
+}
+
+function asDatabaseError(value: unknown): DatabaseErrorLike | null {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+
+  return value as DatabaseErrorLike;
+}
+
+function isMissingFeaturedColumnError(error: unknown): boolean {
+  const databaseError = asDatabaseError(error);
+
+  return (
+    databaseError?.code === '42703' && databaseError.column === 'is_featured'
+  );
 }
 
 export function createDatabaseSubmissionRepository(): SubmissionRepository {
@@ -112,7 +135,14 @@ export function createDatabaseSubmissionRepository(): SubmissionRepository {
       const database = getDatabase();
       const [row] = await database
         .select({
-          ruling: rulings,
+          id: rulings.id,
+          publicId: rulings.publicId,
+          displayName: rulings.displayName,
+          requestText: rulings.requestText,
+          decision: rulings.decision,
+          santaResponse: rulings.santaResponse,
+          isFeatured: rulings.isFeatured,
+          createdAt: rulings.createdAt,
         })
         .from(submissionIdempotency)
         .innerJoin(rulings, eq(submissionIdempotency.rulingId, rulings.id))
@@ -126,7 +156,7 @@ export function createDatabaseSubmissionRepository(): SubmissionRepository {
         )
         .limit(1);
 
-      return row ? mapRulingRowToPublicRuling(row.ruling) : null;
+      return row ? mapInsertedRowToPublicRuling(row) : null;
     },
     async hasActiveIdempotencyKey(clientKeyHash, idempotencyKey, now) {
       const database = getDatabase();
@@ -155,7 +185,14 @@ export function createDatabaseSubmissionRepository(): SubmissionRepository {
       const database = getDatabase();
       const [row] = await database
         .select({
-          ruling: rulings,
+          id: rulings.id,
+          publicId: rulings.publicId,
+          displayName: rulings.displayName,
+          requestText: rulings.requestText,
+          decision: rulings.decision,
+          santaResponse: rulings.santaResponse,
+          isFeatured: rulings.isFeatured,
+          createdAt: rulings.createdAt,
         })
         .from(submissionIdempotency)
         .innerJoin(rulings, eq(submissionIdempotency.rulingId, rulings.id))
@@ -171,7 +208,7 @@ export function createDatabaseSubmissionRepository(): SubmissionRepository {
         .orderBy(desc(submissionIdempotency.createdAt))
         .limit(1);
 
-      return row ? mapRulingRowToPublicRuling(row.ruling) : null;
+      return row ? mapInsertedRowToPublicRuling(row) : null;
     },
     async hasHiddenDuplicateRuling(
       clientKeyHash,
@@ -202,69 +239,138 @@ export function createDatabaseSubmissionRepository(): SubmissionRepository {
     },
     async createRulingWithIdempotency(input) {
       const database = getDatabase();
-      const created = await database.execute(sql<PersistedRulingInsertRow>`
-        WITH created_ruling AS (
-          INSERT INTO rulings (
-            public_id,
-            display_name,
-            request_text,
-            decision,
-            santa_response,
-            visibility,
-            is_featured,
-            created_at
-          )
-          VALUES (
-            ${input.publicId},
-            ${input.displayName},
-            ${input.requestText},
-            ${input.decision}::ruling_decision,
-            ${input.santaResponse},
-            'public'::ruling_visibility,
-            false,
-            ${input.createdAt ?? new Date()}
-          )
-          RETURNING
-            id,
-            public_id,
-            display_name,
-            request_text,
-            decision,
-            santa_response,
-            is_featured,
-            created_at
-        ),
-        created_idempotency AS (
-          INSERT INTO submission_idempotency (
-            client_key_hash,
-            idempotency_key,
-            normalized_name,
-            normalized_request,
-            ruling_id,
-            expires_at
+      let created;
+
+      try {
+        created = await database.execute(sql<PersistedRulingInsertRow>`
+          WITH created_ruling AS (
+            INSERT INTO rulings (
+              public_id,
+              display_name,
+              request_text,
+              decision,
+              santa_response,
+              visibility,
+              is_featured,
+              created_at
+            )
+            VALUES (
+              ${input.publicId},
+              ${input.displayName},
+              ${input.requestText},
+              ${input.decision}::ruling_decision,
+              ${input.santaResponse},
+              'public'::ruling_visibility,
+              false,
+              ${input.createdAt ?? new Date()}
+            )
+            RETURNING
+              id,
+              public_id,
+              display_name,
+              request_text,
+              decision,
+              santa_response,
+              is_featured,
+              created_at
+          ),
+          created_idempotency AS (
+            INSERT INTO submission_idempotency (
+              client_key_hash,
+              idempotency_key,
+              normalized_name,
+              normalized_request,
+              ruling_id,
+              expires_at
+            )
+            SELECT
+              ${input.clientKeyHash},
+              ${input.idempotencyKey},
+              ${input.normalizedName},
+              ${input.normalizedRequest},
+              created_ruling.id,
+              ${input.expiresAt}
+            FROM created_ruling
+            RETURNING ruling_id
           )
           SELECT
-            ${input.clientKeyHash},
-            ${input.idempotencyKey},
-            ${input.normalizedName},
-            ${input.normalizedRequest},
-            created_ruling.id,
-            ${input.expiresAt}
+            created_ruling.id AS "id",
+            created_ruling.public_id AS "publicId",
+            created_ruling.display_name AS "displayName",
+            created_ruling.request_text AS "requestText",
+            created_ruling.decision AS "decision",
+            created_ruling.santa_response AS "santaResponse",
+            created_ruling.is_featured AS "isFeatured",
+            created_ruling.created_at AS "createdAt"
           FROM created_ruling
-          RETURNING ruling_id
-        )
-        SELECT
-          created_ruling.id AS "id",
-          created_ruling.public_id AS "publicId",
-          created_ruling.display_name AS "displayName",
-          created_ruling.request_text AS "requestText",
-          created_ruling.decision AS "decision",
-          created_ruling.santa_response AS "santaResponse",
-          created_ruling.is_featured AS "isFeatured",
-          created_ruling.created_at AS "createdAt"
-        FROM created_ruling
-        INNER JOIN created_idempotency ON true
-      `);
+          INNER JOIN created_idempotency ON true
+        `);
+      } catch (error) {
+        if (!isMissingFeaturedColumnError(error)) {
+          throw error;
+        }
+
+        created = await database.execute(sql<PublicRulingSelectRow>`
+          WITH created_ruling AS (
+            INSERT INTO rulings (
+              public_id,
+              display_name,
+              request_text,
+              decision,
+              santa_response,
+              visibility,
+              created_at
+            )
+            VALUES (
+              ${input.publicId},
+              ${input.displayName},
+              ${input.requestText},
+              ${input.decision}::ruling_decision,
+              ${input.santaResponse},
+              'public'::ruling_visibility,
+              ${input.createdAt ?? new Date()}
+            )
+            RETURNING
+              id,
+              public_id,
+              display_name,
+              request_text,
+              decision,
+              santa_response,
+              created_at
+          ),
+          created_idempotency AS (
+            INSERT INTO submission_idempotency (
+              client_key_hash,
+              idempotency_key,
+              normalized_name,
+              normalized_request,
+              ruling_id,
+              expires_at
+            )
+            SELECT
+              ${input.clientKeyHash},
+              ${input.idempotencyKey},
+              ${input.normalizedName},
+              ${input.normalizedRequest},
+              created_ruling.id,
+              ${input.expiresAt}
+            FROM created_ruling
+            RETURNING ruling_id
+          )
+          SELECT
+            created_ruling.id AS "id",
+            created_ruling.public_id AS "publicId",
+            created_ruling.display_name AS "displayName",
+            created_ruling.request_text AS "requestText",
+            created_ruling.decision AS "decision",
+            created_ruling.santa_response AS "santaResponse",
+            false AS "isFeatured",
+            created_ruling.created_at AS "createdAt"
+          FROM created_ruling
+          INNER JOIN created_idempotency ON true
+        `);
+      }
       const [createdRuling] = created.rows as PersistedRulingInsertRow[];
 
       if (!createdRuling) {

@@ -82,7 +82,7 @@ function maybeThrowSimulatedPublicRulingsFailure(
   if (scenario === 'missing-rulings-column') {
     throw createSimulatedPublicRulingsError('42703', {
       message: 'Simulated missing rulings column for public reads.',
-      column: 'is_featured',
+      column: 'public_id',
     });
   }
 }
