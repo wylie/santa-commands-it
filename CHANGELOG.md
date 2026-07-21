@@ -14,6 +14,9 @@ The format is inspired by Keep a Changelog, and this project adheres to Semantic
 - Reduced coupling between public reads and submission-only configuration by preserving existing public rulings when templates or related runtime configuration are unavailable
 - Improved typed submission diagnostics, database URL validation, and private Workshop health checks for rulings schema and public query readiness
 - Added outage, schema-compatibility, environment, and browser coverage for public ruling availability
+- Improved public request-card separation, hierarchy, and action wording across Santa's Latest Answers, Featured Requests, and Browse Requests
+- Clarified visitor request versus Santa response presentation with compact public card dates, conversational visitor context, and shared excerpt limits
+- Improved responsive and accessible public ruling cards without changing the underlying public routes, filters, or persisted Santa responses
 
 ## [0.3.3] - 2026-07-20
 

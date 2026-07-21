@@ -135,15 +135,33 @@ test.describe('Santa Commands It homepage', () => {
     await expect(page.locator('[data-recent-list] >> nth=0')).toContainText(
       'Holly',
     );
+    await expect(
+      page
+        .locator('[data-recent-list] > li')
+        .first()
+        .locator('[data-public-ruling-context]'),
+    ).toContainText('Holly asked Santa...');
     await expect(page.locator('[data-recent-list] >> nth=0')).toContainText(
       'A brass telescope',
     );
+    await expect(
+      page
+        .locator('[data-recent-list] > li')
+        .first()
+        .locator('[data-public-ruling-response]'),
+    ).toContainText('Santa answered');
     await expect(page.locator('[data-recent-list] >> nth=0')).toContainText(
-      'SANTA COMMANDS IT',
+      'APPROVED',
+    );
+    await expect(page.locator('[data-recent-list] >> nth=0')).toContainText(
+      'Santa Commands It!',
     );
     await expect(
       page.locator('[data-recent-list] > li').first().getByRole('link'),
     ).toHaveAttribute('href', /\/rulings\/[0-9a-f-]+$/);
+    await expect(
+      page.locator('[data-recent-list] > li').first().getByRole('link'),
+    ).toHaveText("READ SANTA'S ANSWER");
 
     await page.reload();
 
@@ -169,6 +187,9 @@ test.describe('Santa Commands It homepage', () => {
     ).toBeVisible();
     await expect(page.locator('[data-recent-list] >> nth=0')).toContainText(
       'COAL',
+    );
+    await expect(page.locator('[data-recent-list] >> nth=0')).toContainText(
+      'Santa chose coal',
     );
     await expect(page.locator('[data-request-permalink]')).toBeVisible();
 
@@ -437,9 +458,10 @@ test.describe('Santa Commands It homepage', () => {
       requestText,
     );
     const firstRecentItem = page.locator('[data-recent-list] > li').first();
-    await expect(firstRecentItem.locator('[data-decision]')).toContainText(
-      'SANTA COMMANDS IT',
-    );
+    await expect(
+      firstRecentItem.locator('.public-ruling-card__decision'),
+    ).toContainText('APPROVED');
+    await expect(firstRecentItem).toContainText('Santa Commands It!');
     await expect(firstRecentItem).toContainText(requestText);
     await expect(page.locator('[data-recent-list] img')).toHaveCount(0);
   });
@@ -637,6 +659,37 @@ test.describe('Santa Commands It homepage', () => {
 
     await page.setViewportSize({ width: 320, height: 900 });
     await page.goto('/');
+
+    const hasHorizontalOverflow = await page.evaluate(() => {
+      return document.documentElement.scrollWidth > window.innerWidth;
+    });
+
+    expect(hasHorizontalOverflow).toBe(false);
+  });
+
+  test('keeps recent ruling cards readable at 320px without horizontal overflow', async ({
+    page,
+  }) => {
+    const { headers } = await configureSantaTestPage(page, {
+      randomValue: 0.5,
+      consideringDelayMs: 0,
+    });
+
+    await createRulingViaApi(page, headers, {
+      name: 'A Very Long Name For A Festive Visitor',
+      request:
+        'A telescope-with-an-exceptionally-long-single-token-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+      nowIso: '2026-07-21T14:00:00.000Z',
+    });
+
+    await page.setViewportSize({ width: 320, height: 900 });
+    await page.goto('/');
+
+    const firstCard = page.locator('[data-recent-list] > li').first();
+    await expect(firstCard.getByText('Santa answered')).toBeVisible();
+    await expect(
+      firstCard.getByRole('link', { name: /Read Santa's answer/i }),
+    ).toBeVisible();
 
     const hasHorizontalOverflow = await page.evaluate(() => {
       return document.documentElement.scrollWidth > window.innerWidth;

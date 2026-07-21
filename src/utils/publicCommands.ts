@@ -28,6 +28,17 @@ export type PublicCommandsDiscoveryRuling = Pick<
   | 'createdAt'
 >;
 
+export const PUBLIC_RULING_CARD_EXCERPT_LIMITS = {
+  compact: {
+    request: 132,
+    response: 116,
+  },
+  browse: {
+    request: 196,
+    response: 164,
+  },
+} as const;
+
 const WHITESPACE = /\s+/g;
 
 function removeUnsafeControlCharacters(value: string): string {

@@ -102,6 +102,21 @@ test.describe('public Commands discovery', () => {
     await expect(
       page.locator('[data-commands-list] > li').first(),
     ).toContainText('Discovery request 13');
+    await expect(
+      page
+        .locator('[data-commands-list] > li')
+        .first()
+        .locator('[data-public-ruling-context]'),
+    ).toContainText('Helper 13 asked Santa...');
+    await expect(
+      page
+        .locator('[data-commands-list] > li')
+        .first()
+        .locator('[data-public-ruling-response]'),
+    ).toContainText('Santa answered');
+    await expect(
+      page.locator('[data-commands-list] > li').first().getByRole('link'),
+    ).toHaveText("READ SANTA'S ANSWER");
 
     await page.getByLabel('Search public requests').fill('bike');
     await page.getByRole('button', { name: 'APPLY' }).click();
@@ -316,8 +331,30 @@ test.describe('public Commands discovery', () => {
     ).toBeVisible();
     await expect(page.locator('.commands-cta')).toHaveCount(0);
 
-    await configureSantaTestPage(page);
+    const { headers } = await configureSantaTestPage(page);
     await page.setViewportSize({ width: 320, height: 900 });
+    await seedDiscoveryRulings(page, headers);
+    await page.goto('/commands');
+    await expect(
+      page
+        .locator('[data-commands-list] > li')
+        .first()
+        .locator('[data-public-ruling-request]'),
+    ).toBeVisible();
+    await expect(
+      page
+        .locator('[data-commands-list] > li')
+        .first()
+        .locator('[data-public-ruling-response]'),
+    ).toContainText('Santa answered');
+    await page
+      .getByRole('link', { name: /Read Santa's answer/i })
+      .first()
+      .focus();
+    await expect(
+      page.getByRole('link', { name: /Read Santa's answer/i }).first(),
+    ).toBeFocused();
+
     await page.goto('/commands?q=this-will-not-match');
     await expect(
       page

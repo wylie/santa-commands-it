@@ -3,13 +3,18 @@ import { publicSantaUiSettings } from '@/config/public-santa-ui';
 import { REQUEST_LIMITS } from '@/config/request';
 import { TimedRequestError, fetchJsonWithTimeout } from '@/scripts/fetch-json';
 import {
+  createPublicExcerpt,
+  PUBLIC_RULING_CARD_EXCERPT_LIMITS,
+} from '@/utils/publicCommands';
+import {
   formatCharacterCount,
   getCharacterCountState,
 } from '@/utils/characterCount';
 import {
-  formatRulingTimestamp,
-  getDecisionLabel,
+  formatPublicCardTimestamp,
   getDecisionPanelTitle,
+  getPublicDecisionLabel,
+  getPublicDecisionSupportingText,
   isSubmitRulingResponse,
   type CreatedRulingResponse,
   type FocusField,
@@ -83,46 +88,109 @@ function createRecentRulingItem(ruling: PublicRuling): HTMLLIElement {
   item.className = 'recent-rulings__item';
   item.dataset.rulingId = ruling.publicId;
 
-  const meta = document.createElement('div');
-  meta.className = 'recent-rulings__meta';
+  const article = document.createElement('article');
+  article.className = 'public-ruling-card public-ruling-card--compact';
+  article.dataset.publicRulingCard = '';
+  article.dataset.rulingId = ruling.publicId;
+  article.dataset.decision = ruling.decision;
+
+  const headingId = `public-ruling-card-title-${ruling.publicId}`;
+  const responseLabelId = `public-ruling-card-response-${ruling.publicId}`;
+  article.setAttribute('aria-labelledby', headingId);
+
+  const header = document.createElement('header');
+  header.className = 'public-ruling-card__header';
+
+  const statusGroup = document.createElement('div');
+  statusGroup.className = 'public-ruling-card__status-group';
+
+  const statusLine = document.createElement('div');
+  statusLine.className = 'public-ruling-card__status-line';
 
   const decision = document.createElement('p');
-  decision.className = 'recent-rulings__decision';
+  decision.className = 'public-ruling-card__decision';
   decision.dataset.decision = ruling.decision;
-  decision.textContent = getDecisionLabel(ruling.decision);
+  decision.textContent = getPublicDecisionLabel(ruling.decision);
+  statusLine.append(decision);
+
+  if (ruling.isFeatured) {
+    const badge = document.createElement('p');
+    badge.className = 'public-ruling-card__badge';
+    badge.dataset.featuredBadge = '';
+    badge.textContent = 'Featured';
+    statusLine.append(badge);
+  }
+
+  const statusNote = document.createElement('p');
+  statusNote.className = 'public-ruling-card__status-note';
+  statusNote.textContent = getPublicDecisionSupportingText(ruling.decision);
 
   const time = document.createElement('time');
-  time.className = 'recent-rulings__time';
+  time.className = 'public-ruling-card__time';
   time.dateTime = ruling.createdAt;
-  time.textContent = formatRulingTimestamp(ruling.createdAt);
+  time.textContent = formatPublicCardTimestamp(ruling.createdAt);
 
-  const name = document.createElement('p');
-  name.className = 'recent-rulings__name';
+  const body = document.createElement('div');
+  body.className = 'public-ruling-card__body';
+
+  const context = document.createElement('h3');
+  context.className = 'public-ruling-card__context';
+  context.id = headingId;
+  context.dataset.publicRulingContext = '';
+
+  const name = document.createElement('span');
+  name.className = 'public-ruling-card__name';
   name.textContent = ruling.displayName;
+  context.append(name, ' asked Santa...');
+
+  const requestBlock = document.createElement('blockquote');
+  requestBlock.className = 'public-ruling-card__request-block';
+  requestBlock.dataset.publicRulingRequest = '';
 
   const request = document.createElement('p');
-  request.className = 'recent-rulings__request';
-  request.textContent = ruling.requestText;
+  request.className = 'public-ruling-card__request';
+  request.textContent = createPublicExcerpt(
+    ruling.requestText,
+    PUBLIC_RULING_CARD_EXCERPT_LIMITS.compact.request,
+  );
+  requestBlock.append(request);
+
+  const responseBlock = document.createElement('section');
+  responseBlock.className = 'public-ruling-card__response-block';
+  responseBlock.setAttribute('aria-labelledby', responseLabelId);
+  responseBlock.dataset.publicRulingResponse = '';
+
+  const responseLabel = document.createElement('p');
+  responseLabel.className = 'public-ruling-card__response-label';
+  responseLabel.id = responseLabelId;
+  responseLabel.textContent = 'Santa answered';
 
   const response = document.createElement('p');
-  response.className = 'recent-rulings__response';
-  response.textContent = ruling.santaResponse;
+  response.className = 'public-ruling-card__response';
+  response.textContent = createPublicExcerpt(
+    ruling.santaResponse,
+    PUBLIC_RULING_CARD_EXCERPT_LIMITS.compact.response,
+  );
+  responseBlock.append(responseLabel, response);
 
   const action = document.createElement('p');
-  action.className = 'recent-rulings__action';
+  action.className = 'public-ruling-card__action';
 
   const link = document.createElement('a');
-  link.className = 'recent-rulings__link';
+  link.className = 'public-ruling-card__link';
   link.href = buildRulingPath(ruling.publicId);
-  link.textContent = 'VIEW & SHARE';
+  link.textContent = "READ SANTA'S ANSWER";
   link.setAttribute(
     'aria-label',
-    `View and share Santa's ruling for ${ruling.displayName}`,
+    `Read Santa's answer to ${ruling.displayName}'s request`,
   );
 
-  meta.append(decision, time);
+  statusGroup.append(statusLine, statusNote);
+  header.append(statusGroup, time);
   action.append(link);
-  item.append(meta, name, request, response, action);
+  body.append(context, requestBlock, responseBlock);
+  article.append(header, body, action);
+  item.append(article);
 
   return item;
 }

@@ -452,6 +452,9 @@ The production source of truth for moderation and editable Santa behavior is now
 - The Santa's Latest Answers section shows a real semantic list when rulings exist.
 - Each Latest Answers item links to its permanent public ruling page.
 - The homepage uses the shared public ruling-card component in a compact variant.
+- The same shared public ruling-card component also powers Featured Requests and Browse Requests, with one consistent hierarchy: status and compact date, visitor context, request block, Santa response block, and the `READ SANTA'S ANSWER` action.
+- Compact homepage cards and fuller Browse Requests cards use the same safe excerpt behavior with different bounded lengths rather than duplicating markup or exposing raw database-style rows.
+- Public card dates use a compact server-rendered format such as `Jul 21 · 10:58 AM` in the configured Santa site time zone, while full ruling pages keep the longer timestamp treatment.
 - The public navigation uses `ASK SANTA` and `BROWSE REQUESTS`.
 - `ASK SANTA` links to `/#ask-santa` on the homepage and from other public pages.
 - `BROWSE ALL REQUESTS` and `BROWSE REQUESTS` both lead to `/commands`.
@@ -459,6 +462,7 @@ The production source of truth for moderation and editable Santa behavior is now
 - The empty state still works for a brand-new database.
 - If Latest Answers loading fails, the homepage stays usable and shows `SANTA'S LATEST ANSWERS ARE TEMPORARILY UNAVAILABLE.` instead of an empty state.
 - After a successful submission, the browser inserts the new ruling at the top of the visible list and keeps only the latest ten items.
+- Public cards preserve Unicode, emoji, plain-text HTML-like input, and long unbroken strings through the shared excerpt utilities, and their action links keep clear accessible names without exposing internal ids.
 
 ## Public Commands discovery
 

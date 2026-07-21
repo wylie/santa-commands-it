@@ -89,6 +89,14 @@ const timestampFormatter = new Intl.DateTimeFormat('en-US', {
   timeZone: publicSantaUiSettings.recentRulings.timeZone,
 });
 
+const publicCardTimestampFormatter = new Intl.DateTimeFormat('en-US', {
+  month: 'short',
+  day: 'numeric',
+  hour: 'numeric',
+  minute: '2-digit',
+  timeZone: publicSantaUiSettings.recentRulings.timeZone,
+});
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
@@ -190,6 +198,18 @@ export function getDecisionLabel(decision: PersistedRulingDecision): string {
   return decision === 'approved' ? 'SANTA COMMANDS IT' : 'COAL';
 }
 
+export function getPublicDecisionLabel(
+  decision: PersistedRulingDecision,
+): string {
+  return decision === 'approved' ? 'APPROVED' : 'COAL';
+}
+
+export function getPublicDecisionSupportingText(
+  decision: PersistedRulingDecision,
+): string {
+  return decision === 'approved' ? 'Santa Commands It!' : 'Santa chose coal';
+}
+
 export function formatRulingTimestamp(value: string | Date): string {
   const date = value instanceof Date ? value : new Date(value);
 
@@ -198,6 +218,27 @@ export function formatRulingTimestamp(value: string | Date): string {
   }
 
   return timestampFormatter.format(date);
+}
+
+export function formatPublicCardTimestamp(value: string | Date): string {
+  const date = value instanceof Date ? value : new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return 'Unknown date';
+  }
+
+  const parts = publicCardTimestampFormatter.formatToParts(date);
+  const month = parts.find((part) => part.type === 'month')?.value;
+  const day = parts.find((part) => part.type === 'day')?.value;
+  const hour = parts.find((part) => part.type === 'hour')?.value;
+  const minute = parts.find((part) => part.type === 'minute')?.value;
+  const dayPeriod = parts.find((part) => part.type === 'dayPeriod')?.value;
+
+  if (!month || !day || !hour || !minute || !dayPeriod) {
+    return 'Unknown date';
+  }
+
+  return `${month} ${day} · ${hour}:${minute} ${dayPeriod}`;
 }
 
 export function serializeCreatedAt(value: string | Date): string {

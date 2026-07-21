@@ -5,6 +5,7 @@ import {
   buildPublicCommandsPath,
   createPublicExcerpt,
   getPublicCommandsSummary,
+  PUBLIC_RULING_CARD_EXCERPT_LIMITS,
   parsePublicCommandsQuery,
 } from '@/utils/publicCommands';
 import {
@@ -123,6 +124,15 @@ describe('public excerpts', () => {
   it('does not interpret HTML-like content', () => {
     expect(createPublicExcerpt('<script>alert(1)</script>')).toBe(
       '<script>alert(1)</script>',
+    );
+  });
+
+  it('keeps compact card excerpts shorter than browse card excerpts', () => {
+    expect(PUBLIC_RULING_CARD_EXCERPT_LIMITS.compact.request).toBeLessThan(
+      PUBLIC_RULING_CARD_EXCERPT_LIMITS.browse.request,
+    );
+    expect(PUBLIC_RULING_CARD_EXCERPT_LIMITS.compact.response).toBeLessThan(
+      PUBLIC_RULING_CARD_EXCERPT_LIMITS.browse.response,
     );
   });
 });

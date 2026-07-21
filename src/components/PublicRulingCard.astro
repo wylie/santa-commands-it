@@ -1,12 +1,14 @@
 ---
 import {
   createPublicExcerpt,
+  PUBLIC_RULING_CARD_EXCERPT_LIMITS,
   type PublicCommandsDiscoveryRuling,
 } from '@/utils/publicCommands';
 import { buildRulingPath } from '@/utils/rulingPages';
 import {
-  formatRulingTimestamp,
-  getDecisionLabel,
+  formatPublicCardTimestamp,
+  getPublicDecisionLabel,
+  getPublicDecisionSupportingText,
   type PublicRuling,
 } from '@/utils/rulings';
 
@@ -16,14 +18,18 @@ interface Props {
 }
 
 const { ruling, variant = 'browse' } = Astro.props;
-const requestText =
-  variant === 'compact'
-    ? ruling.requestText
-    : createPublicExcerpt(ruling.requestText);
-const responseText =
-  variant === 'compact'
-    ? ruling.santaResponse
-    : createPublicExcerpt(ruling.santaResponse, 150);
+const excerptLimits = PUBLIC_RULING_CARD_EXCERPT_LIMITS[variant];
+const requestText = createPublicExcerpt(
+  ruling.requestText,
+  excerptLimits.request,
+);
+const responseText = createPublicExcerpt(
+  ruling.santaResponse,
+  excerptLimits.response,
+);
+const cardHeadingId = `public-ruling-card-title-${ruling.publicId}`;
+const responseLabelId = `public-ruling-card-response-${ruling.publicId}`;
+const actionLabel = `Read Santa's answer to ${ruling.displayName}'s request`;
 ---
 
 <article
@@ -31,30 +37,60 @@ const responseText =
   data-public-ruling-card
   data-ruling-id={ruling.publicId}
   data-decision={ruling.decision}
+  aria-labelledby={cardHeadingId}
 >
-  <div class="public-ruling-card__meta">
-    <p class="public-ruling-card__decision" data-decision={ruling.decision}>
-      {getDecisionLabel(ruling.decision)}
-    </p>
-    {
-      ruling.isFeatured && (
-        <p class="public-ruling-card__badge" data-featured-badge>
-          Featured
+  <header class="public-ruling-card__header">
+    <div class="public-ruling-card__status-group">
+      <div class="public-ruling-card__status-line">
+        <p class="public-ruling-card__decision" data-decision={ruling.decision}>
+          {getPublicDecisionLabel(ruling.decision)}
         </p>
-      )
-    }
+        {
+          ruling.isFeatured && (
+            <p class="public-ruling-card__badge" data-featured-badge>
+              Featured
+            </p>
+          )
+        }
+      </div>
+      <p class="public-ruling-card__status-note">
+        {getPublicDecisionSupportingText(ruling.decision)}
+      </p>
+    </div>
     <time class="public-ruling-card__time" datetime={ruling.createdAt}>
-      {formatRulingTimestamp(ruling.createdAt)}
+      {formatPublicCardTimestamp(ruling.createdAt)}
     </time>
+  </header>
+  <div class="public-ruling-card__body">
+    <h3
+      id={cardHeadingId}
+      class="public-ruling-card__context"
+      data-public-ruling-context
+    >
+      <span class="public-ruling-card__name">{ruling.displayName}</span> asked Santa...
+    </h3>
+    <blockquote
+      class="public-ruling-card__request-block"
+      data-public-ruling-request
+    >
+      <p class="public-ruling-card__request">{requestText}</p>
+    </blockquote>
+    <section
+      class="public-ruling-card__response-block"
+      aria-labelledby={responseLabelId}
+      data-public-ruling-response
+    >
+      <p id={responseLabelId} class="public-ruling-card__response-label">
+        Santa answered
+      </p>
+      <p class="public-ruling-card__response">{responseText}</p>
+    </section>
   </div>
-  <h3 class="public-ruling-card__name">{ruling.displayName}</h3>
-  <p class="public-ruling-card__request">{requestText}</p>
-  <p class="public-ruling-card__response">{responseText}</p>
   <p class="public-ruling-card__action">
     <a
       class="public-ruling-card__link"
       href={buildRulingPath(ruling.publicId)}
-      aria-label={`Read Santa's answer for ${ruling.displayName}`}
+      aria-label={actionLabel}
     >
       READ SANTA&apos;S ANSWER
     </a>

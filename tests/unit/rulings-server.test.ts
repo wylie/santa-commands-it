@@ -7,8 +7,11 @@ import { submitSantaRequest } from '@/server/submissions/service';
 import type { SubmissionRepository } from '@/server/submissions/repository';
 import { configurationSeedDefaults } from '@/utils/configuration';
 import {
+  formatPublicCardTimestamp,
   formatRulingTimestamp,
   getDecisionPanelTitle,
+  getPublicDecisionLabel,
+  getPublicDecisionSupportingText,
   isPublicRuling,
   isSubmitRulingResponse,
 } from '@/utils/rulings';
@@ -369,9 +372,27 @@ describe('public ruling mapping and rendering safety', () => {
     );
   });
 
+  it('formats compact public card timestamps predictably', () => {
+    expect(formatPublicCardTimestamp('2026-07-15T23:30:00.000Z')).toBe(
+      'Jul 15 · 7:30 PM',
+    );
+  });
+
   it('falls back safely when a ruling timestamp is invalid', () => {
     expect(formatRulingTimestamp('not-a-date')).toBe(
       'an unknown workshop time',
+    );
+    expect(formatPublicCardTimestamp('not-a-date')).toBe('Unknown date');
+  });
+
+  it('uses clear public card decision copy', () => {
+    expect(getPublicDecisionLabel('approved')).toBe('APPROVED');
+    expect(getPublicDecisionLabel('random-coal')).toBe('COAL');
+    expect(getPublicDecisionSupportingText('approved')).toBe(
+      'Santa Commands It!',
+    );
+    expect(getPublicDecisionSupportingText('random-coal')).toBe(
+      'Santa chose coal',
     );
   });
 

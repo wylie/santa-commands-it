@@ -103,16 +103,12 @@ if (rulingResult.status === 'ok') {
               </p>
             )}
             <p class="ruling-card__intro">
-              <strong>{rulingResult.ruling.displayName}</strong> asked Santa:
+              <strong>{rulingResult.ruling.displayName}</strong> asked Santa...
             </p>
             <blockquote class="ruling-card__request">
               <p>{rulingResult.ruling.requestText}</p>
             </blockquote>
-            <p class="ruling-card__result-type">
-              {rulingResult.ruling.decision === 'approved'
-                ? 'Approved ruling'
-                : 'Coal ruling'}
-            </p>
+            <p class="ruling-card__result-type">Santa answered</p>
             <h1 id="ruling-page-title" class="ruling-card__title">
               {rulingResult.ruling.decision === 'approved'
                 ? 'SANTA COMMANDS IT!'
