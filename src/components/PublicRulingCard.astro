@@ -30,6 +30,7 @@ const responseText = createPublicExcerpt(
 const cardHeadingId = `public-ruling-card-title-${ruling.publicId}`;
 const responseLabelId = `public-ruling-card-response-${ruling.publicId}`;
 const actionLabel = `Read Santa's answer to ${ruling.displayName}'s request`;
+const statusIconLabel = ruling.decision === 'approved' ? 'Approved' : 'Coal';
 ---
 
 <article
@@ -40,10 +41,43 @@ const actionLabel = `Read Santa's answer to ${ruling.displayName}'s request`;
   aria-labelledby={cardHeadingId}
 >
   <header class="public-ruling-card__header">
-    <div class="public-ruling-card__status-group">
+    <div class="public-ruling-card__status-row">
       <div class="public-ruling-card__status-line">
+        <span class="public-ruling-card__status-icon" aria-hidden="true">
+          {
+            ruling.decision === 'approved' ? (
+              <svg viewBox="0 0 20 20" focusable="false">
+                <circle cx="10" cy="10" r="9" />
+                <path
+                  d="M5.25 10.2 8.45 13.4 14.75 7.1"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2.2"
+                />
+              </svg>
+            ) : (
+              <svg viewBox="0 0 20 20" focusable="false">
+                <circle cx="10" cy="10" r="9" />
+                <path
+                  d="m10 5.6 1.95 1.45 2.42.46-.74 2.35.74 2.35-2.42.46L10 14.12l-1.95-1.45-2.42-.46.74-2.35-.74-2.35 2.42-.46Z"
+                  fill="currentColor"
+                  stroke="none"
+                />
+              </svg>
+            )
+          }
+          <span class="sr-only">{statusIconLabel}</span>
+        </span>
         <p class="public-ruling-card__decision" data-decision={ruling.decision}>
           {getPublicDecisionLabel(ruling.decision)}
+        </p>
+        <span class="public-ruling-card__status-separator" aria-hidden="true">
+          •
+        </span>
+        <p class="public-ruling-card__status-note">
+          {getPublicDecisionSupportingText(ruling.decision)}
         </p>
         {
           ruling.isFeatured && (
@@ -53,28 +87,41 @@ const actionLabel = `Read Santa's answer to ${ruling.displayName}'s request`;
           )
         }
       </div>
-      <p class="public-ruling-card__status-note">
-        {getPublicDecisionSupportingText(ruling.decision)}
-      </p>
     </div>
     <time class="public-ruling-card__time" datetime={ruling.createdAt}>
       {formatPublicCardTimestamp(ruling.createdAt)}
     </time>
   </header>
   <div class="public-ruling-card__body">
-    <h3
-      id={cardHeadingId}
-      class="public-ruling-card__context"
-      data-public-ruling-context
-    >
-      <span class="public-ruling-card__name">{ruling.displayName}</span> asked Santa...
-    </h3>
-    <blockquote
-      class="public-ruling-card__request-block"
-      data-public-ruling-request
-    >
+    <div class="public-ruling-card__visitor">
+      <span class="public-ruling-card__visitor-icon" aria-hidden="true">
+        <svg viewBox="0 0 20 20" focusable="false">
+          <path
+            d="M6.1 15.9h7.8m-6.4-3.2h5m-6.5-5.7c0-2.1 1.7-3.8 3.8-3.8S13.6 4.9 13.6 7m2.1 1.4v2.7c0 1.2-.8 2.3-1.9 2.6l-.2 1.5H6.4l-.2-1.5a2.77 2.77 0 0 1-1.9-2.6V8.4m2.8 0h5.8M4.8 8.4h10.4"
+            fill="none"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="1.6"></path>
+          <path
+            d="M7.7 9.8h.01M12.3 9.8h.01"
+            fill="none"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-width="2"></path>
+        </svg>
+      </span>
+      <h3
+        id={cardHeadingId}
+        class="public-ruling-card__context"
+        data-public-ruling-context
+      >
+        <span class="public-ruling-card__name">{ruling.displayName}</span> asked Santa...
+      </h3>
+    </div>
+    <div class="public-ruling-card__request-block" data-public-ruling-request>
       <p class="public-ruling-card__request">{requestText}</p>
-    </blockquote>
+    </div>
     <section
       class="public-ruling-card__response-block"
       aria-labelledby={responseLabelId}
@@ -92,6 +139,22 @@ const actionLabel = `Read Santa's answer to ${ruling.displayName}'s request`;
       href={buildRulingPath(ruling.publicId)}
       aria-label={actionLabel}
     >
+      <span class="public-ruling-card__link-icon" aria-hidden="true">
+        <svg viewBox="0 0 20 20" focusable="false">
+          <path
+            d="M3.8 5.2c0-.7.5-1.2 1.2-1.2h4.2c.3 0 .6.1.8.3l.5.5.5-.5c.2-.2.5-.3.8-.3H16c.7 0 1.2.5 1.2 1.2v9.4c0 .7-.5 1.2-1.2 1.2h-4.2c-.3 0-.6-.1-.8-.3l-.5-.5-.5.5c-.2.2-.5.3-.8.3H5c-.7 0-1.2-.5-1.2-1.2Z"
+            fill="none"
+            stroke="currentColor"
+            stroke-linejoin="round"
+            stroke-width="1.6"></path>
+          <path
+            d="M10 4.5v10.7M5.8 6.7h2.4M11.8 6.7h2.4"
+            fill="none"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-width="1.6"></path>
+        </svg>
+      </span>
       READ SANTA&apos;S ANSWER
     </a>
   </p>

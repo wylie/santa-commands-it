@@ -101,17 +101,30 @@ function createRecentRulingItem(ruling: PublicRuling): HTMLLIElement {
   const header = document.createElement('header');
   header.className = 'public-ruling-card__header';
 
-  const statusGroup = document.createElement('div');
-  statusGroup.className = 'public-ruling-card__status-group';
+  const statusRow = document.createElement('div');
+  statusRow.className = 'public-ruling-card__status-row';
 
   const statusLine = document.createElement('div');
   statusLine.className = 'public-ruling-card__status-line';
+
+  const statusIcon = document.createElement('span');
+  statusIcon.className = 'public-ruling-card__status-icon';
+  statusIcon.setAttribute('aria-hidden', 'true');
+  statusIcon.innerHTML =
+    ruling.decision === 'approved'
+      ? '<svg viewBox="0 0 20 20" focusable="false"><circle cx="10" cy="10" r="9"></circle><path d="M5.25 10.2 8.45 13.4 14.75 7.1" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2"></path></svg>'
+      : '<svg viewBox="0 0 20 20" focusable="false"><circle cx="10" cy="10" r="9"></circle><path d="m10 5.6 1.95 1.45 2.42.46-.74 2.35.74 2.35-2.42.46L10 14.12l-1.95-1.45-2.42-.46.74-2.35-.74-2.35 2.42-.46Z" fill="currentColor" stroke="none"></path></svg>';
 
   const decision = document.createElement('p');
   decision.className = 'public-ruling-card__decision';
   decision.dataset.decision = ruling.decision;
   decision.textContent = getPublicDecisionLabel(ruling.decision);
-  statusLine.append(decision);
+  statusLine.append(statusIcon, decision);
+
+  const statusSeparator = document.createElement('span');
+  statusSeparator.className = 'public-ruling-card__status-separator';
+  statusSeparator.setAttribute('aria-hidden', 'true');
+  statusSeparator.textContent = '•';
 
   if (ruling.isFeatured) {
     const badge = document.createElement('p');
@@ -124,6 +137,7 @@ function createRecentRulingItem(ruling: PublicRuling): HTMLLIElement {
   const statusNote = document.createElement('p');
   statusNote.className = 'public-ruling-card__status-note';
   statusNote.textContent = getPublicDecisionSupportingText(ruling.decision);
+  statusLine.append(statusSeparator, statusNote);
 
   const time = document.createElement('time');
   time.className = 'public-ruling-card__time';
@@ -132,6 +146,15 @@ function createRecentRulingItem(ruling: PublicRuling): HTMLLIElement {
 
   const body = document.createElement('div');
   body.className = 'public-ruling-card__body';
+
+  const visitor = document.createElement('div');
+  visitor.className = 'public-ruling-card__visitor';
+
+  const visitorIcon = document.createElement('span');
+  visitorIcon.className = 'public-ruling-card__visitor-icon';
+  visitorIcon.setAttribute('aria-hidden', 'true');
+  visitorIcon.innerHTML =
+    '<svg viewBox="0 0 20 20" focusable="false"><path d="M6.1 15.9h7.8m-6.4-3.2h5m-6.5-5.7c0-2.1 1.7-3.8 3.8-3.8S13.6 4.9 13.6 7m2.1 1.4v2.7c0 1.2-.8 2.3-1.9 2.6l-.2 1.5H6.4l-.2-1.5a2.77 2.77 0 0 1-1.9-2.6V8.4m2.8 0h5.8M4.8 8.4h10.4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6"></path><path d="M7.7 9.8h.01M12.3 9.8h.01" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="2"></path></svg>';
 
   const context = document.createElement('h3');
   context.className = 'public-ruling-card__context';
@@ -142,8 +165,9 @@ function createRecentRulingItem(ruling: PublicRuling): HTMLLIElement {
   name.className = 'public-ruling-card__name';
   name.textContent = ruling.displayName;
   context.append(name, ' asked Santa...');
+  visitor.append(visitorIcon, context);
 
-  const requestBlock = document.createElement('blockquote');
+  const requestBlock = document.createElement('div');
   requestBlock.className = 'public-ruling-card__request-block';
   requestBlock.dataset.publicRulingRequest = '';
 
@@ -179,16 +203,21 @@ function createRecentRulingItem(ruling: PublicRuling): HTMLLIElement {
   const link = document.createElement('a');
   link.className = 'public-ruling-card__link';
   link.href = buildRulingPath(ruling.publicId);
-  link.textContent = "READ SANTA'S ANSWER";
   link.setAttribute(
     'aria-label',
     `Read Santa's answer to ${ruling.displayName}'s request`,
   );
+  const linkIcon = document.createElement('span');
+  linkIcon.className = 'public-ruling-card__link-icon';
+  linkIcon.setAttribute('aria-hidden', 'true');
+  linkIcon.innerHTML =
+    '<svg viewBox="0 0 20 20" focusable="false"><path d="M3.8 5.2c0-.7.5-1.2 1.2-1.2h4.2c.3 0 .6.1.8.3l.5.5.5-.5c.2-.2.5-.3.8-.3H16c.7 0 1.2.5 1.2 1.2v9.4c0 .7-.5 1.2-1.2 1.2h-4.2c-.3 0-.6-.1-.8-.3l-.5-.5-.5.5c-.2.2-.5.3-.8.3H5c-.7 0-1.2-.5-1.2-1.2Z" fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="1.6"></path><path d="M10 4.5v10.7M5.8 6.7h2.4M11.8 6.7h2.4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.6"></path></svg>';
+  link.append(linkIcon, "READ SANTA'S ANSWER");
 
-  statusGroup.append(statusLine, statusNote);
-  header.append(statusGroup, time);
+  statusRow.append(statusLine);
+  header.append(statusRow, time);
   action.append(link);
-  body.append(context, requestBlock, responseBlock);
+  body.append(visitor, requestBlock, responseBlock);
   article.append(header, body, action);
   item.append(article);
 
