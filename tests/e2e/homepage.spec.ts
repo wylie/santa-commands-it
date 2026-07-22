@@ -158,6 +158,8 @@ test.describe('Santa Commands It homepage', () => {
       const footerBox = footer.getBoundingClientRect();
       const shellStyle = window.getComputedStyle(shell);
       const mainStyle = window.getComputedStyle(main);
+      const html = document.documentElement;
+      const body = document.body;
 
       return {
         portraitTop: portraitBox.top,
@@ -165,7 +167,10 @@ test.describe('Santa Commands It homepage', () => {
         footerBottom: footerBox.bottom,
         shellOverflow: shellStyle.overflowY,
         mainOverflow: mainStyle.overflowY,
+        htmlOverflow: window.getComputedStyle(html).overflowY,
         bodyOverflow: window.getComputedStyle(document.body).overflowY,
+        htmlScrollable: html.scrollHeight > html.clientHeight + 1,
+        bodyScrollable: body.scrollHeight > body.clientHeight + 1,
         mainScrollable:
           main.scrollHeight > main.clientHeight && main.clientHeight > 0,
         shellHeightMatchesViewport:
@@ -180,7 +185,10 @@ test.describe('Santa Commands It homepage', () => {
       footerBottom: lockedMetricsBefore?.footerBottom,
       shellOverflow: 'hidden',
       mainOverflow: 'auto',
+      htmlOverflow: 'hidden',
       bodyOverflow: 'hidden',
+      htmlScrollable: false,
+      bodyScrollable: false,
       mainScrollable: true,
       shellHeightMatchesViewport: true,
     });
@@ -212,11 +220,13 @@ test.describe('Santa Commands It homepage', () => {
         navTop: navBox.top,
         footerBottomWithinViewport: footerBox.bottom <= window.innerHeight,
         mainScrollTop: main.scrollTop,
+        windowScrollY: window.scrollY,
       };
     });
 
     expect(lockedMetricsAfter?.footerBottomWithinViewport).toBe(true);
     expect(lockedMetricsAfter?.mainScrollTop).toBeGreaterThan(0);
+    expect(lockedMetricsAfter?.windowScrollY).toBe(0);
     expect(lockedMetricsAfter?.portraitTop).toBeCloseTo(
       lockedMetricsBefore!.portraitTop,
       1,

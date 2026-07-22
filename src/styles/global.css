@@ -216,6 +216,7 @@ a {
 .public-shell {
   display: grid;
   gap: 1.75rem;
+  min-width: 0;
 }
 
 .public-shell__rail {
@@ -251,6 +252,7 @@ a {
   gap: 1.75rem;
   align-content: start;
   min-width: 0;
+  min-height: 0;
 }
 
 .speech-panel,
@@ -1565,24 +1567,35 @@ h2 {
 }
 
 @media (min-width: 64rem) and (min-height: 50rem) {
+  html {
+    height: 100%;
+    overflow: hidden;
+  }
+
   body {
+    height: 100%;
+    min-height: 0;
     overflow: hidden;
   }
 
   .page-shell {
     height: 100vh;
     height: 100dvh;
+    min-height: 0;
     padding: var(--sticky-top) 0;
     overflow: hidden;
   }
 
   .public-shell {
     height: 100%;
+    min-height: 0;
     align-items: stretch;
+    overflow: hidden;
   }
 
   .public-shell__rail {
     min-height: 0;
+    overflow: hidden;
   }
 
   .public-shell__footer {
@@ -1593,7 +1606,9 @@ h2 {
     min-height: 0;
     height: 100%;
     overflow-y: auto;
-    overflow-x: clip;
+    overflow-x: hidden;
+    overscroll-behavior-y: contain;
+    contain: layout paint;
     padding-inline-end: 0.35rem;
     padding-block-end: 1.5rem;
     scroll-padding-block: var(--sticky-top);
