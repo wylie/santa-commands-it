@@ -116,6 +116,117 @@ test.describe('Santa Commands It homepage', () => {
     });
   });
 
+  test('keeps the rail visible while only the right column scrolls on wide tall desktop viewports', async ({
+    page,
+  }) => {
+    const { headers } = await configureSantaTestPage(page, {
+      randomValue: 0.5,
+      consideringDelayMs: 0,
+    });
+
+    for (let index = 0; index < 12; index += 1) {
+      await createRulingViaApi(
+        page,
+        {
+          ...headers,
+          'x-santa-test-client-id': `homepage-locked-scroll-${index}`,
+        },
+        {
+          name: `Helper ${index}`,
+          request: `A festive desktop scroll test request ${index}`,
+          nowIso: `2026-07-${String(index + 1).padStart(2, '0')}T12:00:00.000Z`,
+        },
+      );
+    }
+
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/');
+
+    const lockedMetricsBefore = await page.evaluate(() => {
+      const portrait = document.querySelector('[data-public-portrait]');
+      const nav = document.querySelector('nav[aria-label="Public navigation"]');
+      const footer = document.querySelector('footer.site-footer');
+      const shell = document.querySelector('#main-content');
+      const main = document.querySelector('[data-public-main]');
+
+      if (!portrait || !nav || !footer || !shell || !main) {
+        return null;
+      }
+
+      const portraitBox = portrait.getBoundingClientRect();
+      const navBox = nav.getBoundingClientRect();
+      const footerBox = footer.getBoundingClientRect();
+      const shellStyle = window.getComputedStyle(shell);
+      const mainStyle = window.getComputedStyle(main);
+
+      return {
+        portraitTop: portraitBox.top,
+        navTop: navBox.top,
+        footerBottom: footerBox.bottom,
+        shellOverflow: shellStyle.overflowY,
+        mainOverflow: mainStyle.overflowY,
+        bodyOverflow: window.getComputedStyle(document.body).overflowY,
+        mainScrollable:
+          main.scrollHeight > main.clientHeight && main.clientHeight > 0,
+        shellHeightMatchesViewport:
+          Math.abs(shell.getBoundingClientRect().height - window.innerHeight) <
+          4,
+      };
+    });
+
+    expect(lockedMetricsBefore).toEqual({
+      portraitTop: lockedMetricsBefore?.portraitTop,
+      navTop: lockedMetricsBefore?.navTop,
+      footerBottom: lockedMetricsBefore?.footerBottom,
+      shellOverflow: 'hidden',
+      mainOverflow: 'auto',
+      bodyOverflow: 'hidden',
+      mainScrollable: true,
+      shellHeightMatchesViewport: true,
+    });
+
+    await page.locator('[data-public-main]').evaluate((element) => {
+      element.scrollTo({ top: element.scrollHeight });
+    });
+
+    await expect(
+      page.locator('[data-recent-list] > li').last().getByRole('link'),
+    ).toBeVisible();
+
+    const lockedMetricsAfter = await page.evaluate(() => {
+      const portrait = document.querySelector('[data-public-portrait]');
+      const nav = document.querySelector('nav[aria-label="Public navigation"]');
+      const footer = document.querySelector('footer.site-footer');
+      const main = document.querySelector('[data-public-main]');
+
+      if (!portrait || !nav || !footer || !main) {
+        return null;
+      }
+
+      const portraitBox = portrait.getBoundingClientRect();
+      const navBox = nav.getBoundingClientRect();
+      const footerBox = footer.getBoundingClientRect();
+
+      return {
+        portraitTop: portraitBox.top,
+        navTop: navBox.top,
+        footerBottomWithinViewport: footerBox.bottom <= window.innerHeight,
+        mainScrollTop: main.scrollTop,
+      };
+    });
+
+    expect(lockedMetricsAfter?.footerBottomWithinViewport).toBe(true);
+    expect(lockedMetricsAfter?.mainScrollTop).toBeGreaterThan(0);
+    expect(lockedMetricsAfter?.portraitTop).toBeCloseTo(
+      lockedMetricsBefore!.portraitTop,
+      1,
+    );
+    expect(lockedMetricsAfter?.navTop).toBeCloseTo(
+      lockedMetricsBefore!.navTop,
+      1,
+    );
+  });
+
   test('persists an approved ruling and shows it after reload', async ({
     page,
   }) => {
@@ -696,5 +807,71 @@ test.describe('Santa Commands It homepage', () => {
     });
 
     expect(hasHorizontalOverflow).toBe(false);
+  });
+
+  test('falls back to normal page scrolling on short desktop viewports', async ({
+    page,
+  }) => {
+    const { headers } = await configureSantaTestPage(page, {
+      randomValue: 0.5,
+      consideringDelayMs: 0,
+    });
+
+    for (let index = 0; index < 10; index += 1) {
+      await createRulingViaApi(
+        page,
+        {
+          ...headers,
+          'x-santa-test-client-id': `homepage-short-scroll-${index}`,
+        },
+        {
+          name: `Helper ${index}`,
+          request: `A short viewport request ${index}`,
+        },
+      );
+    }
+
+    await page.setViewportSize({ width: 1280, height: 600 });
+    await page.goto('/');
+
+    const fallbackMetrics = await page.evaluate(() => {
+      const shell = document.querySelector('#main-content');
+      const main = document.querySelector('[data-public-main]');
+      const portrait = document.querySelector('[data-public-portrait]');
+
+      if (!shell || !main || !portrait) {
+        return null;
+      }
+
+      const shellStyle = window.getComputedStyle(shell);
+      const mainStyle = window.getComputedStyle(main);
+
+      return {
+        shellOverflow: shellStyle.overflowY,
+        mainOverflow: mainStyle.overflowY,
+        bodyScrollable:
+          document.documentElement.scrollHeight > window.innerHeight + 1,
+        portraitTopBefore: portrait.getBoundingClientRect().top,
+      };
+    });
+
+    expect(fallbackMetrics).toEqual({
+      shellOverflow: 'visible',
+      mainOverflow: 'visible',
+      bodyScrollable: true,
+      portraitTopBefore: fallbackMetrics?.portraitTopBefore,
+    });
+
+    await page.evaluate(() => {
+      window.scrollTo({ top: document.body.scrollHeight });
+    });
+
+    const portraitTopAfter = await page.evaluate(() => {
+      const portrait = document.querySelector('[data-public-portrait]');
+      return portrait?.getBoundingClientRect().top ?? 0;
+    });
+
+    expect(portraitTopAfter).toBeLessThan(fallbackMetrics!.portraitTopBefore);
+    await expect(page.locator('footer.site-footer')).toBeVisible();
   });
 });

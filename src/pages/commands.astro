@@ -85,7 +85,7 @@ const isBeyondAvailableResults = total > 0 && !hasResults;
   robots={hasDiscoveryParameters ? 'noindex, follow' : undefined}
 >
   <a class="skip-link" href="#main-content">Skip to content</a>
-  <main id="main-content" class="page-shell">
+  <main id="main-content" class="page-shell" tabindex="-1">
     <PublicShell
       current="browse-requests"
       seasonalMode={seasonalPresentation.mode}

@@ -90,6 +90,27 @@ test.describe('public Commands discovery', () => {
       mainRightOfRail: true,
     });
 
+    const sharedShellCounts = await page.evaluate(() => {
+      return {
+        rail: document.querySelectorAll('[data-public-rail]').length,
+        main: document.querySelectorAll('[data-public-main]').length,
+        footer: document.querySelectorAll('footer.site-footer').length,
+        portrait: document.querySelectorAll('[data-public-portrait]').length,
+        nav: document.querySelectorAll('nav[aria-label="Public navigation"]')
+          .length,
+        mainLandmarks: document.querySelectorAll('main').length,
+      };
+    });
+
+    expect(sharedShellCounts).toEqual({
+      rail: 1,
+      main: 1,
+      footer: 1,
+      portrait: 1,
+      nav: 1,
+      mainLandmarks: 1,
+    });
+
     await expect(
       page.getByRole('heading', { name: 'REQUESTS ANSWERED BY SANTA' }),
     ).toBeVisible();
@@ -221,6 +242,56 @@ test.describe('public Commands discovery', () => {
         name: 'BROWSE REQUESTS',
       }),
     ).toBeVisible();
+  });
+
+  test('uses the ask-santa anchor to scroll the right column in locked desktop mode', async ({
+    page,
+  }) => {
+    const { headers } = await configureSantaTestPage(page);
+    await seedDiscoveryRulings(page, headers);
+
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/commands');
+    await page
+      .getByLabel('Public navigation')
+      .getByRole('link', { name: 'ASK SANTA' })
+      .click();
+
+    await expect(page).toHaveURL('/#ask-santa');
+    await expect(page.locator('#ask-santa')).toBeVisible();
+
+    const anchorMetrics = await page.evaluate(() => {
+      const portrait = document.querySelector('[data-public-portrait]');
+      const nav = document.querySelector('nav[aria-label="Public navigation"]');
+      const footer = document.querySelector('footer.site-footer');
+      const main = document.querySelector('[data-public-main]');
+      const askSanta = document.getElementById('ask-santa');
+
+      if (!portrait || !nav || !footer || !main || !askSanta) {
+        return null;
+      }
+
+      return {
+        portraitTop: portrait.getBoundingClientRect().top,
+        portraitBottom: portrait.getBoundingClientRect().bottom,
+        navTop: nav.getBoundingClientRect().top,
+        navBottom: nav.getBoundingClientRect().bottom,
+        footerBottomWithinViewport:
+          footer.getBoundingClientRect().bottom <= window.innerHeight,
+        bodyOverflow: window.getComputedStyle(document.body).overflowY,
+        askSantaTopInMain:
+          askSanta.getBoundingClientRect().top -
+          main.getBoundingClientRect().top,
+      };
+    });
+
+    expect(anchorMetrics?.footerBottomWithinViewport).toBe(true);
+    expect(anchorMetrics?.bodyOverflow).toBe('hidden');
+    expect(anchorMetrics?.portraitBottom).toBeGreaterThan(0);
+    expect(anchorMetrics?.navBottom).toBeGreaterThan(0);
+    expect(anchorMetrics?.navTop).toBeGreaterThan(anchorMetrics!.portraitTop);
+    expect(anchorMetrics?.askSantaTopInMain).toBeGreaterThanOrEqual(0);
+    expect(anchorMetrics?.askSantaTopInMain).toBeLessThan(220);
   });
 
   test('links from the homepage and keeps hidden rulings out of public discovery', async ({

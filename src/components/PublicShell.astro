@@ -23,3 +23,44 @@ const { current, seasonalMode = 'standard' } = Astro.props;
   </div>
   <SiteFooter className="public-shell__footer" />
 </div>
+
+<script is:inline>
+  const lockedPublicShellQuery = window.matchMedia(
+    '(min-width: 64rem) and (min-height: 50rem)',
+  );
+
+  function scrollPublicHashIntoView() {
+    if (!lockedPublicShellQuery.matches) {
+      return;
+    }
+
+    const hash = window.location.hash;
+    const scrollContainer = document.querySelector('[data-public-main]');
+
+    if (!(scrollContainer instanceof HTMLElement)) {
+      return;
+    }
+
+    if (!hash || hash === '#main-content') {
+      scrollContainer.scrollTo({ top: 0, behavior: 'auto' });
+      return;
+    }
+
+    const targetId = decodeURIComponent(hash.slice(1));
+    const target = document.getElementById(targetId);
+
+    if (!(target instanceof HTMLElement) || !scrollContainer.contains(target)) {
+      return;
+    }
+
+    target.scrollIntoView({ block: 'start', inline: 'nearest' });
+  }
+
+  window.addEventListener('hashchange', () => {
+    window.requestAnimationFrame(scrollPublicHashIntoView);
+  });
+
+  window.addEventListener('load', () => {
+    window.requestAnimationFrame(scrollPublicHashIntoView);
+  });
+</script>
