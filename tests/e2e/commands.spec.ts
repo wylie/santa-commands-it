@@ -265,11 +265,12 @@ test.describe('public Commands discovery', () => {
       const nav = document.querySelector('nav[aria-label="Public navigation"]');
       const footer = document.querySelector('footer.site-footer');
       const main = document.querySelector('[data-public-main]');
+      const mainInner = document.querySelector('[data-public-main-inner]');
       const askSanta = document.getElementById('ask-santa');
       const html = document.documentElement;
       const body = document.body;
 
-      if (!portrait || !nav || !footer || !main || !askSanta) {
+      if (!portrait || !nav || !footer || !main || !mainInner || !askSanta) {
         return null;
       }
 
@@ -285,6 +286,9 @@ test.describe('public Commands discovery', () => {
         htmlScrollable: html.scrollHeight > html.clientHeight + 1,
         bodyScrollable: body.scrollHeight > body.clientHeight + 1,
         windowScrollY: window.scrollY,
+        innerOwnsScroll:
+          window.getComputedStyle(mainInner).overflowY === 'auto' ||
+          window.getComputedStyle(mainInner).overflowY === 'scroll',
         askSantaTopInMain:
           askSanta.getBoundingClientRect().top -
           main.getBoundingClientRect().top,
@@ -297,6 +301,7 @@ test.describe('public Commands discovery', () => {
     expect(anchorMetrics?.htmlScrollable).toBe(false);
     expect(anchorMetrics?.bodyScrollable).toBe(false);
     expect(anchorMetrics?.windowScrollY).toBe(0);
+    expect(anchorMetrics?.innerOwnsScroll).toBe(false);
     expect(anchorMetrics?.portraitBottom).toBeGreaterThan(0);
     expect(anchorMetrics?.navBottom).toBeGreaterThan(0);
     expect(anchorMetrics?.navTop).toBeGreaterThan(anchorMetrics!.portraitTop);

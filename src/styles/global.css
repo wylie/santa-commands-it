@@ -248,6 +248,11 @@ a {
 }
 
 .public-shell__main {
+  min-width: 0;
+  min-height: 0;
+}
+
+.public-shell__main-inner {
   display: grid;
   gap: 1.75rem;
   align-content: start;
@@ -1582,7 +1587,7 @@ h2 {
     height: 100vh;
     height: 100dvh;
     min-height: 0;
-    padding: var(--sticky-top) 0;
+    padding: 0;
     overflow: hidden;
   }
 
@@ -1596,10 +1601,12 @@ h2 {
   .public-shell__rail {
     min-height: 0;
     overflow: hidden;
+    padding-block-start: var(--sticky-top);
   }
 
   .public-shell__footer {
     min-width: 0;
+    padding-block-end: 1.5rem;
   }
 
   .public-shell__main {
@@ -1609,10 +1616,15 @@ h2 {
     overflow-x: hidden;
     overscroll-behavior-y: contain;
     contain: layout paint;
-    padding-inline-end: 0.35rem;
-    padding-block-end: 1.5rem;
+    background: var(--surface-panel-background);
     scroll-padding-block: var(--sticky-top);
     scrollbar-gutter: stable;
+  }
+
+  .public-shell__main-inner {
+    min-height: 100%;
+    padding: var(--sticky-top) clamp(var(--space-lg), 2.6vw, var(--space-2xl))
+      1.5rem;
   }
 }
 

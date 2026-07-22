@@ -148,14 +148,22 @@ test.describe('Santa Commands It homepage', () => {
       const footer = document.querySelector('footer.site-footer');
       const shell = document.querySelector('#main-content');
       const main = document.querySelector('[data-public-main]');
+      const mainInner = document.querySelector('[data-public-main-inner]');
+      const firstPanel = main?.querySelector(
+        '.speech-panel, .request-panel, .seasonal-greeting, .featured-rulings, .recent-rulings',
+      );
+      const lastSection = mainInner?.lastElementChild;
 
-      if (!portrait || !nav || !footer || !shell || !main) {
+      if (!portrait || !nav || !footer || !shell || !main || !mainInner) {
         return null;
       }
 
       const portraitBox = portrait.getBoundingClientRect();
       const navBox = nav.getBoundingClientRect();
       const footerBox = footer.getBoundingClientRect();
+      const shellBox = shell.getBoundingClientRect();
+      const mainBox = main.getBoundingClientRect();
+      const mainInnerBox = mainInner.getBoundingClientRect();
       const shellStyle = window.getComputedStyle(shell);
       const mainStyle = window.getComputedStyle(main);
       const html = document.documentElement;
@@ -171,6 +179,17 @@ test.describe('Santa Commands It homepage', () => {
         bodyOverflow: window.getComputedStyle(document.body).overflowY,
         htmlScrollable: html.scrollHeight > html.clientHeight + 1,
         bodyScrollable: body.scrollHeight > body.clientHeight + 1,
+        mainTopAligned: Math.abs(mainBox.top - shellBox.top) < 2,
+        mainBottomAligned: Math.abs(mainBox.bottom - shellBox.bottom) < 2,
+        mainHeightMatchesShell: Math.abs(mainBox.height - shellBox.height) < 2,
+        innerTopPaddingVisible:
+          firstPanel instanceof HTMLElement
+            ? firstPanel.getBoundingClientRect().top > mainInnerBox.top
+            : false,
+        innerBottomPaddingVisible:
+          lastSection instanceof HTMLElement
+            ? lastSection.getBoundingClientRect().bottom < mainInnerBox.bottom
+            : false,
         mainScrollable:
           main.scrollHeight > main.clientHeight && main.clientHeight > 0,
         shellHeightMatchesViewport:
@@ -189,6 +208,11 @@ test.describe('Santa Commands It homepage', () => {
       bodyOverflow: 'hidden',
       htmlScrollable: false,
       bodyScrollable: false,
+      mainTopAligned: true,
+      mainBottomAligned: true,
+      mainHeightMatchesShell: true,
+      innerTopPaddingVisible: true,
+      innerBottomPaddingVisible: true,
       mainScrollable: true,
       shellHeightMatchesViewport: true,
     });

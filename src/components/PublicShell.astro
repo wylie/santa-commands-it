@@ -19,7 +19,9 @@ const { current, seasonalMode = 'standard' } = Astro.props;
     <PublicNav current={current} />
   </div>
   <div class="public-shell__main" data-public-main>
-    <slot />
+    <div class="public-shell__main-inner" data-public-main-inner>
+      <slot />
+    </div>
   </div>
   <SiteFooter className="public-shell__footer" />
 </div>
